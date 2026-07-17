@@ -1,0 +1,430 @@
+[
+  {
+    "name": "系统管理",
+    "type": 0,
+    "icon": "ri-settings-fill",
+    "orderNum": 97,
+    "keepAlive": true,
+    "isShow": true,
+    "childMenus": [
+      {
+        "name": "权限管理",
+        "type": 0,
+        "orderNum": 0,
+        "keepAlive": true,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "菜单列表",
+            "router": "/sys/menu",
+            "perms": "base:menu:list",
+            "type": 1,
+            "icon": "menu",
+            "orderNum": 0,
+            "viewPath": "modules/base/views/menu",
+            "keepAlive": false,
+            "isShow": true,
+            "childMenus": [
+              {
+                "name": "新增",
+                "perms": "base:menu:add",
+                "type": 2,
+                "orderNum": 1,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "删除",
+                "perms": "base:menu:delete",
+                "type": 2,
+                "orderNum": 2,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "修改",
+                "perms": "base:menu:update",
+                "type": 2,
+                "orderNum": 3,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "单个信息",
+                "perms": "base:menu:info",
+                "type": 2,
+                "orderNum": 4,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "列表查询",
+                "perms": "base:menu:list",
+                "type": 2,
+                "orderNum": 5,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "分页查询",
+                "perms": "base:menu:page",
+                "type": 2,
+                "orderNum": 6,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "树形",
+                "perms": "base:menu:tree",
+                "type": 2,
+                "orderNum": 7,
+                "keepAlive": true,
+                "isShow": false
+              }
+            ]
+          },
+          {
+            "name": "角色列表",
+            "router": "/sys/role",
+            "perms": "base:role:list",
+            "type": 1,
+            "icon": "team",
+            "orderNum": 1,
+            "viewPath": "modules/base/views/role",
+            "keepAlive": false,
+            "isShow": true,
+            "childMenus": [
+              {
+                "name": "角色菜单",
+                "perms": "base:role:menus",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "设置菜单",
+                "perms": "base:role:setMenus",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "新增",
+                "perms": "base:role:add",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "删除",
+                "perms": "base:role:delete",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "修改",
+                "perms": "base:role:update",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "单个信息",
+                "perms": "base:role:info",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "列表查询",
+                "perms": "base:role:list",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "分页查询",
+                "perms": "base:role:page",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "恢复",
+                "perms": "base:role:restore",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              },
+              {
+                "name": "彻底删除",
+                "perms": "base:role:forceDelete",
+                "type": 2,
+                "orderNum": 0,
+                "keepAlive": true,
+                "isShow": true
+              }
+            ]
+          },
+          {
+            "name": "用户列表",
+            "router": "/sys/user",
+            "perms": "base:user:list",
+            "type": 1,
+            "icon": "user",
+            "orderNum": 2,
+            "viewPath": "modules/base/views/user",
+            "keepAlive": true,
+            "isShow": true,
+            "childMenus": [
+              {
+                "name": "新增",
+                "perms": "base:user:add",
+                "type": 2,
+                "orderNum": 1,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "删除",
+                "perms": "base:user:delete",
+                "type": 2,
+                "orderNum": 2,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "修改",
+                "perms": "base:user:update",
+                "type": 2,
+                "orderNum": 3,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "单个信息",
+                "perms": "base:user:info",
+                "type": 2,
+                "orderNum": 4,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "列表查询",
+                "perms": "base:user:list",
+                "type": 2,
+                "orderNum": 5,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "分页查询",
+                "perms": "base:user:page",
+                "type": 2,
+                "orderNum": 6,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "用户角色",
+                "perms": "base:user:roles",
+                "type": 2,
+                "orderNum": 7,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "设置角色",
+                "perms": "base:user:setRoles",
+                "type": 2,
+                "orderNum": 8,
+                "keepAlive": true,
+                "isShow": false
+              },
+              {
+                "name": "转让超管",
+                "perms": "base:user:transferSuper",
+                "type": 2,
+                "orderNum": 9,
+                "keepAlive": true,
+                "isShow": false
+              }
+            ]
+          },
+          {
+            "name": "租户管理",
+            "router": "/base/tenant",
+            "type": 1,
+            "orderNum": 3,
+            "viewPath": "modules/base/views/tenant",
+            "keepAlive": false,
+            "isShow": true
+          }
+        ]
+      },
+      {
+        "name": "定时任务",
+        "router": "/base/task",
+        "type": 1,
+        "orderNum": 1,
+        "viewPath": "modules/base/views/task",
+        "keepAlive": false,
+        "isShow": true
+      },
+      {
+        "name": "任务队列",
+        "router": "/base/queue",
+        "type": 1,
+        "orderNum": 2,
+        "viewPath": "modules/base/views/queue",
+        "keepAlive": true,
+        "isShow": true
+      },
+      {
+        "name": "请求日志",
+        "router": "/base/log",
+        "type": 1,
+        "orderNum": 3,
+        "viewPath": "modules/base/views/log",
+        "keepAlive": true,
+        "isShow": true
+      }
+    ]
+  },
+  {
+    "name": "用户管理",
+    "type": 0,
+    "icon": "ri-user-settings-fill",
+    "orderNum": 97,
+    "keepAlive": true,
+    "isShow": true,
+    "childMenus": [
+      {
+        "name": "角色列表",
+        "router": "/user/role",
+        "perms": "user:role:list",
+        "type": 1,
+        "orderNum": 1,
+        "viewPath": "modules/user/views/role",
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "user:role:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "user:role:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "user:role:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "user:role:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "user:role:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "user:role:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
+      },
+      {
+        "name": "用户列表",
+        "router": "/user/info",
+        "perms": "user:info:list",
+        "type": 1,
+        "orderNum": 2,
+        "viewPath": "modules/user/views/info",
+        "keepAlive": true,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "用户列表",
+            "perms": "user:info:list",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "用户角色",
+            "perms": "user:info:roles",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "设置角色",
+            "perms": "user:info:setRoles",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "字典管理",
+    "router": "/base/dict",
+    "type": 1,
+    "icon": "ri-contacts-book-2-fill",
+    "orderNum": 98,
+    "viewPath": "modules/base/views/dict",
+    "keepAlive": false,
+    "isShow": true
+  },
+  {
+    "name": "扩展插件",
+    "router": "/helper/plugins",
+    "type": 1,
+    "icon": "ri-apps-2-fill",
+    "orderNum": 99,
+    "viewPath": "modules/helper/views/plugins",
+    "keepAlive": false,
+    "isShow": true
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "store": {
+    "prefix": "store",
+    "body": [
+      "export const use${1:Xxx}Store = defineStore('${2:xxx}', {",
+      "  state: () => ({",
+      "    ${3}",
+      "  }),",
+      "  getters: {",
+      "    ${4}",
+      "  },",
+      "  actions: {",
+      "    ${5}",
+      "  },",
+      "})",
+      ""
+    ],
+    "description": "vome-admin Pinia Store（对齐 theme.ts / Options API；pinia/service 自动引入）"
+  }
+}

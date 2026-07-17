@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Create Module",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -euo pipefail\nM='${input:moduleName}'\nROOT='${workspaceFolder}'\nSVC=\"$ROOT/service/src/modules/$M\"\nADM=\"$ROOT/admin/src/modules/$M/views\"\nmkdir -p \"$SVC/controller/admin\" \"$SVC/controller/app\" \"$SVC/service\" \"$SVC/entity\" \"$ADM\"\nprintf '%s\\n' '{}' > \"$SVC/db.json\"\nprintf '%s\\n' '[]' > \"$SVC/menu.json\"\necho \"模块已创建: $M\"\necho \"  service: $SVC/{controller/{admin,app},service,entity,db.json,menu.json}\"\necho \"  admin:   $ADM\"\necho \"说明: db.json 表名用 {module}_*；menu.json 仅当存在 {module}_menu 表时才会种子导入，后台菜单通常写在 base/menu.json\""
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Create Component",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "set -euo pipefail\nM='${input:moduleName}'\nC='${input:componentName}'\nROOT='${workspaceFolder}'\nSVC=\"$ROOT/service/src/modules/$M\"\nADM=\"$ROOT/admin/src/modules/$M/views/$C\"\nif [[ ! -d \"$SVC\" ]]; then echo \"模块不存在: $M（请先运行 Create Module）\" >&2; exit 1; fi\nmkdir -p \"$SVC/entity\" \"$SVC/service\" \"$SVC/controller/admin\" \"$ADM\"\ntouch \"$SVC/entity/$C.ts\" \"$SVC/service/$C.ts\" \"$SVC/controller/admin/$C.ts\" \"$ADM/index.vue\"\necho \"组件已创建: $M / $C\"\necho \"  $SVC/entity/$C.ts\"\necho \"  $SVC/service/$C.ts\"\necho \"  $SVC/controller/admin/$C.ts\"\necho \"  $ADM/index.vue\"\necho \"可用 snippet: entity / controller / vm-crud 填充内容\""
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "moduleName",
+      "description": "模块名（目录名，如 shop；表前缀 {module}_*）"
+    },
+    {
+      "type": "promptString",
+      "id": "componentName",
+      "description": "组件名（如 goods → entity/service/controller/admin + admin views）"
+    }
+  ]
+}

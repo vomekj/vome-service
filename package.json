@@ -1,0 +1,40 @@
+{
+  "name": "service",
+  "version": "1.0.50",
+  "type": "module",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=dev bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir ./dist --external drizzle-kit",
+    "build:obfuscate": "bun build src/index.ts --target bun --outdir ./dist --minify --external drizzle-kit && bun scripts/obfuscate.ts",
+    "binary": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile ./dist/service --external drizzle-kit",
+    "binary:obfuscate": "bun run build:obfuscate && bun build ./dist/index.js --compile --target=bun-linux-x64 --outfile ./dist/service"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.23",
+    "@socket.io/bun-engine": "^0.1.1",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "adm-zip": "^0.6.0",
+    "better-auth": "^1.6.23",
+    "bullmq": "^5.80.3",
+    "croner": "^10.0.1",
+    "drizzle-orm": "^0.45.2",
+    "drizzle-zod": "^0.8.3",
+    "elysia": "latest",
+    "ioredis": "^5.11.1",
+    "mysql2": "^3.22.5",
+    "reflect-metadata": "^0.2.2",
+    "socket.io": "^4.8.3",
+    "svg-captcha": "^1.4.0",
+    "vome-core": "0.0.31",
+    "zod": "4"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/ioredis": "^5.0.0",
+    "bun-types": "latest",
+    "cross-env": "latest",
+    "drizzle-kit": "^0.31.10",
+    "javascript-obfuscator": "^5.4.7"
+  },
+  "module": "src/index.js"
+}

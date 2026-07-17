@@ -1,0 +1,27 @@
+/**
+ * 自动生成，请勿手动编辑
+ * 每次服务启动时重新生成
+ */
+
+export * from '../../../modules/base/entity/conf'
+export * from '../../../modules/base/entity/department'
+export * from '../../../modules/base/entity/dict-info'
+export * from '../../../modules/base/entity/dict-type'
+export * from '../../../modules/base/entity/log'
+export * from '../../../modules/base/entity/menu'
+export * from '../../../modules/base/entity/plugin-info'
+export * from '../../../modules/base/entity/role-department'
+export * from '../../../modules/base/entity/role-menu'
+export * from '../../../modules/base/entity/role'
+export * from '../../../modules/base/entity/task-log'
+export * from '../../../modules/base/entity/task'
+export * from '../../../modules/base/entity/tenant'
+export * from '../../../modules/base/entity/user-role'
+export * from '../../../modules/base/entity/user'
+export * from '../../../modules/user/entity/account'
+export * from '../../../modules/user/entity/info-role'
+export * from '../../../modules/user/entity/info'
+export * from '../../../modules/user/entity/jwks'
+export * from '../../../modules/user/entity/role'
+export * from '../../../modules/user/entity/verification'
+export * from '../../../modules/user/entity/wx'
