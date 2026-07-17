@@ -1,0 +1,13 @@
+{
+  "base_user": [
+    {
+      "username": "admin",
+      "password": "$argon2id$v=19$m=65536,t=2,p=1$n18H6Ftc3NQWK0N8L3PxANk4Eg8/QaIBncIu1i1DvcY$vVLgQ1/mtoYDWEZ2mdyVrnOEQ8QImyZajwUE+fqsuGc",
+      "passwordV": 1,
+      "name": "超级管理员",
+      "nickName": "超管",
+      "status": 1,
+      "isSuper": true
+    }
+  ]
+}

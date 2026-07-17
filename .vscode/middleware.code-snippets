@@ -1,0 +1,25 @@
+{
+  "middleware": {
+    "prefix": "middleware",
+    "body": [
+      "import { Context, Ioc, defineMacro } from '/#/server'",
+      "",
+      "/**",
+      " * ${1:描述}",
+      " */",
+      "export const ${2:xxx} = defineMacro('${2:xxx}', async ({ status, request }) => {",
+      "  // const session = await Ioc.get(XxxService).resolve(request.headers)",
+      "  // if (!session) return status(401, { code: 1001, message: 'unorized' })",
+      "",
+      "  Context({",
+      "    // adminId / userId / perms / tenantId ...",
+      "  })",
+      "  return {",
+      "    // 注入路由可用字段",
+      "  }",
+      "})",
+      ""
+    ],
+    "description": "vome-admin 中间件（defineMacro，对齐 admin.ts）"
+  }
+}
