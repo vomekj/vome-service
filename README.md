@@ -6,7 +6,7 @@
 
 基于 **Bun + Elysia** 的高性能业务后端脚手架。核心能力由 npm 包 [`vome-core`](https://www.npmjs.com/package/vome-core) 提供，业务代码按模块落在 `src/modules/`，开箱即用后台（Admin）与用户端（App）双端 API。
 
-> 微茫科技开源项目。适合快速搭建管理后台 + C 端应用的服务端。
+> 威迈科技开源项目。适合快速搭建管理后台 + C 端应用的服务端。
 
 ## 特性
 
@@ -193,7 +193,7 @@ Issue 与 PR 欢迎中英文。
 
 ## 许可证
 
-[MIT](./LICENSE) © VomeShop / 微茫科技
+[MIT](./LICENSE) © VomeShop / 威迈科技
 
 ---
 

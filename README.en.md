@@ -4,7 +4,7 @@
 
 A high-performance backend scaffold built on **Bun + Elysia**. Core capabilities ship via the npm package [`vome-core`](https://www.npmjs.com/package/vome-core); business code lives under `src/modules/`, with ready-to-use **Admin** and **App** APIs.
 
-> Open-sourced by Vome / 微茫科技. Designed for rapid delivery of admin backends and consumer-facing APIs.
+> Open-sourced by Vome / 威迈科技. Designed for rapid delivery of admin backends and consumer-facing APIs.
 
 ## Features
 
@@ -188,7 +188,7 @@ Issues and PRs in Chinese or English are welcome.
 
 ## License
 
-[MIT](./LICENSE) © VomeShop / 微茫科技
+[MIT](./LICENSE) © VomeShop / 威迈科技
 
 ---
 

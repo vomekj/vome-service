@@ -18,7 +18,6 @@
     "types": ["bun-types"],
     "paths": {
       "@/*": ["./src/*"],
-      // /# → vome-core（/# 根；/#/server 走通配；typings 在包内 typings/admin）
       "/#": ["./node_modules/vome-core/dist/index.js"],
       "/#/typings/*": ["./node_modules/vome-core/typings/admin/*"],
       "/#/*": ["./node_modules/vome-core/dist/*"],
