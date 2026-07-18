@@ -9,5 +9,93 @@
       "status": 1,
       "isSuper": true
     }
+  ],
+  "base_dict_type": [
+    {
+      "name": "节点类型",
+      "key": "base_menu_type",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "菜单（集）",
+            "value": 0,
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "页面",
+            "value": 1,
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "权限",
+            "value": 2,
+            "orderNum": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "启用状态",
+      "key": "status",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "禁用",
+            "value": 0,
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "启用",
+            "value": 1,
+            "orderNum": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "数据范围",
+      "key": "base_data_scope",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "全部数据",
+            "value": 0,
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "自定义部门",
+            "value": 1,
+            "orderNum": 1
+          }
+        ]
+      }
+    },
+    {
+      "name": "是否",
+      "key": "yes_no",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "否",
+            "value": false,
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "是",
+            "value": true,
+            "orderNum": 1
+          }
+        ]
+      }
+    }
   ]
 }
