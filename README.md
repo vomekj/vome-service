@@ -42,7 +42,7 @@
 ## 快速开始
 
 ```bash
-git clone https://gitee.com/vomekj/vome-service.git
+git clone https://github.com/vomekj/vome-service.git
 cd vome-service
 bun install
 ```

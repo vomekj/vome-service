@@ -40,7 +40,7 @@ A high-performance backend scaffold built on **Bun + Elysia**. Core capabilities
 ## Quick start
 
 ```bash
-git clone https://gitee.com/vomekj/vome-service.git
+git clone https://github.com/vomekj/vome-service.git
 # or your GitHub mirror
 cd vome-service
 bun install
