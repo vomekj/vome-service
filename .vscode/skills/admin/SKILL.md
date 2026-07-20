@@ -1,48 +1,56 @@
 ---
 name: admin-usage
 description: >-
-  本仓库 admin 后台业务开发完整用法：CRUD 组件、筛选、主题、字典、别名、防连点、注意点。
-  Use when editing admin/ Vue pages, CRUD views, styles, or admin UI in this repo.
+  Admin 业务开发：vome-core/admin CRUD 组件与 hooks、筛选、字典、主题、权限、防连点。
+  Use when editing admin/ Vue pages, CRUD views, or admin UI.
 ---
 
 # Admin 用法（业务开发）
 
-> **范围**：本仓库 `admin/` 后台业务页与壳层定制。
+> **范围**：`admin/` 后台业务页。CRUD / 布局组件来自 npm **`vome-core/admin`**（别名 `/@`）。
 
-## 能做什么
+## IDE
 
-| 能力 | 说明 |
-|------|------|
-| 声明式 CRUD 页 | `vm-crud` + `useCrud` / `useTable` / `useUpsert` / `useSearch` |
-| 自动筛选 | `<vm-search />` 按后端 `pageQueryOp` / EPS 生成；工具栏「搜索/重置」 |
-| 权限菜单 | 动态菜单；无权限入口不出现；按钮级权限 |
-| 字典 | `useDict()` / 管理页；筛选项 `dict: 'status'` |
-| 微应用 | 菜单 `appKey` → wujie → `/vome/apps/{key}/` |
-| 主题 | 蓝系锁定；只改 `theme.css` / 业务 SCSS，不改 core 结构样式 |
+与 Service 相同：把含 `vm-crud` 等 snippet 的 `.vscode` **移到项目根**；Skills 建议 `.cursor/skills/` + 根 `AGENTS.md`。见文档 `/service/structure#ide-vscode`。
+
+## Core（admin 侧）能力一览
+
+| 能力 | API / 组件 | 说明 |
+|------|------------|------|
+| CRUD 壳 | `vm-crud` + `useCrud` | 绑定 EPS `service.xxx`，统一刷新/选中 |
+| 表 | `vm-table` + `useTable` | 列、插槽 `#cell-字段` |
+| 表单弹窗 | `vm-upsert` + `useUpsert` | 新增/编辑；字段默认 `span: 12` |
+| 筛选 | `vm-search` + `useSearch` | 按后端 `pageQueryOp` / EPS 自动生成 |
+| 工具栏 | `vm-toolbar` / `vm-refresh-btn` | 新增删除、搜索重置、列表/回收站 |
+| 分页 | `vm-pagination` | 与 crud 联动 |
+| 字典 | `useDict` / `useDictStore` | 与后端 `dict: 'key'` 对应 |
+| 权限 | `v-perm` / 菜单 | 按钮级；无权限入口不出现 |
+| 上传 | `vm-upload` / `useUpload` | 公开前缀 `app/public/**`；插件 `app/plugin/**` |
+| EPS / 请求 | `useVome()` → `service` | `createEps` 启动时拉取 |
+| 确认框 | `vmConfirm` | 禁止自绘 confirm |
+| 布局件 | `vm-aside` / `vm-dept-tree` / `vm-split-layout`… | 自动引入 `vm-*` |
 
 ## 命令
 
 ```bash
 cd admin
 bun install
-bun run dev       # 需先启动 service；端口见项目配置（常见 9000）
-bun run build
+bun run dev       # 需先启动 service；常见端口 9000
 ```
 
-代理：`admin/src/config/proxy.ts`（`/dev/`、`/prod/`、`/vome/` → service）。
+代理：`src/config/proxy.ts`（`/dev/`、`/prod/`、`/vome/` → service）。
 
 ## 路径别名
 
 | 别名 | 指向 |
 |------|------|
 | `@/` | `admin/src/` |
-| `/@` | `vome-core` **admin** 侧（CRUD、stores、组件） |
-| `@config` | `admin/src/config` |
-| `@typings` | `admin/typings` |
+| `/@` | `vome-core` **admin**（CRUD、stores、组件） |
+| `@config` / `@typings` | 宿主 config / typings |
 
-业务页优先用 **自动引入** 的 `vm-*`，勿手写重复 import。
+业务页优先 **自动引入** 的 `vm-*`，少手写 import。
 
-## 业务页放哪
+## 业务页位置
 
 ```
 admin/src/modules/<module>/views/...
@@ -50,9 +58,7 @@ admin/src/modules/<module>/views/...
 
 与 service 模块名、菜单 `viewPath` 一致。
 
-## 可以用什么
-
-### 标准 CRUD 页结构
+## 标准 CRUD 页
 
 ```vue
 <template>
@@ -76,62 +82,79 @@ admin/src/modules/<module>/views/...
 </template>
 
 <script setup lang="ts">
-defineOptions({ name: 'xxx-page' })
+defineOptions({ name: 'shop-goods' })
 
 const { service } = useVome()
 const { dict } = useDict()
 
-useUpsert({ items: [ /* 表单字段 */ ] })
-useTable({ columns: [ /* 列 */ ] })
+useUpsert({
+  items: [
+    { prop: 'name', label: '名称', required: true, span: 12 },
+    { prop: 'status', label: '状态', component: { name: 'vm-select', options: dict('status') } },
+  ],
+})
+useTable({
+  columns: [
+    { prop: 'name', label: '名称' },
+    { prop: 'status', label: '状态' },
+  ],
+})
 
-const Crud = useCrud({ service: service.base.xxx })
+const Crud = useCrud({ service: service.shop.goods })
 </script>
 ```
 
-| 组件 / API | 怎么用 |
-|------------|--------|
-| `vm-search` | **必须挂**，才有自动筛选 + 工具栏搜索/重置 |
-| `vm-toolbar` | 默认新增/删除 + 搜索重置 + 列表/回收站；`:trash="false"` 关回收站；`:show-add="false"` 等屏蔽按钮 |
-| `vm-search-key` | 一般不需要（有 `keyWordLikeFields` 时自动出关键字） |
-| `useCrud` | 绑定 `service.xxx`；可 `onRefresh` 自定义拉数 |
-| `useTable` | `columns`；插槽 `#cell-字段` |
-| `useUpsert` | 弹窗表单项 |
-| `useSearch` | 可选手写筛选项（与自动项按 prop 合并） |
-| `vm-aside` / `vm-dept-tree` | 左右分栏；靠自动引入 |
-| `useDict` | 字典树/取值；与后端 `dict` 键对应 |
+### Hooks / 组件怎么用
+
+| API | 用法 |
+|-----|------|
+| `useVome()` | `{ service, … }`；调 `service.module.resource.page(data)` |
+| `useCrud({ service })` | 绑定 CRUD；可 `onRefresh` 自定义拉数 |
+| `useTable({ columns })` | 列定义；`#cell-xxx` 自定义单元格 |
+| `useUpsert({ items })` | 弹窗字段；`span`、`component`、`required` |
+| `useSearch({ items? })` | 可选手写筛选项，与自动项按 prop 合并 |
+| `vm-search` | **标准页必须挂**；缺了则无自动筛选与工具栏搜索/重置 |
+| `vm-toolbar` | 默认新增/删除 + 搜索重置 + 列表/回收站；`:trash="false"`；`:show-add="false"` 等 |
+| `vmConfirm` | 删除/危险操作确认 |
+
+### 弹窗三态
+
+| 类型 | 用法 |
+|------|------|
+| 表单 | `vm-upsert` + `useUpsert` |
+| 只读大内容 | `vm-upsert`：`:confirm="false"`；`layout="fill"` + `:height="800"`；槽位自定义底栏 |
+| 确认/警告 | `vmConfirm` |
 
 ### 工具栏变体
 
-- 自定义左侧按钮：放在 `vm-toolbar` 默认槽；需要时 `:show-add="false"` / `:show-delete="false"`
-- 无回收站列表（如日志）：`:trash="false"`
+- 自定义左侧按钮：放 `vm-toolbar` 默认槽；必要时关掉默认 add/delete
+- 无回收站（如日志）：`:trash="false"`
 
-### UI / 样式（蓝系已锁定）
+## 样式分层（业务可改范围）
 
-| 层 | 路径 | 业务可否改 |
-|----|------|------------|
+| 层 | 路径 | 业务 |
+|----|------|------|
 | 主题色 | `src/styles/theme.css` | ✅ 换色 |
-| 结构 | `@vome-core/admin/styles/base.css` | ❌ 禁止为换肤改 |
-| 主题 API | `src/themes/*`、`stores/theme.ts` | ✅ |
+| 结构 | `@vome-core/admin/styles/base.css` | ❌ 不为换肤改 |
+| 主题切换 | `src/themes/*`、`stores/theme.ts` | ✅ |
 | 业务页 | `style lang="scss" scoped` | ✅ |
 
 - 主色 `#4E5DFF`；`main.ts`：先 `theme.css` 再 `base.css`
-- 业务布局用 SCSS + CSS 变量；**不要**用 Tailwind 铺满（`components/ui/**` shadcn 除外）
-- 组件顺序：`template` → `script setup` → `style lang="scss" scoped`
-- Dialog：Teleport + `vm-dialog-float` 约定
+- 布局用 SCSS + CSS 变量；不要用 Tailwind 铺满业务页（`components/ui/**` 除外）
+- 顺序：`template` → `script setup` → `style lang="scss" scoped`
 
-### 字典
+## 字典 / 权限 / 上传 / 微应用
 
-- 管理：`modules/base/views/dict`
-- 代码：`useDict()` / `useDictStore`
-- 后端 `fieldEq: [{ column: 'status', dict: 'status' }]` → 前端自动下拉
+| 场景 | 用法 |
+|------|------|
+| 字典管理 | `modules/base/views/dict` |
+| 筛选项字典 | 后端 `fieldEq: [{ column: 'status', dict: 'status' }]` → 前端自动下拉 |
+| 按钮权限 | `v-perm="'shop:goods:add'"` 等 |
+| 上传公开 | `vm-upload` 默认 `app/public/**` |
+| 上传插件包 | 显式 `prefixPath: 'app/plugin'` |
+| 微应用 | 菜单 `appKey` → wujie → `/vome/apps/{key}/` |
 
-### 微应用
-
-菜单配 `appKey`（= 已安装模块 `key`）→ 宿主 wujie 加载 `/vome/apps/{appKey}/`。业务一般只配菜单。
-
-### 请求按钮防连点（强制）
-
-凡点按钮会打 `service` / HTTP：必须 `submitting`/`loading` + `:disabled`，`finally` 释放。不要只靠 debounce。
+## 请求按钮防连点（强制）
 
 ```ts
 const submitting = ref(false)
@@ -146,12 +169,13 @@ async function onSubmit() {
 }
 ```
 
-## 需要注意什么
+## 注意
 
-1. **缺 `vm-search` 或 `:search="false"`** → 没有重置、也没有自动筛选（不要只留 `vm-search-key` 当标准页）。
-2. **筛选字段以后端 `pageQueryOp` 为准**；前端 `none: true` 的字段不会出现。
-3. **不要改 core `base.css` 换肤**；颜色只动 `theme.css`。
-4. **不要另起灰白/紫系皮肤**。
-5. **service 未启动 / 代理错** → EPS、登录、CRUD 全挂。
-6. **改 vome-core admin 后**需 core `bun run build`，admin 才能吃到新组件。
-7. 提交类按钮一律防连点。
+1. 缺 `vm-search` 或 `:search="false"` → 没有重置与自动筛选。
+2. 筛选项以后端 `pageQueryOp` 为准；`none: true` 不出控件。
+3. 不要改 core `base.css` 换肤；颜色只动 `theme.css`。
+4. service 未启动 / 代理错 → EPS、登录、CRUD 全挂。
+5. 升级 `vome-core` 后 `bun install`；按组件文档调整用法。
+6. 提交类按钮一律防连点。
+
+在线细文档：`/admin/crud/`、`/admin/hooks/`、`/admin/components/`。
