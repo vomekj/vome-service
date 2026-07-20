@@ -17,9 +17,6 @@ export type LogType = Exclude<LogScope, 'all'>
 
 export const LOG_SCOPE_KEY = 'logScope'
 
-/** 旧版范围：已并入 error，normalize 时丢弃并补上 error */
-const LEGACY_SCOPES = new Set(['unauthorized', 'forbidden'])
-
 /** 默认：其它(业务自定义) + 查询 + 更新 + 删除 + 异常（不含开放接口） */
 export const DEFAULT_LOG_SCOPES: LogScope[] = [
   'other',
@@ -74,19 +71,13 @@ const ALL_SCOPES = new Set<LogScope>(LOG_SCOPE_OPTIONS.map((o) => o.value))
 
 export function normalizeLogScopes(raw: unknown): LogScope[] {
   if (!Array.isArray(raw)) return [...DEFAULT_LOG_SCOPES]
-  let hadLegacy = false
   const list: LogScope[] = []
   for (const item of raw) {
     const v = String(item)
-    if (LEGACY_SCOPES.has(v)) {
-      hadLegacy = true
-      continue
-    }
     if (ALL_SCOPES.has(v as LogScope)) list.push(v as LogScope)
   }
   if (!list.length) return [...DEFAULT_LOG_SCOPES]
   if (list.includes('all')) return ['all']
-  if (hadLegacy && !list.includes('error')) list.push('error')
   return [...new Set(list)]
 }
 

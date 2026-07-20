@@ -34,8 +34,6 @@ bun run build:obfuscate     # 混淆（部署）
 bun run binary:obfuscate    # 混淆后再编 Linux 二进制
 ```
 
-改了 `packages/vome-core` 后须：`cd packages/vome-core && bun run build`，service 才能用到新 API。
-
 ## 配置与类型
 
 | 项 | 约定 |
@@ -126,7 +124,7 @@ export class MyService {
 | `fieldLike` | 模糊 |
 | `fieldArray` | 数组包含（PG：`integer[]`/`jsonb`；MySQL·SQLite：`json`） |
 | `fieldRange` | 时间/数字区间（`min`/`max`/`type`） |
-| `join` / `select` / `where` / `extend` | 联表（显式 `alias` + `condition`，主表=`a`）与自定义条件 |
+| `join` / `select` / `where` / `extend` | 联表必填 `entity`/`alias`/`type`/`condition`；`select: ['a.*','b.x']`；短名冲突用 `as` |
 
 联表示例：
 
@@ -135,8 +133,9 @@ join: [
   { entity: skin, alias: 'b', type: 'leftJoin', condition: 'a.skinId = b.id' },
   { entity: skin, alias: 'c', type: 'leftJoin', condition: 'a.randomSkinId = c.id' },
 ],
+select: ['a.*', 'b.skinName', 'c.price as randomPrice'],
 keyWordLikeFields: ['a.name', 'b.skinName'],
-fieldEq: [{ column: 'c.type', dict: 'skin_type' }],
+fieldEq: [{ column: 'c.type', dict: 'skin_type' }, { column: 'b.id as skinId' }],
 ```
 
 | `addOrderBy` | 默认排序 |

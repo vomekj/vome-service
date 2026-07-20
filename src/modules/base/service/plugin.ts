@@ -522,5 +522,3 @@ export class PluginInfoService extends BaseService {
   }
 }
 
-/** PluginService 别名 */
-export { PluginInfoService as PluginService }
