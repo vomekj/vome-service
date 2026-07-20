@@ -11,6 +11,11 @@ export class CacheStore {
     return this.client.get(key)
   }
 
+  /** 原子读取并删除（一次性凭证核销） */
+  async getdel(key: string): Promise<string | null> {
+    return this.client.getdel(key)
+  }
+
   async set(key: string, value: string, ttlMs?: number): Promise<void> {
     if (ttlMs != null && ttlMs > 0) {
       await this.client.set(key, value, 'PX', ttlMs)

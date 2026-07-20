@@ -124,7 +124,7 @@ export class MyService {
 | `keyWordLikeFields` | 关键字（前端自动出 keyWord） |
 | `fieldEq` | 精确；`{ column, dict }` 下拉；`{ column, none: true }` 后端可筛、前端不出控件 |
 | `fieldLike` | 模糊 |
-| `fieldArray` | 数组包含 |
+| `fieldArray` | 数组包含（PG：`integer[]`/`jsonb`；MySQL·SQLite：`json`） |
 | `fieldRange` | 时间/数字区间（`min`/`max`/`type`） |
 | `join` / `select` / `where` / `extend` | 联表与自定义条件 |
 | `addOrderBy` | 默认排序 |
