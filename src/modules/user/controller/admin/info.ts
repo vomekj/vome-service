@@ -21,6 +21,7 @@ import { UserInfoService } from '../../service/rbac'
     fieldEq: [
       { column: 'status', dict: 'status' },
       { column: 'emailVerified', dict: 'yes_no' },
+      { column: 'phoneVerified', dict: 'yes_no' },
       'tenantId',
     ],
     fieldLike: ['unionid'],
@@ -35,6 +36,7 @@ import { UserInfoService } from '../../service/rbac'
     fieldEq: [
       { column: 'status', dict: 'status' },
       { column: 'emailVerified', dict: 'yes_no' },
+      { column: 'phoneVerified', dict: 'yes_no' },
       'tenantId',
     ],
     fieldLike: ['unionid'],

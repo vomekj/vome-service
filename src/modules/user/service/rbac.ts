@@ -83,6 +83,7 @@ export class UserInfoService extends BaseService {
       name,
       email,
       emailVerified: Boolean(data.emailVerified ?? false),
+      phoneVerified: Boolean(data.phoneVerified ?? false),
       image: data.image ? String(data.image) : null,
       tenantId:
         data.tenantId == null || data.tenantId === ''
@@ -169,6 +170,9 @@ export class UserInfoService extends BaseService {
       }
       if (data.emailVerified != null) {
         data.emailVerified = Boolean(data.emailVerified)
+      }
+      if (data.phoneVerified != null) {
+        data.phoneVerified = Boolean(data.phoneVerified)
       }
       return
     }

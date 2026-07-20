@@ -126,7 +126,19 @@ export class MyService {
 | `fieldLike` | 模糊 |
 | `fieldArray` | 数组包含（PG：`integer[]`/`jsonb`；MySQL·SQLite：`json`） |
 | `fieldRange` | 时间/数字区间（`min`/`max`/`type`） |
-| `join` / `select` / `where` / `extend` | 联表与自定义条件 |
+| `join` / `select` / `where` / `extend` | 联表（显式 `alias` + `condition`，主表=`a`）与自定义条件 |
+
+联表示例：
+
+```ts
+join: [
+  { entity: skin, alias: 'b', type: 'leftJoin', condition: 'a.skinId = b.id' },
+  { entity: skin, alias: 'c', type: 'leftJoin', condition: 'a.randomSkinId = c.id' },
+],
+keyWordLikeFields: ['a.name', 'b.skinName'],
+fieldEq: [{ column: 'c.type', dict: 'skin_type' }],
+```
+
 | `addOrderBy` | 默认排序 |
 
 软删：请求带 `onlyTrashed`；`restore`；彻底删 `delete({ force: true })`。

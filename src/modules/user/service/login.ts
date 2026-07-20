@@ -193,7 +193,7 @@ export class UserLoginService extends BaseService {
     }
   }
 
-  /** 手机号登录 / 自动注册 */
+  /** 手机号验证码登录 / 自动注册（验证码已核销即视为手机有效，只验一次） */
   async phone(phone: string) {
     let user = await this.infoRepo.findOne(
       mustWhere(and(eq(userInfo.phone, phone), isNull(userInfo.deletedAt))),
@@ -207,6 +207,7 @@ export class UserLoginService extends BaseService {
         await this.infoRepo.create({
           id,
           phone,
+          phoneVerified: true,
           unionid: phone,
           name: maskPhone(phone),
           email: `${phone}@phone.invalid`,
@@ -215,12 +216,17 @@ export class UserLoginService extends BaseService {
           tenantId: tenantId ?? null,
         }),
       )
+    } else if (!user.phoneVerified) {
+      await this.infoRepo.update(eq(userInfo.id, user.id), {
+        phoneVerified: true,
+      })
+      user = { ...user, phoneVerified: true }
     }
     this.assertActive(user)
     return this.issueTokens(user.id, user.tenantId)
   }
 
-  /** 邮箱登录 / 自动注册 */
+  /** 邮箱验证码登录 / 自动注册（验证码已核销即视为邮箱有效，只验一次） */
   async emailLogin(email: string) {
     let user = await this.infoRepo.findOne(
       mustWhere(and(eq(userInfo.email, email), isNull(userInfo.deletedAt))),
@@ -241,6 +247,11 @@ export class UserLoginService extends BaseService {
           tenantId: tenantId ?? null,
         }),
       )
+    } else if (!user.emailVerified) {
+      await this.infoRepo.update(eq(userInfo.id, user.id), {
+        emailVerified: true,
+      })
+      user = { ...user, emailVerified: true }
     }
     this.assertActive(user)
     return this.issueTokens(user.id, user.tenantId)
@@ -406,6 +417,7 @@ export class UserLoginService extends BaseService {
         await this.infoRepo.create({
           id,
           phone: raw,
+          phoneVerified: false,
           unionid: raw,
           name: maskPhone(raw),
           email: `${raw}@phone.invalid`,

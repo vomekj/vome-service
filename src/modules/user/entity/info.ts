@@ -15,6 +15,8 @@ export const userInfo = columnComments(
       /** 所属租户；按注册域名自动写入 */
       tenantId: integer('tenantId'),
       phone: varchar('phone', { length: 20 }),
+      /** 手机号是否已通过短信验证码验证（只验一次） */
+      phoneVerified: boolean('phoneVerified').notNull().default(false),
       /** 微信 unionid（无则用 openid） */
       unionid: varchar('unionid', { length: 100 }),
       /** 手机号密码登录（md5） */
@@ -44,6 +46,7 @@ export const userInfo = columnComments(
     image: '头像',
     tenantId: '租户',
     phone: '手机号',
+    phoneVerified: '手机已验证',
     unionid: '微信unionid',
     password: '密码',
     status: '状态',

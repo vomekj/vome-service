@@ -59,7 +59,7 @@ export class AppUserInfoController extends BaseController {
     return this.ok(true)
   }
 
-  @Post('/bindPhone', { summary: '绑定手机号' })
+  @Post('/bindPhone', { summary: '绑定/验证手机号（验证码，只验一次）' })
   async bindPhone(
     @Body(
       t.Object({
@@ -70,6 +70,20 @@ export class AppUserInfoController extends BaseController {
     body: { phone: string; code: string },
   ) {
     await this.person.bindPhone(this.userId(), body.phone, body.code)
+    return this.ok(true)
+  }
+
+  @Post('/bindEmail', { summary: '绑定/验证邮箱（验证码，只验一次）' })
+  async bindEmail(
+    @Body(
+      t.Object({
+        email: t.String({ minLength: 1 }),
+        code: t.String({ minLength: 1 }),
+      }),
+    )
+    body: { email: string; code: string },
+  ) {
+    await this.person.bindEmail(this.userId(), body.email, body.code)
     return this.ok(true)
   }
 
