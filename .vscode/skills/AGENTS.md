@@ -7,15 +7,14 @@ description: >-
 
 # 应用层用法（入口）
 
-按端打开对应 Skill；**完整在线文档**见 VitePress（本地 `cd docs/docs && bun run dev`）。
+按端打开对应 Skill（正文自包含）。**各端开头有 Core API 全表**；其后为启动、鉴权/页面、字段约定、插件骨架等完整用法。
 
-| 端 | Skill | 文档 |
-|----|--------|------|
-| 后端 | [service/SKILL.md](./service/SKILL.md) | `/service/` · [core 能力索引](/service/core/) |
-| 后台 | [admin/SKILL.md](./admin/SKILL.md) | `/admin/` |
-| UniApp | [uniapp/SKILL.md](./uniapp/SKILL.md) | `/uniapp/` |
-| Web | [web/SKILL.md](./web/SKILL.md) | `/web/` |
-| 插件 | — | `/plugins/` |
+| 端 | Skill | Core 入口 | 重点章节 |
+|----|--------|-----------|----------|
+| 后端 | [service/SKILL.md](./service/SKILL.md) | `vome-core/server` | 启动中间件、鉴权、租户/数据权限、QueryOp、插件骨架 |
+| 后台 | [admin/SKILL.md](./admin/SKILL.md) | `vome-core/admin` | 视图注册、CRUD 字段约定、上传路径、组件清单 |
+| UniApp | [uniapp/SKILL.md](./uniapp/SKILL.md) | `vome-core/client` | storage/token、登录、路由鉴权、排错 |
+| Web | [web/SKILL.md](./web/SKILL.md) | `vome-core/client` | EPS、Auth、stores、Socket、排错 |
 
 ## IDE 放置建议
 
