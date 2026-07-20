@@ -1,14 +1,4 @@
-import {
-  boolean,
-  index,
-  integer,
-  pgTable,
-  serial,
-  text,
-  timestamp,
-  uniqueIndex,
-  varchar,
-} from 'drizzle-orm/pg-core'
+import { boolean, index, integer, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { columnComments, entitySchemas } from '/#/server'
 
@@ -18,14 +8,16 @@ export const userInfo = columnComments(
     'user_info',
     {
       id: text('id').primaryKey(),
-      userId: serial('userId').notNull(),
       name: text('name').notNull(),
       email: text('email').notNull().unique(),
       emailVerified: boolean('emailVerified').notNull().default(false),
       image: text('image'),
+      /** 所属租户；按注册域名自动写入 */
       tenantId: integer('tenantId'),
       phone: varchar('phone', { length: 20 }),
+      /** 微信 unionid（无则用 openid） */
       unionid: varchar('unionid', { length: 100 }),
+      /** 手机号密码登录（md5） */
       password: varchar('password', { length: 64 }),
       /** 1 正常 / 2 已注销 */
       status: integer('status').notNull().default(1),
@@ -38,7 +30,6 @@ export const userInfo = columnComments(
       deletedAt: timestamp('deletedAt', { withTimezone: true }),
     },
     (table) => [
-      uniqueIndex('user_info_user_id_uidx').on(table.userId),
       index('user_info_email_idx').on(table.email),
       index('user_info_tenant_id_idx').on(table.tenantId),
       index('user_info_phone_idx').on(table.phone),
@@ -47,7 +38,6 @@ export const userInfo = columnComments(
   ),
   {
     id: 'ID',
-    userId: '用户ID',
     name: '名称',
     email: '邮箱',
     emailVerified: '邮箱已验证',

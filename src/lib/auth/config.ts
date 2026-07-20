@@ -41,16 +41,27 @@ export function resolveAuthConfig(): Required<Pick<AuthConfig, 'secret' | 'baseU
   }
 }
 
-/** 已配置密钥的社交 SSO，供登录页动态展示 */
+/** 已配置密钥的社交 SSO；顺序跟 `auth.social` 配置键序，供登录页前 2 个常显 */
 export function listEnabledSocialProviders(): string[] {
+  const cfg = (VomeConfig.auth ?? {}) as AuthConfig
   const social = resolveAuthConfig().social ?? {}
-  const list: string[] = []
-  if (social.github?.clientId && social.github.clientSecret) list.push('github')
-  if (social.google?.clientId && social.google.clientSecret) list.push('google')
-  if (social.wechat?.clientId && social.wechat.clientSecret) list.push('wechat')
-  if (social.gitee?.clientId && social.gitee.clientSecret) list.push('gitee')
-  if (social.steam?.apiKey) list.push('steam')
-  return list
+  const cfgOrder = Object.keys(cfg.social ?? {})
+  const fallbackOrder = ['github', 'google', 'wechat', 'gitee', 'steam']
+  const seen = new Set<string>()
+  const order: string[] = []
+  for (const key of [...cfgOrder, ...fallbackOrder]) {
+    if (seen.has(key)) continue
+    seen.add(key)
+    order.push(key)
+  }
+  return order.filter((key) => {
+    const s = social[key as keyof typeof social] as
+      | { clientId?: string; clientSecret?: string; apiKey?: string }
+      | undefined
+    if (!s) return false
+    if (key === 'steam') return Boolean(s.apiKey)
+    return Boolean(s.clientId && s.clientSecret)
+  })
 }
 
 const DEFAULT_ACCESS_SECONDS = 15 * 60
