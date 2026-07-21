@@ -34,6 +34,9 @@ import {
   DbStore,
   applyRowScopes,
   VomeConfig,
+  assertModuleSeatActive,
+  formatSeatDisplay,
+  getModuleSeatStatus,
 } from '/#/server'
 import { CacheStore } from '../../../lib/cache'
 import {
@@ -110,9 +113,11 @@ export class PluginInfoService extends BaseService {
   }
 
   private normalizeListRow(row: Record<string, unknown>) {
+    const key = String(row.key || '')
     return {
       ...row,
       hasReadme: Boolean(row.hasReadme),
+      seat: formatSeatDisplay(getModuleSeatStatus(key)),
     }
   }
 
@@ -313,6 +318,7 @@ export class PluginInfoService extends BaseService {
   }
 
   async getInstance(key: string) {
+    await assertModuleSeatActive(key)
     const ok = await this.checkStatus(key)
     if (!ok) throw new CommException(`插件[${key}]不存在或已禁用`)
 

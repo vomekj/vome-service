@@ -46,7 +46,7 @@ cd web && bun install && bun run dev   # 需先启动 service；常见端口 990
 | `/dev/` | `http://127.0.0.1:3000` | 去掉 `/dev` |
 | `/prod/` | 同上（可改） | 去掉 `/prod` |
 
-与 `config.baseUrl`（`/dev` 或 `/prod`）对齐。线上 Nginx 剥前缀转到 `/api/auth`、`/app`。**禁止 `.env`**。
+与 `config.baseUrl`（`/dev` 或 `/prod`）对齐。线上 Nginx 剥前缀转到 `/api/auth`、`/app`。
 
 ## 路径别名与目录
 

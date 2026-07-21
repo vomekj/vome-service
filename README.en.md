@@ -48,7 +48,7 @@ bun install
 
 ### 1. Configure
 
-Config lives in `src/config/` (**no `.env` files**), merged by environment:
+Config lives in `src/config/` (TypeScript config files), merged by environment:
 
 | File | Purpose |
 | --- | --- |
@@ -107,7 +107,7 @@ NODE_ENV=prod bun dist/index.js
 ```text
 vome-service/
 ├── src/
-│   ├── config/           # default / dev / prod (no .env)
+│   ├── config/           # default / dev / prod
 │   ├── index.ts
 │   ├── lib/              # db / auth / cache / ticket / queue / task / socket …
 │   ├── middleware/       # adminAuth / webAuth / requestLog …

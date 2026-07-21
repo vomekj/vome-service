@@ -1,4 +1,5 @@
 import 'reflect-metadata'
+import './host'
 import { Ioc, vome } from '/#/server'
 import { LogService } from './modules/base/service/log'
 

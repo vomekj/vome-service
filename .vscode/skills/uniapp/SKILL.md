@@ -40,7 +40,7 @@ bun run dev:h5            # 常用；需 service 已启动
 bun run dev:mp-weixin     # 微信小程序
 ```
 
-H5 代理与 Web 同模式：`config/proxy.ts` + Vite `server.proxy`。**禁止 `.env`**。
+H5 代理与 Web 同模式：`config/proxy.ts` + Vite `server.proxy`。
 
 | 场景 | H5 | 小程序 |
 |------|-----|--------|

@@ -2,29 +2,33 @@ import {
   CommException,
   Inject,
   Provide,
-  ModuleRegistry,
-  pModulePath,
-  pModulesPath,
   BaseService,
+  installModuleFromZip,
+  uninstallModuleFiles,
+  pModulesPath,
+  formatSeatDisplay,
+  getModuleSeatStatus,
+  assertModuleSeatActive,
   type ModuleInstalled,
   type ModuleManifest,
   type ModuleMenuDef,
 } from '/#/server'
 import { and, eq, isNull } from 'drizzle-orm'
-import AdmZip from 'adm-zip'
 import {
   existsSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
-  rmSync,
   statSync,
-  writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
 import { baseMenu } from '../entity/menu'
 import { MenuService } from './rbac'
 import { PluginInfoService } from './plugin'
+
+function marketInstallOpts() {
+  // 公钥 / license 签发 / 席位均在 vome-core（docsUrl 派生）；宿主勿再配开关
+  return {}
+}
 
 @Provide()
 export class ModuleService extends BaseService {
@@ -33,81 +37,49 @@ export class ModuleService extends BaseService {
   @Inject()
   pluginInfo: PluginInfoService
 
-  /** 安装 .vome：校验 module.json，写盘并热加载（接口 / 页面 / 钩子） */
+  /**
+   * 安装 .vome：整段验签/解压/加载在 core；
+   * 宿主只负责钩子注册与菜单同步。
+   */
   async install(filePath: string) {
-    const zip = new AdmZip(filePath)
-    const entry = zip.getEntry('module.json')
-    if (!entry) throw new CommException('缺少 module.json')
-
-    let manifest: ModuleManifest
+    let installed
     try {
-      manifest = JSON.parse(entry.getData().toString('utf8')) as ModuleManifest
-    } catch {
-      throw new CommException('module.json 解析失败')
+      installed = await installModuleFromZip(filePath, {
+        ...marketInstallOpts(),
+        beforeReplace: async (key, manifest) => {
+          if (manifest.hook) {
+            try {
+              await this.pluginInfo.unregisterByKey(key)
+            } catch {
+              /* 首次安装无记录 */
+            }
+          }
+        },
+      })
+    } catch (e) {
+      throw new CommException(
+        e instanceof Error ? e.message : '插件安装失败',
+      )
     }
 
-    if (!manifest.key || !/^[a-zA-Z0-9_-]+$/.test(manifest.key)) {
-      throw new CommException('module.json.key 非法')
-    }
-    if (!manifest.name || !manifest.version) {
-      throw new CommException('module.json 需包含 name、key、version')
-    }
-
-    const names = zip.getEntries().map((e) => e.entryName.replace(/\\/g, '/'))
-    const hasServer = names.includes('server/index.js')
-    const hasWeb = names.some(
-      (n) => n === 'web/index.html' || n.startsWith('web/'),
-    )
-    const hasHook = Boolean(manifest.hook)
-
-    if (!hasServer && !hasWeb && !hasHook) {
-      throw new CommException('至少需要 server/、web/ 或 hook')
-    }
-    if (hasHook && !hasServer) {
-      throw new CommException('声明了 hook 必须包含 server/index.js（导出 Plugin）')
-    }
-    if ((manifest.routes?.length ?? 0) > 0 && !hasServer) {
-      throw new CommException('声明了 routes 必须包含 server/index.js')
-    }
-
-    const target = pModulePath(manifest.key)
-    const root = pModulesPath()
-    if (!existsSync(root)) mkdirSync(root, { recursive: true })
-
-    // 先卸旧实例再覆盖落盘
-    ModuleRegistry.unload(manifest.key)
-    if (hasHook) {
-      try {
-        await this.pluginInfo.unregisterByKey(manifest.key)
-      } catch {
-        /* 首次安装无记录 */
-      }
-    }
-    if (existsSync(target)) rmSync(target, { recursive: true, force: true })
-    mkdirSync(target, { recursive: true })
-    zip.extractAllTo(target, true)
-    writeFileSync(join(target, 'module.json'), JSON.stringify(manifest, null, 2))
-
+    const { manifest, hasHook } = installed
     try {
-      ModuleRegistry.load(manifest.key)
       if (hasHook) {
         await this.pluginInfo.registerFromModule(manifest)
       }
+      if (manifest.menus?.length) {
+        await this.syncMenus(manifest.key, manifest.menus)
+      }
     } catch (e) {
-      ModuleRegistry.unload(manifest.key)
       try {
         if (hasHook) await this.pluginInfo.unregisterByKey(manifest.key)
       } catch {
         /* ignore */
       }
-      rmSync(target, { recursive: true, force: true })
+      uninstallModuleFiles(manifest.key)
       throw new CommException(
-        e instanceof Error ? e.message : '模块加载失败',
+        e instanceof Error ? e.message : '插件注册失败',
       )
-    }
-
-    if (manifest.menus?.length) {
-      await this.syncMenus(manifest.key, manifest.menus)
     }
 
     return {
@@ -115,11 +87,11 @@ export class ModuleService extends BaseService {
       message: '安装成功',
       data: {
         ...manifest,
-        path: target,
-        hasServer,
-        hasWeb,
-        hasHook,
-        entryUrl: hasWeb ? `/vome/apps/${manifest.key}/` : undefined,
+        path: installed.path,
+        hasServer: installed.hasServer,
+        hasWeb: installed.hasWeb,
+        hasHook: installed.hasHook,
+        entryUrl: installed.entryUrl,
       },
     }
   }
@@ -143,6 +115,7 @@ export class ModuleService extends BaseService {
           hasServer: existsSync(join(dir, 'server', 'index.js')),
           hasWeb: existsSync(join(dir, 'web', 'index.html')),
           hasHook: Boolean(manifest.hook),
+          seat: formatSeatDisplay(getModuleSeatStatus(name)),
         })
       } catch {
         /* skip */
@@ -155,7 +128,8 @@ export class ModuleService extends BaseService {
     if (!key || !/^[a-zA-Z0-9_-]+$/.test(key)) {
       throw new CommException('key 非法')
     }
-    const target = pModulePath(key)
+    const root = pModulesPath()
+    const target = join(root, key)
     if (!existsSync(target)) throw new CommException('模块不存在')
 
     let manifest: ModuleManifest | undefined
@@ -167,11 +141,14 @@ export class ModuleService extends BaseService {
       /* ignore */
     }
 
-    ModuleRegistry.unload(key)
     if (manifest?.hook) {
       await this.pluginInfo.unregisterByKey(key)
     }
-    rmSync(target, { recursive: true, force: true })
+    try {
+      uninstallModuleFiles(key)
+    } catch (e) {
+      throw new CommException(e instanceof Error ? e.message : '卸载失败')
+    }
     await this.removeMenusByAppKey(key)
     return { ok: true }
   }

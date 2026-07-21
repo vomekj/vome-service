@@ -49,7 +49,7 @@ bun install
 
 ### 1. 修改配置
 
-配置写在 `src/config/`（**不使用 `.env`**），按环境合并：
+配置写在 `src/config/`，按环境合并：
 
 | 文件 | 用途 |
 | --- | --- |
@@ -110,7 +110,7 @@ NODE_ENV=prod bun dist/index.js
 ```text
 vome-service/
 ├── src/
-│   ├── config/           # default / dev / prod（禁止 .env）
+│   ├── config/           # default / dev / prod
 │   ├── index.ts          # 入口
 │   ├── lib/              # db / auth / cache / ticket / queue / task / socket …
 │   ├── middleware/       # adminAuth / webAuth / requestLog …

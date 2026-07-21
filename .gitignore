@@ -46,3 +46,7 @@ service/src/lib/db/schema/index.ts
 
 # 模块 db/menu 初始化 lock（initJudge=lock 或无 base_sys_conf 时）
 service/lock/
+
+# 插件市场离线 license
+licenses/*.lic
+site.id

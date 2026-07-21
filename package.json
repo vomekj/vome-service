@@ -3,11 +3,12 @@
   "version": "1.0.50",
   "type": "module",
   "scripts": {
-    "dev": "cross-env NODE_ENV=dev bun run --watch src/index.ts",
-    "build": "bun build src/index.ts --target bun --outdir ./dist --external drizzle-kit",
-    "build:obfuscate": "bun build src/index.ts --target bun --outdir ./dist --minify --external drizzle-kit && bun scripts/obfuscate.ts",
-    "binary": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile ./dist/service --external drizzle-kit",
-    "binary:obfuscate": "bun run build:obfuscate && bun build ./dist/index.js --compile --target=bun-linux-x64 --outfile ./dist/service"
+    "dev": "bun scripts/gen-host-scan.ts && cross-env NODE_ENV=dev bun run --watch src/index.ts",
+    "build": "bun scripts/gen-host-scan.ts && bun build src/index.ts --target bun --outdir ./dist --external drizzle-kit --define SEAT_ENFORCE:true",
+    "build:obfuscate": "bun scripts/gen-host-scan.ts && bun build src/index.ts --target bun --outdir ./dist --minify --external drizzle-kit --define SEAT_ENFORCE:true && bun scripts/obfuscate.ts",
+    "binary": "bun scripts/gen-host-scan.ts && bun build src/index.ts --compile --target=bun-linux-x64 --outfile ./dist/service --external drizzle-kit --define SEAT_ENFORCE:true",
+    "binary:obfuscate": "bun run build:obfuscate && bun build ./dist/index.js --compile --target=bun-linux-x64 --outfile ./dist/service",
+    "gen:host-scan": "bun scripts/gen-host-scan.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
@@ -25,7 +26,7 @@
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
     "svg-captcha": "^1.4.0",
-    "vome-core": "0.0.55",
+    "vome-core": "latest",
     "zod": "4"
   },
   "devDependencies": {
