@@ -3,9 +3,6 @@
  * 每次服务启动时重新生成
  */
 
-export * from '../../../modules/ai/entity/model'
-export * from '../../../modules/ai/entity/provider'
-export * from '../../../modules/ai/entity/task'
 export * from '../../../modules/base/entity/conf'
 export * from '../../../modules/base/entity/department'
 export * from '../../../modules/base/entity/dict-info'

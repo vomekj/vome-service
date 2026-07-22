@@ -1,6 +1,44 @@
 {
   "base_dict_type": [
     {
+      "name": "HTTP方法",
+      "key": "base_http_method",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "GET",
+            "value": "GET",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "POST",
+            "value": "POST",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "PUT",
+            "value": "PUT",
+            "orderNum": 2
+          },
+          {
+            "typeId": "@id",
+            "name": "PATCH",
+            "value": "PATCH",
+            "orderNum": 3
+          },
+          {
+            "typeId": "@id",
+            "name": "DELETE",
+            "value": "DELETE",
+            "orderNum": 4
+          }
+        ]
+      }
+    },
+    {
       "name": "AI协议",
       "key": "base_ai_protocol",
       "@childDatas": {
@@ -22,38 +60,6 @@
             "name": "Google Gemini",
             "value": "gemini",
             "orderNum": 2
-          }
-        ]
-      }
-    },
-    {
-      "name": "AI厂商",
-      "key": "base_ai_vendor",
-      "@childDatas": {
-        "base_dict_info": [
-          {
-            "typeId": "@id",
-            "name": "OpenAI",
-            "value": "openai",
-            "orderNum": 0
-          },
-          {
-            "typeId": "@id",
-            "name": "Anthropic",
-            "value": "anthropic",
-            "orderNum": 1
-          },
-          {
-            "typeId": "@id",
-            "name": "Google",
-            "value": "google",
-            "orderNum": 2
-          },
-          {
-            "typeId": "@id",
-            "name": "自定义/中转",
-            "value": "custom",
-            "orderNum": 9
           }
         ]
       }
@@ -121,9 +127,29 @@
           },
           {
             "typeId": "@id",
-            "name": "异步任务",
+            "name": "异步",
             "value": "async",
             "orderNum": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI请求体类型",
+      "key": "base_ai_content_type",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "JSON",
+            "value": "json",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "Multipart",
+            "value": "multipart",
+            "orderNum": 1
           }
         ]
       }
@@ -149,6 +175,64 @@
             "typeId": "@id",
             "name": "二进制",
             "value": "binary",
+            "orderNum": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI异步状态",
+      "key": "base_ai_async_status",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "等待中",
+            "value": "pending",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "执行中",
+            "value": "running",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "已成功",
+            "value": "succeeded",
+            "orderNum": 2
+          },
+          {
+            "typeId": "@id",
+            "name": "已失败",
+            "value": "failed",
+            "orderNum": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI调用来源",
+      "key": "base_ai_invoke_source",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "网关",
+            "value": "gateway",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "反向代理",
+            "value": "proxy",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "连通探测",
+            "value": "test",
             "orderNum": 2
           }
         ]

@@ -11,21 +11,20 @@ import { baseColumns, columnComments, entitySchemas } from '/#/server'
 
 /**
  * AI 连接（厂商实例 / 密钥）
- * protocol / vendor 取值见字典 base_ai_protocol、base_ai_vendor
+ * protocol 见字典 base_ai_protocol；vendor 自由文本
  */
 export const aiProvider = columnComments(
   pgTable(
     'ai_provider',
     {
       ...baseColumns,
-      name: varchar('name', { length: 100 }).notNull(),
-      vendor: varchar('vendor', { length: 50 }).notNull().default('custom'),
+      vendor: varchar('vendor', { length: 100 }).notNull(),
       protocol: varchar('protocol', { length: 50 })
         .notNull()
         .default('openai_compatible'),
-      baseUrl: varchar('baseUrl', { length: 500 }),
+      baseUrl: varchar('baseUrl', { length: 500 }).notNull(),
       /** AES 密文，见 encryptSecret */
-      apiKey: text('apiKey'),
+      apiKey: text('apiKey').notNull(),
       extra: jsonb('extra').$type<Record<string, unknown>>(),
       /** 0 停 / 1 启 */
       status: integer('status').notNull().default(1),
@@ -37,7 +36,6 @@ export const aiProvider = columnComments(
     ],
   ),
   {
-    name: '名称',
     vendor: '厂商',
     protocol: '协议',
     baseUrl: '接口地址',

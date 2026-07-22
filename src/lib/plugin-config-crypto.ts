@@ -38,21 +38,6 @@ function decryptValue(value: string): string {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8')
 }
 
-/** 单字段密钥加密（已密文 / 空串原样返回） */
-export function encryptSecret(plain: string): string {
-  if (!plain || plain.startsWith(ENC_PREFIX)) return plain
-  return encryptPlain(plain)
-}
-
-/** 单字段密钥解密（非密文原样返回） */
-export function decryptSecret(value: string): string {
-  try {
-    return decryptValue(value)
-  } catch {
-    return value
-  }
-}
-
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v)
 }

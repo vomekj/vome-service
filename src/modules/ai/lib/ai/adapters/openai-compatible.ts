@@ -4,113 +4,128 @@ import type {
   AiCapability,
   AiInvokeInput,
   AiInvokeResult,
-  AiPathKey,
   AiPollTaskResult,
   AiProtocolAdapter,
   AiResultMode,
   AiStreamChunk,
 } from '../types'
+import {
+  getJsonPath,
+  mapUpstreamTaskStatus,
+  pickUpstreamTaskId,
+  requireAsyncSpec,
+  resolvePollUrl,
+} from '../types'
+import {
+  buildBinarySyncData,
+  buildSyncResult,
+  defaultResponseSpec,
+  normalizeSyncData,
+} from '../normalize'
+import {
+  mergeInput,
+  postUpstream,
+  postUpstreamJson,
+  postUpstreamMultipart,
+  readUpstreamError,
+  toUpstreamJson,
+  appendFormFields,
+} from '../transport'
 
-const DEFAULT_PATHS: Record<AiPathKey, string> = {
-  chat: '/v1/chat/completions',
-  image: '/v1/images/generations',
-  audio_tts: '/v1/audio/speech',
-  audio_stt: '/v1/audio/transcriptions',
-  embed: '/v1/embeddings',
-  video: '/v1/videos',
-  videoGet: '/v1/videos/{id}',
-  videoContent: '/v1/videos/{id}/content',
-}
-
-function joinUrl(base: string, path: string) {
-  const b = base.replace(/\/+$/, '')
-  const p = path.startsWith('/') ? path : `/${path}`
-  return `${b}${p}`
-}
-
-function resolvePath(ctx: AiAdapterContext, key: AiPathKey, id?: string) {
-  const custom = ctx.paths?.[key]
-  let path = (typeof custom === 'string' && custom.trim()) || DEFAULT_PATHS[key]
-  if (id) path = path.replaceAll('{id}', encodeURIComponent(id))
-  return joinUrl(ctx.baseUrl, path)
-}
-
-async function readError(res: Response): Promise<string> {
-  try {
-    const j = (await res.json()) as {
-      error?: { message?: string }
-      message?: string
-    }
-    return j.error?.message || j.message || res.statusText
-  } catch {
-    return res.statusText || `HTTP ${res.status}`
-  }
-}
-
-function mergeInput(
-  input: AiInvokeInput,
-  defaults?: Record<string, unknown> | null,
-): Record<string, unknown> {
-  const base = { ...(defaults ?? {}) }
-  delete base.timeoutMs
-  delete base.paths
-  return { ...base, ...input }
-}
-
-async function chatSync(
+async function syncInvoke(
+  capability: AiCapability,
   input: AiInvokeInput,
   ctx: AiAdapterContext,
+  override: Record<string, unknown> = {},
 ): Promise<AiInvokeResult> {
   const body = mergeInput(input, ctx.defaults)
-  const messages = (body.messages as AiInvokeInput['messages']) ?? []
-  if (!messages.length) throw new CommException('chat 需要 messages')
+  const spec = ctx.responseSpec ?? defaultResponseSpec(capability)
 
-  const res = await fetch(resolvePath(ctx, 'chat'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${ctx.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ctx.upstreamId,
-      messages,
-      stream: false,
-      temperature: body.temperature,
-      max_tokens: body.max_tokens ?? body.maxTokens,
-    }),
-    signal: ctx.signal,
-  })
+  if (spec?.binary || capability === 'audio_tts') {
+    const res = await postUpstream(ctx, body, override)
+    if (!res.ok) {
+      return buildSyncResult(false, capability, ctx.modelId, 'sync', {
+        error: { code: 'upstream', message: await readUpstreamError(res) },
+      })
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    return buildSyncResult(true, capability, ctx.modelId, 'sync', {
+      data: buildBinarySyncData(buf, spec),
+    })
+  }
+
+  if (capability === 'audio_stt') {
+    const audioUrl = String(body.audioUrl ?? '')
+    const fileInput = body.file
+    const probe = body.__probe === true
+    let blob: Blob | null = null
+    if (fileInput != null) {
+      if (typeof fileInput === 'string') {
+        if (fileInput.startsWith('data:')) {
+          const res = await fetch(fileInput)
+          blob = await res.blob()
+        } else {
+          const buf = Buffer.from(fileInput, 'base64')
+          blob = new Blob([buf])
+        }
+      } else if (fileInput instanceof Blob) {
+        blob = fileInput
+      }
+    }
+    if (!blob) {
+      if (!audioUrl && !probe) {
+        throw new CommException('audio_stt 需要 file（base64/data-uri）或 audioUrl')
+      }
+      if (audioUrl) {
+        const fileRes = await fetch(audioUrl, { signal: ctx.signal })
+        if (!fileRes.ok) {
+          throw new CommException(`拉取音频失败: ${fileRes.status}`)
+        }
+        blob = await fileRes.blob()
+      }
+    }
+    const form = new FormData()
+    const uploadName =
+      String(body.fileName ?? '').trim() || 'audio.webm'
+    if (blob) form.append('file', blob, uploadName)
+    form.append('model', ctx.modelId)
+    appendFormFields(form, body, new Set(['model', 'file', 'fileName']))
+    const res = await postUpstreamMultipart(ctx, form)
+    if (!res.ok) {
+      return buildSyncResult(false, capability, ctx.modelId, 'sync', {
+        error: { code: 'upstream', message: await readUpstreamError(res) },
+      })
+    }
+    const json = (await res.json()) as Record<string, unknown>
+    const { data, usage } = normalizeSyncData(capability, ctx, json)
+    return buildSyncResult(true, capability, ctx.modelId, 'sync', {
+      data,
+      usage,
+      raw: json,
+    })
+  }
+
+  if (capability === 'chat') {
+    const messages = body.messages
+    if (!Array.isArray(messages) || !messages.length) {
+      throw new CommException('chat 需要 messages')
+    }
+  }
+
+  const res = await postUpstream(ctx, body, override)
   if (!res.ok) {
-    return {
-      ok: false,
-      capability: 'chat',
-      model: ctx.upstreamId,
-      mode: 'sync',
-      error: { code: 'upstream', message: await readError(res) },
-    }
+    return buildSyncResult(false, capability, ctx.modelId, 'sync', {
+      error: { code: 'upstream', message: await readUpstreamError(res) },
+    })
   }
-  const json = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string; role?: string } }>
-    usage?: {
-      prompt_tokens?: number
-      completion_tokens?: number
-      total_tokens?: number
-    }
-  }
-  const text = json.choices?.[0]?.message?.content ?? ''
-  return {
-    ok: true,
-    capability: 'chat',
-    model: ctx.upstreamId,
-    mode: 'sync',
-    data: { text, messages: [{ role: 'assistant', content: text }] },
-    usage: {
-      inputTokens: json.usage?.prompt_tokens,
-      outputTokens: json.usage?.completion_tokens,
-      totalTokens: json.usage?.total_tokens,
-    },
+
+  const json = (await res.json()) as Record<string, unknown>
+  const { data, usage } = normalizeSyncData(capability, ctx, json)
+  return buildSyncResult(true, capability, ctx.modelId, 'sync', {
+    data,
+    usage,
     raw: json,
-  }
+  })
 }
 
 async function* chatStream(
@@ -118,28 +133,19 @@ async function* chatStream(
   ctx: AiAdapterContext,
 ): AsyncGenerator<AiStreamChunk> {
   const body = mergeInput(input, ctx.defaults)
-  const messages = (body.messages as AiInvokeInput['messages']) ?? []
-  if (!messages.length) throw new CommException('chat 需要 messages')
+  const messages = body.messages
+  if (!Array.isArray(messages) || !messages.length) {
+    throw new CommException('chat 需要 messages')
+  }
 
-  const res = await fetch(resolvePath(ctx, 'chat'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${ctx.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ctx.upstreamId,
-      messages,
-      stream: true,
-      temperature: body.temperature,
-      max_tokens: body.max_tokens ?? body.maxTokens,
-    }),
-    signal: ctx.signal,
-  })
+  const res = await postUpstreamJson(
+    ctx,
+    toUpstreamJson(ctx, body, { stream: true }),
+  )
   if (!res.ok) {
     yield {
       type: 'error',
-      error: { code: 'upstream', message: await readError(res) },
+      error: { code: 'upstream', message: await readUpstreamError(res) },
     }
     return
   }
@@ -160,19 +166,39 @@ async function* chatStream(
     for (const line of lines) {
       const s = line.trim()
       if (!s.startsWith('data:')) continue
-      const payload = s.slice(5).trim()
-      if (payload === '[DONE]') {
+      const data = s.slice(5).trim()
+      if (data === '[DONE]') {
         yield { type: 'done', text: full, data: { text: full } }
         return
       }
       try {
-        const j = JSON.parse(payload) as {
-          choices?: Array<{ delta?: { content?: string } }>
+        const j = JSON.parse(data) as {
+          choices?: Array<{
+            delta?: Record<string, unknown>
+            finish_reason?: string | null
+          }>
+          usage?: Record<string, unknown>
         }
-        const delta = j.choices?.[0]?.delta?.content ?? ''
-        if (delta) {
-          full += delta
-          yield { type: 'delta', text: delta }
+        const choice = j.choices?.[0]
+        const delta = choice?.delta ?? {}
+        const piece = typeof delta.content === 'string' ? delta.content : ''
+        if (piece) full += piece
+        if (Object.keys(delta).length || choice?.finish_reason != null) {
+          yield {
+            type: 'delta',
+            text: piece || undefined,
+            data: {
+              delta,
+              finish_reason: choice?.finish_reason ?? undefined,
+            },
+            usage: j.usage
+              ? {
+                  inputTokens: j.usage.prompt_tokens as number | undefined,
+                  outputTokens: j.usage.completion_tokens as number | undefined,
+                  totalTokens: j.usage.total_tokens as number | undefined,
+                }
+              : undefined,
+          }
         }
       } catch {
         // skip bad chunk
@@ -182,347 +208,130 @@ async function* chatStream(
   yield { type: 'done', text: full, data: { text: full } }
 }
 
-async function imageSync(
+async function asyncCreate(
+  capability: AiCapability,
   input: AiInvokeInput,
   ctx: AiAdapterContext,
 ): Promise<AiInvokeResult> {
+  let spec
+  try {
+    spec = requireAsyncSpec(ctx.asyncSpec)
+  } catch (e) {
+    throw new CommException(e instanceof Error ? e.message : String(e))
+  }
   const body = mergeInput(input, ctx.defaults)
-  const prompt = String(body.prompt ?? body.text ?? '')
-  if (!prompt) throw new CommException('image 需要 prompt')
-
-  const res = await fetch(resolvePath(ctx, 'image'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${ctx.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ctx.upstreamId,
-      prompt,
-      n: body.n ?? 1,
-      size: body.size ?? '1024x1024',
-      response_format: body.response_format ?? 'url',
-    }),
-    signal: ctx.signal,
-  })
+  const res = await postUpstream(ctx, body)
   if (!res.ok) {
-    return {
-      ok: false,
-      capability: 'image',
-      model: ctx.upstreamId,
-      mode: 'sync',
-      error: { code: 'upstream', message: await readError(res) },
-    }
+    return buildSyncResult(false, capability, ctx.modelId, 'async', {
+      error: { code: 'upstream', message: await readUpstreamError(res) },
+    })
   }
-  const json = (await res.json()) as {
-    data?: Array<{ url?: string; b64_json?: string }>
-  }
-  const assets = (json.data ?? []).map((d) => ({
-    url: d.url,
-    b64: d.b64_json,
-    mime: 'image/png',
-  }))
-  return {
-    ok: true,
-    capability: 'image',
-    model: ctx.upstreamId,
-    mode: 'sync',
-    data: { assets },
-    raw: json,
-  }
-}
-
-async function audioTts(
-  input: AiInvokeInput,
-  ctx: AiAdapterContext,
-): Promise<AiInvokeResult> {
-  const body = mergeInput(input, ctx.defaults)
-  const text = String(body.text ?? body.prompt ?? '')
-  if (!text) throw new CommException('audio_tts 需要 text')
-
-  const res = await fetch(resolvePath(ctx, 'audio_tts'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${ctx.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ctx.upstreamId,
-      input: text,
-      voice: body.voice ?? 'alloy',
-      response_format: body.format ?? body.response_format ?? 'mp3',
-    }),
-    signal: ctx.signal,
-  })
-  if (!res.ok) {
-    return {
-      ok: false,
-      capability: 'audio_tts',
-      model: ctx.upstreamId,
-      mode: 'sync',
-      error: { code: 'upstream', message: await readError(res) },
-    }
-  }
-  const buf = Buffer.from(await res.arrayBuffer())
-  return {
-    ok: true,
-    capability: 'audio_tts',
-    model: ctx.upstreamId,
-    mode: 'sync',
-    data: {
-      assets: [
-        {
-          b64: buf.toString('base64'),
-          mime: 'audio/mpeg',
-          fileName: 'speech.mp3',
-        },
-      ],
-    },
-  }
-}
-
-async function audioStt(
-  input: AiInvokeInput,
-  ctx: AiAdapterContext,
-): Promise<AiInvokeResult> {
-  const body = mergeInput(input, ctx.defaults)
-  const audioUrl = String(body.audioUrl ?? '')
-  if (!audioUrl) throw new CommException('audio_stt 需要 audioUrl')
-
-  const fileRes = await fetch(audioUrl, { signal: ctx.signal })
-  if (!fileRes.ok) throw new CommException(`拉取音频失败: ${fileRes.status}`)
-  const blob = await fileRes.blob()
-  const form = new FormData()
-  form.append('file', blob, 'audio.webm')
-  form.append('model', ctx.upstreamId)
-  if (body.language) form.append('language', String(body.language))
-
-  const res = await fetch(resolvePath(ctx, 'audio_stt'), {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${ctx.apiKey}` },
-    body: form,
-    signal: ctx.signal,
-  })
-  if (!res.ok) {
-    return {
-      ok: false,
-      capability: 'audio_stt',
-      model: ctx.upstreamId,
-      mode: 'sync',
-      error: { code: 'upstream', message: await readError(res) },
-    }
-  }
-  const json = (await res.json()) as { text?: string }
-  return {
-    ok: true,
-    capability: 'audio_stt',
-    model: ctx.upstreamId,
-    mode: 'sync',
-    data: { text: json.text ?? '' },
-    raw: json,
-  }
-}
-
-async function embedSync(
-  input: AiInvokeInput,
-  ctx: AiAdapterContext,
-): Promise<AiInvokeResult> {
-  const body = mergeInput(input, ctx.defaults)
-  const text = String(body.text ?? body.prompt ?? '')
-  if (!text) throw new CommException('embed 需要 text')
-
-  const res = await fetch(resolvePath(ctx, 'embed'), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${ctx.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ctx.upstreamId,
-      input: text,
-    }),
-    signal: ctx.signal,
-  })
-  if (!res.ok) {
-    return {
-      ok: false,
-      capability: 'embed',
-      model: ctx.upstreamId,
-      mode: 'sync',
-      error: { code: 'upstream', message: await readError(res) },
-    }
-  }
-  const json = (await res.json()) as {
-    data?: Array<{ embedding?: number[] }>
-    usage?: { total_tokens?: number }
-  }
-  return {
-    ok: true,
-    capability: 'embed',
-    model: ctx.upstreamId,
-    mode: 'sync',
-    data: { embedding: json.data?.[0]?.embedding ?? [] },
-    usage: { totalTokens: json.usage?.total_tokens },
-    raw: json,
-  }
-}
-
-function mapVideoStatus(raw?: string): AiPollTaskResult['status'] {
-  const s = String(raw || '').toLowerCase()
-  if (s === 'completed' || s === 'succeeded' || s === 'success') return 'succeeded'
-  if (s === 'failed' || s === 'error' || s === 'cancelled' || s === 'canceled') {
-    return 'failed'
-  }
-  if (s === 'in_progress' || s === 'running' || s === 'processing') return 'running'
-  return 'pending'
-}
-
-/** OpenAI Videos：创建异步任务 */
-async function videoCreate(
-  input: AiInvokeInput,
-  ctx: AiAdapterContext,
-): Promise<AiInvokeResult> {
-  const body = mergeInput(input, ctx.defaults)
-  const prompt = String(body.prompt ?? body.text ?? '')
-  if (!prompt) throw new CommException('video 需要 prompt')
-
-  const form = new FormData()
-  form.append('model', ctx.upstreamId)
-  form.append('prompt', prompt)
-  if (body.size != null) form.append('size', String(body.size))
-  if (body.seconds != null) form.append('seconds', String(body.seconds))
-  if (body.input_reference != null) {
-    form.append('input_reference', String(body.input_reference))
-  }
-
-  const res = await fetch(resolvePath(ctx, 'video'), {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${ctx.apiKey}` },
-    body: form,
-    signal: ctx.signal,
-  })
-  if (!res.ok) {
-    return {
-      ok: false,
-      capability: 'video',
-      model: ctx.upstreamId,
-      mode: 'async',
-      error: { code: 'upstream', message: await readError(res) },
-    }
-  }
-  const json = (await res.json()) as {
-    id?: string
-    status?: string
-    progress?: number
-    error?: { message?: string }
-  }
-  const upstreamId = String(json.id || '')
+  const json = (await res.json()) as Record<string, unknown>
+  const upstreamId = pickUpstreamTaskId(json, spec.idFields)
   if (!upstreamId) {
-    return {
-      ok: false,
-      capability: 'video',
-      model: ctx.upstreamId,
-      mode: 'async',
-      error: { code: 'upstream', message: '上游未返回 video id' },
+    return buildSyncResult(false, capability, ctx.modelId, 'async', {
+      error: {
+        code: 'upstream',
+        message: '上游未返回任务 id（请检查 asyncSpec.idFields）',
+      },
       raw: json,
-    }
+    })
   }
-  const status = mapVideoStatus(json.status)
-  return {
-    ok: true,
-    capability: 'video',
-    model: ctx.upstreamId,
-    mode: 'async',
+  const statusField = spec.statusField || 'status'
+  const status = mapUpstreamTaskStatus(String(json[statusField] ?? ''))
+  return buildSyncResult(true, capability, ctx.modelId, 'async', {
     data: {
       taskId: upstreamId,
       status,
-      progress: json.progress,
+      progress: typeof json.progress === 'number' ? json.progress : undefined,
     },
     raw: json,
-  }
+  })
 }
 
-async function videoPoll(
+async function asyncPoll(
   upstreamId: string,
   ctx: AiAdapterContext,
 ): Promise<AiPollTaskResult> {
-  const res = await fetch(resolvePath(ctx, 'videoGet', upstreamId), {
-    method: 'GET',
+  let spec
+  try {
+    spec = requireAsyncSpec(ctx.asyncSpec)
+  } catch (e) {
+    throw new CommException(e instanceof Error ? e.message : String(e))
+  }
+  const url = resolvePollUrl(ctx.baseUrl, spec.pollPath, upstreamId)
+  const method = String(spec.pollMethod ?? 'GET').trim().toUpperCase() || 'GET'
+  const res = await fetch(url, {
+    method,
     headers: { Authorization: `Bearer ${ctx.apiKey}` },
     signal: ctx.signal,
   })
   if (!res.ok) {
-    return {
-      status: 'failed',
-      error: await readError(res),
-    }
+    return { status: 'failed', error: await readUpstreamError(res) }
   }
-  const json = (await res.json()) as {
-    id?: string
-    status?: string
-    progress?: number
-    error?: { message?: string } | string
-  }
-  const status = mapVideoStatus(json.status)
+  const json = (await res.json()) as Record<string, unknown>
+  const statusField = spec.statusField || 'status'
+  const status = mapUpstreamTaskStatus(String(json[statusField] ?? ''))
+  const progress =
+    typeof json.progress === 'number' ? json.progress : undefined
+
   if (status === 'failed') {
+    const errRaw = json.error
     const err =
-      typeof json.error === 'string'
-        ? json.error
-        : json.error?.message || 'video 生成失败'
-    return { status, progress: json.progress, error: err, raw: json }
+      typeof errRaw === 'string'
+        ? errRaw
+        : errRaw && typeof errRaw === 'object' && 'message' in errRaw
+          ? String((errRaw as { message?: unknown }).message || '任务失败')
+          : '任务失败'
+    return { status, progress, error: err, raw: json }
   }
+
   if (status === 'succeeded') {
-    const contentUrl = resolvePath(ctx, 'videoContent', upstreamId)
+    const mime = spec.assetMime ?? 'video/mp4'
+    const assets: NonNullable<AiPollTaskResult['result']>['assets'] = []
+    const urlPaths = [
+      ...(spec.resultUrlPaths ?? []),
+      ...(spec.resultUrlPath ? [spec.resultUrlPath] : []),
+    ]
+    for (const p of urlPaths) {
+      const u = getJsonPath(json, p)
+      if (typeof u === 'string' && u) {
+        assets.push({ url: u, mime, fileName: `${upstreamId}.mp4` })
+      }
+    }
     return {
       status,
-      progress: json.progress ?? 100,
+      progress: progress ?? 100,
       result: {
         taskId: upstreamId,
         status,
-        assets: [{ url: contentUrl, mime: 'video/mp4', fileName: `${upstreamId}.mp4` }],
+        ...(assets.length ? { assets } : {}),
       },
       raw: json,
     }
   }
+
   return {
     status,
-    progress: json.progress,
+    progress,
     result: { taskId: upstreamId, status },
     raw: json,
   }
 }
 
-/** OpenAI 兼容协议（多数中转 / 自建网关） */
+/** OpenAI 兼容协议（HTTP 透传 + 可配置/默认响应规范化） */
 export const openaiCompatibleAdapter: AiProtocolAdapter = {
   protocol: 'openai_compatible',
 
   async invoke(capability, mode, input, ctx) {
-    if (capability === 'video') {
-      if (mode !== 'async') {
-        throw new CommException('video 请使用 mode=async')
-      }
-      return videoCreate(input, ctx)
-    }
-    if (mode === 'async') {
-      throw new CommException('openai_compatible 当前仅 video 支持 async')
-    }
+    if (mode === 'async') return asyncCreate(capability, input, ctx)
     if (mode === 'stream') {
       throw new CommException('流式请通过 AiGateway.call（模型启用 stream）')
     }
-    switch (capability) {
-      case 'chat':
-        return chatSync(input, ctx)
-      case 'image':
-        return imageSync(input, ctx)
-      case 'audio_tts':
-        return audioTts(input, ctx)
-      case 'audio_stt':
-        return audioStt(input, ctx)
-      case 'embed':
-        return embedSync(input, ctx)
-      default:
-        throw new CommException(`不支持的能力: ${capability}`)
+    if (capability === 'chat') {
+      return syncInvoke(capability, input, ctx, { stream: false })
     }
+    return syncInvoke(capability, input, ctx)
   },
 
   async *stream(capability, input, ctx) {
@@ -532,11 +341,8 @@ export const openaiCompatibleAdapter: AiProtocolAdapter = {
     yield* chatStream(input, ctx)
   },
 
-  async pollTask(capability, upstreamId, ctx) {
-    if (capability !== 'video') {
-      throw new CommException(`pollTask 不支持能力: ${capability}`)
-    }
-    return videoPoll(upstreamId, ctx)
+  async pollTask(_capability, upstreamId, ctx) {
+    return asyncPoll(upstreamId, ctx)
   },
 }
 
@@ -545,15 +351,16 @@ export function assertModeSupported(
   mode: AiResultMode,
 ) {
   if (capability === 'chat' && (mode === 'sync' || mode === 'stream')) return
+  if (mode === 'async') return
   if (
     (capability === 'image' ||
       capability === 'audio_tts' ||
       capability === 'audio_stt' ||
-      capability === 'embed') &&
+      capability === 'embed' ||
+      capability === 'video') &&
     mode === 'sync'
   ) {
     return
   }
-  if (capability === 'video' && mode === 'async') return
   throw new CommException(`能力 ${capability} 不支持模式 ${mode}`)
 }

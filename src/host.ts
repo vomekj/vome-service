@@ -3,22 +3,22 @@
  *（禁止再 pathToFileURL 加载 src/lib）
  */
 import { registerHost } from '/#/server'
-import { Auth } from '../auth'
-import { Cache } from '../cache'
-import { Db } from '../db'
-import { Module } from '../module'
-import { Plugin } from '../plugin'
-import { Queue } from '../queue'
-import { Socket } from '../socket'
-import { Task } from '../task'
+import { Auth } from './lib/auth'
+import { Cache } from './lib/cache'
+import { Db } from './lib/db'
+import { Module } from './lib/module'
+import { Plugin } from './lib/plugin'
+import { Queue } from './lib/queue'
+import { Socket } from './lib/socket'
+import { Task } from './lib/task'
 import {
   adminAuth,
   microApps,
   moduleGateway,
   requestLog,
   webAuth,
-} from '../../middleware'
-import { loadHostModules } from './scan'
+} from './middleware'
+import { loadHostModules } from './host-scan'
 
 registerHost({
   Db,

@@ -305,7 +305,7 @@
     "name": "用户管理",
     "type": 0,
     "icon": "ri-user-settings-fill",
-    "orderNum": 95,
+    "orderNum": 97,
     "keepAlive": true,
     "isShow": true,
     "childMenus": [

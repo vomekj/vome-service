@@ -27,6 +27,10 @@ export class AiProviderService extends BaseService {
     if (data.tenantId == null) {
       data.tenantId = Context.get()?.tenantId ?? 0
     }
+    const baseUrl = String(data.baseUrl ?? '').trim()
+    if (!baseUrl) throw new CommException('接口地址不能为空')
+    data.baseUrl = baseUrl.replace(/\/+$/, '')
+
     const key = data.apiKey
     if (typeof key === 'string') {
       if (key === PLUGIN_SECRET_MASK || key === '') {
@@ -37,13 +41,16 @@ export class AiProviderService extends BaseService {
               isNull(aiProvider.deletedAt),
             ),
           )
-          data.apiKey = row?.apiKey ?? ''
+          if (!row?.apiKey) throw new CommException('API 密钥不能为空')
+          data.apiKey = row.apiKey
         } else {
-          data.apiKey = ''
+          throw new CommException('API 密钥不能为空')
         }
       } else {
         data.apiKey = encryptSecret(key)
       }
+    } else if (type === 'add') {
+      throw new CommException('API 密钥不能为空')
     }
   }
 

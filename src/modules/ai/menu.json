@@ -10,20 +10,238 @@
       {
         "name": "AI 连接",
         "router": "/ai/provider",
+        "perms": "ai:provider:list",
         "type": 1,
         "orderNum": 1,
         "viewPath": "modules/ai/views/provider",
-        "keepAlive": true,
-        "isShow": true
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "ai:provider:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "ai:provider:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "ai:provider:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "ai:provider:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "ai:provider:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "ai:provider:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复",
+            "perms": "ai:provider:restore",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       },
       {
         "name": "AI 模型",
         "router": "/ai/model",
+        "perms": "ai:model:list",
         "type": 1,
         "orderNum": 2,
         "viewPath": "modules/ai/views/model",
-        "keepAlive": true,
-        "isShow": true
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "ai:model:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "ai:model:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "ai:model:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "ai:model:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "ai:model:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "ai:model:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复",
+            "perms": "ai:model:restore",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "调用",
+            "perms": "ai:model:call",
+            "type": 2,
+            "orderNum": 8,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "连通探测",
+            "perms": "ai:model:test",
+            "type": 2,
+            "orderNum": 9,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "预设",
+            "perms": "ai:model:presets",
+            "type": 2,
+            "orderNum": 10,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "套用预设",
+            "perms": "ai:model:applyPreset",
+            "type": 2,
+            "orderNum": 11,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "模型目录",
+            "perms": "ai:model:catalog",
+            "type": 2,
+            "orderNum": 12,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
+      },
+      {
+        "name": "调用记录",
+        "router": "/ai/call-log",
+        "perms": "ai:callLog:list",
+        "type": 1,
+        "orderNum": 3,
+        "viewPath": "modules/ai/views/call-log",
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "单个信息",
+            "perms": "ai:callLog:info",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "ai:callLog:list",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "ai:callLog:page",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "刷新进度",
+            "perms": "ai:callLog:refresh",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "失败重试",
+            "perms": "ai:callLog:retry",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "超时关单",
+            "perms": "ai:callLog:closeStale",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       }
     ]
   }

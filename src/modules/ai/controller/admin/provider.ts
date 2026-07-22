@@ -12,16 +12,15 @@ import { AiProviderService } from '../../service/provider'
   entity: aiProvider,
   service: AiProviderService,
   pageQueryOp: {
-    keyWordLikeFields: ['name', 'baseUrl', 'remark'],
+    keyWordLikeFields: ['vendor', 'baseUrl', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'status' },
       { column: 'protocol', dict: 'base_ai_protocol' },
-      { column: 'vendor', dict: 'base_ai_vendor' },
     ],
     addOrderBy: { id: 'desc' },
   },
   listQueryOp: {
-    keyWordLikeFields: ['name'],
+    keyWordLikeFields: ['vendor'],
     fieldEq: [
       { column: 'status', dict: 'status' },
       { column: 'protocol', dict: 'base_ai_protocol' },
