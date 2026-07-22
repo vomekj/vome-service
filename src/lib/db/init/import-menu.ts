@@ -39,19 +39,38 @@ async function insertMenuNode(
   }
 }
 
-/** 导入单个模块 menu.json；表名为 `{module}_menu`，无表时返回 false */
+/** 后台侧栏共用 `base_menu`；仅当模块自建了 `{module}_menu` 时写那张表。 */
+function resolveMenuTable(
+  tableMap: Map<string, Table>,
+  module: string,
+): { tableName: string; table: Table } | null {
+  const own = `${module}_menu`
+  const ownTable = tableMap.get(own)
+  if (ownTable) return { tableName: own, table: ownTable }
+
+  const base = tableMap.get('base_menu')
+  if (base) return { tableName: 'base_menu', table: base }
+
+  return null
+}
+
+/** 导入单个模块 menu.json；无菜单表时返回 false */
 export async function importModuleMenu(
   file: string,
   db: ReturnType<typeof createDrizzle>,
   schema: Record<string, unknown>,
   module: string,
 ): Promise<boolean> {
-  const tableName = `${module}_menu`
   const tableMap = buildTableMap(schema)
-  const table = tableMap.get(tableName)
-  if (!table) {
-    console.warn(`[init] 跳过 menu：schema 中无 ${tableName} 表`)
+  const resolved = resolveMenuTable(tableMap, module)
+  if (!resolved) {
+    console.warn(`[init] 跳过 menu（${module}）：schema 中无菜单表`)
     return false
+  }
+
+  const { tableName, table } = resolved
+  if (tableName === 'base_menu' && module !== 'base') {
+    console.log(`[init] menu ${module} → base_menu`)
   }
 
   const raw = await readFile(file, 'utf8')
