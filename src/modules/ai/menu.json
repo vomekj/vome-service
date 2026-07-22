@@ -1,0 +1,30 @@
+[
+  {
+    "name": "AI 能力",
+    "type": 0,
+    "icon": "ri-robot-2-fill",
+    "orderNum": 96,
+    "keepAlive": true,
+    "isShow": true,
+    "childMenus": [
+      {
+        "name": "AI 连接",
+        "router": "/ai/provider",
+        "type": 1,
+        "orderNum": 1,
+        "viewPath": "modules/ai/views/provider",
+        "keepAlive": true,
+        "isShow": true
+      },
+      {
+        "name": "AI 模型",
+        "router": "/ai/model",
+        "type": 1,
+        "orderNum": 2,
+        "viewPath": "modules/ai/views/model",
+        "keepAlive": true,
+        "isShow": true
+      }
+    ]
+  }
+]

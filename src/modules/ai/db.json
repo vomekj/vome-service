@@ -1,0 +1,158 @@
+{
+  "base_dict_type": [
+    {
+      "name": "AI协议",
+      "key": "base_ai_protocol",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "OpenAI 兼容",
+            "value": "openai_compatible",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "Anthropic",
+            "value": "anthropic",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "Google Gemini",
+            "value": "gemini",
+            "orderNum": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI厂商",
+      "key": "base_ai_vendor",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "OpenAI",
+            "value": "openai",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "Anthropic",
+            "value": "anthropic",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "Google",
+            "value": "google",
+            "orderNum": 2
+          },
+          {
+            "typeId": "@id",
+            "name": "自定义/中转",
+            "value": "custom",
+            "orderNum": 9
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI能力",
+      "key": "base_ai_capability",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "对话",
+            "value": "chat",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "生图",
+            "value": "image",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "生视频",
+            "value": "video",
+            "orderNum": 2
+          },
+          {
+            "typeId": "@id",
+            "name": "语音合成",
+            "value": "audio_tts",
+            "orderNum": 3
+          },
+          {
+            "typeId": "@id",
+            "name": "语音识别",
+            "value": "audio_stt",
+            "orderNum": 4
+          },
+          {
+            "typeId": "@id",
+            "name": "向量嵌入",
+            "value": "embed",
+            "orderNum": 5
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI结果形态",
+      "key": "base_ai_result_mode",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "同步",
+            "value": "sync",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "流式",
+            "value": "stream",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "异步任务",
+            "value": "async",
+            "orderNum": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "AI媒体格式",
+      "key": "base_ai_media_format",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "URL",
+            "value": "url",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "Base64",
+            "value": "b64",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "二进制",
+            "value": "binary",
+            "orderNum": 2
+          }
+        ]
+      }
+    }
+  ]
+}
