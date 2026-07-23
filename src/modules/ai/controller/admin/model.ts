@@ -6,50 +6,14 @@ import {
   Get,
   Inject,
   Post,
+  sseResponse,
 } from '/#/server'
 import { aiModel } from '../../entity/model'
 import { AiGateway } from '../../service/gateway'
 import { AiModelService } from '../../service/model'
-import type { AiCapability, AiStreamChunk } from '../../lib/ai/types'
-import {
-  AI_INPUT_SCHEMA_PRESETS,
-  AI_RESPONSE_SPEC_PRESETS,
-  AI_VENDOR_PRESETS,
-} from '../../lib/ai/presets'
-import { minimalTestInput } from '../../lib/ai/proxy/openai'
+import type { AiCapability } from '../../lib/ai/types'
+import { minimalTestInput } from '../../lib/ai/minimal-test-input'
 import { resolveAiCapability } from '../../lib/ai/types'
-
-function sseResponse(stream: AsyncGenerator<AiStreamChunk>) {
-  const encoder = new TextEncoder()
-  const body = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      try {
-        for await (const chunk of stream) {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
-          )
-          if (chunk.type === 'done' || chunk.type === 'error') break
-        }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e)
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: 'error', error: { code: 'stream', message } })}\n\n`,
-          ),
-        )
-      } finally {
-        controller.close()
-      }
-    },
-  })
-  return new Response(body, {
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-    },
-  })
-}
 
 /** → service.ai.model（含 .call） */
 @Controller({
@@ -118,29 +82,6 @@ export class AiModelController extends BaseController {
       return sseResponse(out.stream)
     }
     return this.ok(out)
-  }
-
-  @Post('/presets', { summary: 'schema/厂商预设' })
-  presets() {
-    return this.ok({
-      inputSchema: AI_INPUT_SCHEMA_PRESETS,
-      responseSpec: AI_RESPONSE_SPEC_PRESETS,
-      vendor: AI_VENDOR_PRESETS,
-    })
-  }
-
-  @Post('/catalog', { summary: '启用模型目录（含参数提示）' })
-  async catalog() {
-    return this.ok(await this.aiModel.listCatalog())
-  }
-
-  @Post('/applyPreset', { summary: '套用厂商预设字段' })
-  applyPreset(
-    @Body(t.Object({ key: t.String() })) body: { key: string },
-  ) {
-    const preset = AI_VENDOR_PRESETS[body.key]
-    if (!preset) return this.fail(`未知预设: ${body.key}`)
-    return this.ok(preset)
   }
 
   @Post('/test', { summary: '连通性探测' })

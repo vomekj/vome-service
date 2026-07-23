@@ -8,7 +8,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '/#/server'
-import type { AiAsyncSpec, AiInputSchema, AiResponseSpec } from '../lib/ai/types'
+import type { AiAsyncSpec } from '../lib/ai/types'
 
 /**
  * AI 模型（可调用实例）
@@ -39,15 +39,6 @@ export const aiModel = columnComments(
         .default(['sync']),
       /** 异步轮询契约（resultModes 含 async 时必填 pollPath） */
       asyncSpec: jsonb('asyncSpec').$type<AiAsyncSpec | null>(),
-      /**
-       * 上游可透传字段提示（仅提示，不裁剪 body）
-       * EPS 下发给前端做智能补全
-       */
-      inputSchema: jsonb('inputSchema').$type<AiInputSchema | null>(),
-      /** 上游响应 → 统一 data 映射（可选；缺省按 capability 默认） */
-      responseSpec: jsonb('responseSpec').$type<AiResponseSpec | null>(),
-      /** 1 时按 inputSchema.required 校验 input（不裁剪） */
-      validateInput: integer('validateInput').notNull().default(1),
       defaults: jsonb('defaults').$type<Record<string, unknown>>(),
       status: integer('status').notNull().default(1),
       remark: varchar('remark', { length: 500 }),
@@ -67,9 +58,6 @@ export const aiModel = columnComments(
     capabilities: '能力',
     resultModes: '结果形态',
     asyncSpec: '异步契约',
-    inputSchema: '参数提示',
-    responseSpec: '响应映射',
-    validateInput: '校验input',
     defaults: '默认参数',
     status: '状态',
     remark: '备注',

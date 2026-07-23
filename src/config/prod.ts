@@ -45,7 +45,7 @@ const config: EnvConfig = {
 
   /** 生产环境关闭自动初始化；EPS 须开启（admin service 仅由此动态挂载） */
   vome: {
-    /** 是否生成 EPS（Entity Path Service）接口描述 */
+    /** 是否生成 EPS；亦作「同步前端语言包」开关 */
     eps: true,
     /** 初始化判断依据：db 以数据库状态为准 */
     initJudge: 'db',

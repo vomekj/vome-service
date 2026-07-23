@@ -1,14 +1,11 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import {
   CommException,
-  Context,
   Inject,
   Provide,
 } from '/#/server'
 import { randomBytes } from 'node:crypto'
 import { getAiAdapter } from '../lib/ai/adapters'
-import { checkAiRateLimit } from '../lib/ai/rate-limit'
-import { validateInputSchema } from '../lib/ai/validate-input'
 import type {
   AiCallRequest,
   AiCallResult,
@@ -35,11 +32,6 @@ import { AiModelService } from './model'
 import { AiProviderService } from './provider'
 
 const DEFAULT_TASK_TIMEOUT_MS = 3_600_000
-
-function tenantIdOf() {
-  const n = Number(Context.get()?.tenantId)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
 
 function newRecordKey() {
   return `ait_${Date.now().toString(36)}_${randomBytes(6).toString('hex')}`
@@ -93,9 +85,6 @@ export class AiGateway {
     }
 
     if (!req.model) throw new CommException('model 不能为空')
-    if (!checkAiRateLimit(tenantIdOf())) {
-      throw new CommException('AI 调用频率超限，请稍后再试', 429)
-    }
 
     const started = Date.now()
     const source = meta.source ?? 'gateway'
@@ -104,8 +93,6 @@ export class AiGateway {
       const resolved = await this.resolve(req)
       const { capability, model, adapter, mode, ctx } = resolved
       const input = (req.input ?? {}) as AiInvokeInput
-
-      validateInputSchema(input, model.inputSchema)
 
       if (mode === 'stream') {
         if (!adapter.stream) {
@@ -361,7 +348,6 @@ export class AiGateway {
         method: String(model.method ?? 'POST').trim().toUpperCase() || 'POST',
         contentType: normalizeAiContentType(model.contentType),
         asyncSpec: model.asyncSpec ?? null,
-        responseSpec: model.responseSpec ?? null,
         extra: provider.extra,
         defaults: stripAiDefaultMeta(model.defaults),
         signal,

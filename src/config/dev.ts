@@ -36,7 +36,7 @@ const config: EnvConfig = {
 
   /** 开发环境 Vome 初始化开关 */
   vome: {
-    /** 是否生成 EPS（Entity Path Service）接口描述 */
+    /** 是否生成 EPS；亦作「同步前端语言包」开关 */
     eps: true,
     /** 初始化判断依据：db 以数据库状态为准 */
     initJudge: 'db',

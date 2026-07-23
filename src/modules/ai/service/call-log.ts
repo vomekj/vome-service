@@ -7,6 +7,11 @@ import {
 } from '/#/server'
 import { aiCallLog } from '../entity/call-log'
 
+export {
+  buildAiCallLogRequest,
+  buildAiCallLogResult,
+} from 'vome-core/ai'
+
 export type AiCallLogInput = {
   modelCode?: string
   capability: string
@@ -34,37 +39,6 @@ export type AiAsyncRecordInput = {
   result?: Record<string, unknown> | null
   source?: string
   ok?: boolean
-}
-
-/** 调用记录：请求快照（模型 / 能力 / input） */
-export function buildAiCallLogRequest(
-  modelCode: string,
-  capability: string,
-  input: Record<string, unknown> | null | undefined,
-  extra?: Record<string, unknown>,
-): Record<string, unknown> {
-  return {
-    model: modelCode,
-    capability,
-    input: input ?? {},
-    ...extra,
-  }
-}
-
-/** 调用记录：响应快照（data / usage / error / raw） */
-export function buildAiCallLogResult(payload: {
-  ok: boolean
-  data?: Record<string, unknown> | null
-  usage?: Record<string, unknown> | null
-  error?: { code: string; message: string } | null
-  raw?: unknown
-}): Record<string, unknown> {
-  const out: Record<string, unknown> = { ok: payload.ok }
-  if (payload.data != null) out.data = payload.data
-  if (payload.usage != null) out.usage = payload.usage
-  if (payload.error) out.error = payload.error
-  if (payload.raw != null) out.raw = payload.raw
-  return out
 }
 
 @Provide()

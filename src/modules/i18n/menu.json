@@ -1,25 +1,25 @@
 [
   {
-    "name": "AI 能力",
+    "name": "国际化",
     "type": 0,
-    "icon": "ri-robot-2-fill",
-    "orderNum": 95,
+    "icon": "ri-translate-2",
+    "orderNum": 96,
     "keepAlive": true,
     "isShow": true,
     "childMenus": [
       {
-        "name": "AI 连接",
-        "router": "/ai/provider",
-        "perms": "ai:provider:list",
+        "name": "语种",
+        "router": "/i18n/lang",
+        "perms": "i18n:lang:list",
         "type": 1,
         "orderNum": 1,
-        "viewPath": "modules/ai/views/provider",
+        "viewPath": "modules/i18n/views/lang",
         "keepAlive": false,
         "isShow": true,
         "childMenus": [
           {
             "name": "新增",
-            "perms": "ai:provider:add",
+            "perms": "i18n:lang:add",
             "type": 2,
             "orderNum": 1,
             "keepAlive": true,
@@ -27,7 +27,7 @@
           },
           {
             "name": "删除",
-            "perms": "ai:provider:delete",
+            "perms": "i18n:lang:delete",
             "type": 2,
             "orderNum": 2,
             "keepAlive": true,
@@ -35,7 +35,7 @@
           },
           {
             "name": "修改",
-            "perms": "ai:provider:update",
+            "perms": "i18n:lang:update",
             "type": 2,
             "orderNum": 3,
             "keepAlive": true,
@@ -43,7 +43,7 @@
           },
           {
             "name": "单个信息",
-            "perms": "ai:provider:info",
+            "perms": "i18n:lang:info",
             "type": 2,
             "orderNum": 4,
             "keepAlive": true,
@@ -51,7 +51,7 @@
           },
           {
             "name": "列表查询",
-            "perms": "ai:provider:list",
+            "perms": "i18n:lang:list",
             "type": 2,
             "orderNum": 5,
             "keepAlive": true,
@@ -59,7 +59,7 @@
           },
           {
             "name": "分页查询",
-            "perms": "ai:provider:page",
+            "perms": "i18n:lang:page",
             "type": 2,
             "orderNum": 6,
             "keepAlive": true,
@@ -67,7 +67,7 @@
           },
           {
             "name": "恢复",
-            "perms": "ai:provider:restore",
+            "perms": "i18n:lang:restore",
             "type": 2,
             "orderNum": 7,
             "keepAlive": true,
@@ -76,18 +76,18 @@
         ]
       },
       {
-        "name": "AI 模型",
-        "router": "/ai/model",
-        "perms": "ai:model:list",
+        "name": "语言包",
+        "router": "/i18n/pack",
+        "perms": "i18n:pack:list",
         "type": 1,
         "orderNum": 2,
-        "viewPath": "modules/ai/views/model",
+        "viewPath": "modules/i18n/views/pack",
         "keepAlive": false,
         "isShow": true,
         "childMenus": [
           {
             "name": "新增",
-            "perms": "ai:model:add",
+            "perms": "i18n:pack:add",
             "type": 2,
             "orderNum": 1,
             "keepAlive": true,
@@ -95,7 +95,7 @@
           },
           {
             "name": "删除",
-            "perms": "ai:model:delete",
+            "perms": "i18n:pack:delete",
             "type": 2,
             "orderNum": 2,
             "keepAlive": true,
@@ -103,7 +103,7 @@
           },
           {
             "name": "修改",
-            "perms": "ai:model:update",
+            "perms": "i18n:pack:update",
             "type": 2,
             "orderNum": 3,
             "keepAlive": true,
@@ -111,7 +111,7 @@
           },
           {
             "name": "单个信息",
-            "perms": "ai:model:info",
+            "perms": "i18n:pack:info",
             "type": 2,
             "orderNum": 4,
             "keepAlive": true,
@@ -119,7 +119,7 @@
           },
           {
             "name": "列表查询",
-            "perms": "ai:model:list",
+            "perms": "i18n:pack:list",
             "type": 2,
             "orderNum": 5,
             "keepAlive": true,
@@ -127,7 +127,7 @@
           },
           {
             "name": "分页查询",
-            "perms": "ai:model:page",
+            "perms": "i18n:pack:page",
             "type": 2,
             "orderNum": 6,
             "keepAlive": true,
@@ -135,85 +135,25 @@
           },
           {
             "name": "恢复",
-            "perms": "ai:model:restore",
+            "perms": "i18n:pack:restore",
             "type": 2,
             "orderNum": 7,
             "keepAlive": true,
             "isShow": false
           },
           {
-            "name": "调用",
-            "perms": "ai:model:call",
+            "name": "AI翻译",
+            "perms": "i18n:pack:translate",
             "type": 2,
             "orderNum": 8,
             "keepAlive": true,
             "isShow": false
           },
           {
-            "name": "连通探测",
-            "perms": "ai:model:test",
+            "name": "可切换语种",
+            "perms": "i18n:pack:hostLocales",
             "type": 2,
             "orderNum": 9,
-            "keepAlive": true,
-            "isShow": false
-          }
-        ]
-      },
-      {
-        "name": "调用记录",
-        "router": "/ai/call-log",
-        "perms": "ai:callLog:list",
-        "type": 1,
-        "orderNum": 3,
-        "viewPath": "modules/ai/views/call-log",
-        "keepAlive": false,
-        "isShow": true,
-        "childMenus": [
-          {
-            "name": "单个信息",
-            "perms": "ai:callLog:info",
-            "type": 2,
-            "orderNum": 1,
-            "keepAlive": true,
-            "isShow": false
-          },
-          {
-            "name": "列表查询",
-            "perms": "ai:callLog:list",
-            "type": 2,
-            "orderNum": 2,
-            "keepAlive": true,
-            "isShow": false
-          },
-          {
-            "name": "分页查询",
-            "perms": "ai:callLog:page",
-            "type": 2,
-            "orderNum": 3,
-            "keepAlive": true,
-            "isShow": false
-          },
-          {
-            "name": "刷新进度",
-            "perms": "ai:callLog:refresh",
-            "type": 2,
-            "orderNum": 4,
-            "keepAlive": true,
-            "isShow": false
-          },
-          {
-            "name": "失败重试",
-            "perms": "ai:callLog:retry",
-            "type": 2,
-            "orderNum": 5,
-            "keepAlive": true,
-            "isShow": false
-          },
-          {
-            "name": "超时关单",
-            "perms": "ai:callLog:closeStale",
-            "type": 2,
-            "orderNum": 6,
             "keepAlive": true,
             "isShow": false
           }

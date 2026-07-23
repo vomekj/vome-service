@@ -225,15 +225,9 @@
           },
           {
             "typeId": "@id",
-            "name": "反向代理",
-            "value": "proxy",
-            "orderNum": 1
-          },
-          {
-            "typeId": "@id",
             "name": "连通探测",
             "value": "test",
-            "orderNum": 2
+            "orderNum": 1
           }
         ]
       }

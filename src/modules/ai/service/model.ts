@@ -12,26 +12,11 @@ import {
   normalizeAiContentType,
   requireAsyncSpec,
   type AiAsyncSpec,
-  type AiInputSchema,
-  type AiResponseSpec,
 } from '../lib/ai/types'
 
 function normalizeTenantId(raw: unknown): number {
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? n : 0
-}
-
-function normalizeInputSchema(raw: unknown): AiInputSchema | null {
-  if (raw == null || raw === '') return null
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new CommException('inputSchema 须为对象，形如 { fields: [...] }')
-  }
-  const fields = (raw as { fields?: unknown }).fields
-  if (fields == null) return { fields: [] }
-  if (!Array.isArray(fields)) {
-    throw new CommException('inputSchema.fields 须为数组')
-  }
-  return { fields: fields as AiInputSchema['fields'] }
 }
 
 function normalizeAsyncSpec(
@@ -63,14 +48,6 @@ function normalizeAsyncSpec(
     ...spec,
     pollPath: pollPath.startsWith('/') ? pollPath : `/${pollPath}`,
   }
-}
-
-function normalizeResponseSpec(raw: unknown): AiResponseSpec | null {
-  if (raw == null || raw === '') return null
-  if (typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new CommException('responseSpec 须为对象')
-  }
-  return raw as AiResponseSpec
 }
 
 @Provide()
@@ -118,11 +95,6 @@ export class AiModelService extends BaseService {
     }
     const needAsync = (data.resultModes as string[]).includes('async')
     data.asyncSpec = normalizeAsyncSpec(data.asyncSpec, needAsync)
-    data.inputSchema = normalizeInputSchema(data.inputSchema)
-    data.responseSpec = normalizeResponseSpec(data.responseSpec)
-    if (data.validateInput != null) {
-      data.validateInput = Number(data.validateInput) === 1 ? 1 : 0
-    }
     await this.assertCodeUnique(
       code,
       type === 'update' && data.id != null ? Number(data.id) : undefined,
@@ -140,29 +112,5 @@ export class AiModelService extends BaseService {
       ),
     )
     return row
-  }
-
-  /** 启用模型目录（含参数提示 / 响应映射，供前端 service 链消费） */
-  async listCatalog() {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const rows = await this.modelRepo.find(
-      and(
-        eq(aiModel.status, 1),
-        eq(aiModel.tenantId, tenantId),
-        isNull(aiModel.deletedAt),
-      ),
-    )
-    return rows.map((row) => ({
-      code: row.code,
-      path: row.path,
-      method: row.method,
-      contentType: row.contentType,
-      capabilities: row.capabilities,
-      resultModes: row.resultModes,
-      inputSchema: row.inputSchema,
-      responseSpec: row.responseSpec,
-      asyncSpec: row.asyncSpec,
-      defaults: row.defaults,
-    }))
   }
 }

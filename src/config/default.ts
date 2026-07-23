@@ -10,6 +10,15 @@ const config: DefaultConfig = {
   system: {
     /** HTTP 端口；占用时自动换端口 */
     port: availablePort(3000),
+    /**
+     * C 端语言包 origin
+     * 源包在各自 src/locales/；HTTP：web → /locales/…；uniapp → /static/locales/…
+     * 是否同步由 vome.eps 控制
+     */
+    localeOrigins: {
+      web: "http://127.0.0.1:9900",
+      uniapp: "http://127.0.0.1:6600",
+    },
   },
   openapi: {
     enable: true,

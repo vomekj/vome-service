@@ -1,0 +1,46 @@
+{
+  "i18n_lang": [
+    {
+      "code": "zh-CN",
+      "name": "简体中文",
+      "flag": "🇨🇳",
+      "status": 1,
+      "orderNum": 0
+    },
+    {
+      "code": "zh-TW",
+      "name": "繁体中文",
+      "flag": "🇨🇳",
+      "status": 1,
+      "orderNum": 1
+    },
+    {
+      "code": "en-US",
+      "name": "英语",
+      "flag": "🇺🇸",
+      "status": 1,
+      "orderNum": 2
+    },
+    {
+      "code": "ru-RU",
+      "name": "俄语",
+      "flag": "🇷🇺",
+      "status": 1,
+      "orderNum": 3
+    },
+    {
+      "code": "ko-KR",
+      "name": "韩语",
+      "flag": "🇰🇷",
+      "status": 1,
+      "orderNum": 4
+    },
+    {
+      "code": "ja-JP",
+      "name": "日语",
+      "flag": "🇯🇵",
+      "status": 1,
+      "orderNum": 5
+    }
+  ]
+}

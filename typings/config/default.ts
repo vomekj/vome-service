@@ -19,6 +19,15 @@ export interface DefaultConfig {
 
   system: Loose<{
     port: number
+    /**
+     * 宿主 C 端语言包 origin（scopeKey → 基址）
+     * GET {origin}/locales/zh-CN.json；是否同步由 vome.eps 控制
+     */
+    localeOrigins?: Loose<{
+      web?: string
+      uniapp?: string
+      [scopeKey: string]: string | undefined
+    }>
   }>
 
   openapi: Loose<{
