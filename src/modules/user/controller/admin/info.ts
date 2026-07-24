@@ -17,7 +17,7 @@ import { UserInfoService } from '../../service/rbac'
   service: UserInfoService,
   infoIgnoreProperty: ['password'],
   pageQueryOp: {
-    keyWordLikeFields: ['name', 'email', 'phone'],
+    keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'status' },
       { column: 'emailVerified', dict: 'yes_no' },
@@ -32,7 +32,7 @@ import { UserInfoService } from '../../service/rbac'
     addOrderBy: { createdAt: 'desc' },
   },
   listQueryOp: {
-    keyWordLikeFields: ['name', 'email', 'phone'],
+    keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'status' },
       { column: 'emailVerified', dict: 'yes_no' },

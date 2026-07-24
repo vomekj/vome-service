@@ -1,4 +1,14 @@
-import { boolean, index, integer, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { columnComments, entitySchemas } from '/#/server'
 
@@ -8,6 +18,8 @@ export const userInfo = columnComments(
     'user_info',
     {
       id: text('id').primaryKey(),
+      /** 业务侧数字 ID（自增，区别于 Better Auth 的 text id） */
+      userId: serial('userId').notNull(),
       name: text('name').notNull(),
       email: text('email').notNull().unique(),
       emailVerified: boolean('emailVerified').notNull().default(false),
@@ -21,6 +33,8 @@ export const userInfo = columnComments(
       unionid: varchar('unionid', { length: 100 }),
       /** 手机号密码登录（md5） */
       password: varchar('password', { length: 64 }),
+      /** 备注 */
+      remark: varchar('remark', { length: 500 }),
       /** 1 正常 / 2 已注销 */
       status: integer('status').notNull().default(1),
       createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
@@ -32,6 +46,7 @@ export const userInfo = columnComments(
       deletedAt: timestamp('deletedAt', { withTimezone: true }),
     },
     (table) => [
+      uniqueIndex('user_info_user_id_uidx').on(table.userId),
       index('user_info_email_idx').on(table.email),
       index('user_info_tenant_id_idx').on(table.tenantId),
       index('user_info_phone_idx').on(table.phone),
@@ -40,6 +55,7 @@ export const userInfo = columnComments(
   ),
   {
     id: 'ID',
+    userId: '用户ID',
     name: '名称',
     email: '邮箱',
     emailVerified: '邮箱已验证',
@@ -49,6 +65,7 @@ export const userInfo = columnComments(
     phoneVerified: '手机已验证',
     unionid: '微信unionid',
     password: '密码',
+    remark: '备注',
     status: '状态',
     createdAt: '创建时间',
     updatedAt: '更新时间',
