@@ -30,6 +30,7 @@ export class AdminOpenController extends BaseController {
   @Get('/eps', { summary: '实体信息与路径（含完整字典）' })
   async eps() {
     return this.ok({
+      eps: Eps.enabled(),
       modules: Eps.admin(),
       dict: await this.dictInfo.data([]),
     })

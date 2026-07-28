@@ -11,6 +11,7 @@ export class AppOpenController extends BaseController {
   @Get('/eps', { summary: '实体信息与路径（含完整字典）' })
   async eps() {
     return this.ok({
+      eps: Eps.enabled(),
       modules: Eps.app(),
       dict: await this.dictInfo.data([]),
     })
