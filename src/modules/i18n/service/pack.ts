@@ -853,7 +853,7 @@ export class I18nPackService extends BaseService {
   }
 
   /**
-   * 已安装业务模块（磁盘 ~/.vome/.../modules）
+   * 已安装业务模块（磁盘 {cwd}/.vome/.../modules）
    * 含纯前端无 hook：不同步依赖 base_plugin_info
    */
   private listInstalledModules(): Array<{ key: string; name: string }> {

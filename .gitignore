@@ -49,4 +49,6 @@ service/lock/
 
 # 插件市场离线 license
 licenses/*.lic
+# 已安装插件/模块（跟项目目录；部署时请随包拷贝）
+.vome/
 site.id

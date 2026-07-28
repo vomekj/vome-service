@@ -192,7 +192,7 @@ OAuth / 密钥只在 **Service `config/`**；Web 只配 `baseUrl` 代理。
 |-------|------|------|
 | `user` | `stores/user.ts` | token、`info`、`get` / `update` / `logout` |
 | `app` | `stores/app.ts` | `TAB_LIST`、窗口宽、`isMobile`、当前 Tab |
-| `theme` | `stores/theme.ts` | 亮/暗/跟随系统 |
+| `theme` | `stores/theme.ts` | 亮/暗/跟随系统；亮暗切换 H5 圆弧 View Transition（`theme.css` `vm-theme-flip`，不改 token） |
 
 也可用 auto-import 的 `userStore` / `appStore`（Proxy）。**user 与 app 职责不同，勿合并。**
 

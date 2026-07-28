@@ -187,7 +187,7 @@ const Crud = useCrud(
 | 数据区 | `vm-search`、`vm-search-key`、`vm-adv-search`、`vm-table`、`vm-pagination` |
 | 工具栏 | `vm-toolbar`、`vm-tabs`、`vm-add-btn`、`vm-multi-delete-btn`、`vm-export-btn`、`vm-refresh-btn` |
 | 表单弹窗 | `vm-upsert`、`vm-form` |
-| 字段控件 | `vm-select`、`vm-multi-select`、`vm-switch`、`vm-radio`、`vm-tree-select`、`vm-date-picker`、`vm-date-range`、`vm-date-text`、`vm-number-range`、`vm-dict-tag`、`vm-status-tag`、`vm-tag-list`、`vm-avatar`、`vm-richtext`、`vm-user-select`、`vm-upload`、`vm-upload-item`、`vm-preview-viewer`、`vm-json-code` / `vm-json-editor` |
+| 字段控件 | `vm-select`（默认 `filterable` 可搜索）、`vm-multi-select`、`vm-switch`、`vm-radio`、`vm-tree-select`、`vm-date-picker`、`vm-date-range`、`vm-date-text`、`vm-number-range`、`vm-dict-tag`、`vm-status-tag`、`vm-tag-list`、`vm-avatar`、`vm-richtext`、`vm-user-select`、`vm-upload`、`vm-upload-item`、`vm-preview-viewer`、`vm-json-code` / `vm-json-editor` |
 | 表格辅助 | `vm-column-custom`、`vm-context-menu`、`vm-ellipsis-text`、`vm-copy-btn`、`vm-text-link` |
 | 布局件 | `vm-aside`、`vm-dept-tree`、`vm-split-layout`、`vm-role-picker`、`vm-check-tree`、`vm-icon-picker`、`vm-markdown`（`v-model` / `modelValue`）、`vm-empty`… |
 
@@ -210,7 +210,7 @@ const Crud = useCrud(
 |----|------|------|
 | 主题色 | `src/styles/theme.css` | ✅ 换色 |
 | 结构 | `@vome-core/admin/styles/base.css` | ❌ 不为换肤改 |
-| 主题切换 | `src/themes/*`、`stores/theme.ts` | ✅ |
+| 主题切换 | `src/themes/*`、`stores/theme.ts` | ✅；`setTheme` 亮暗变化时圆弧 View Transition（`theme.css` `vm-theme-flip`，**只加动效不改 token**） |
 | 业务页 | `style lang="scss" scoped` | ✅ |
 
 - 主色 `#4E5DFF`；`main.ts`：先 `theme.css` 再 `base.css`

@@ -194,7 +194,7 @@ useUserStore().setToken(payload)
 |-------|------|------|
 | `user` | `stores/user.ts` | token、`info`、`get` / `update` / `logout`；听 `session:*` |
 | `app` | `stores/app.ts` | Tab、断点、`isMobile`、安全区 |
-| `theme` | `stores/theme.ts` | 主题 + tt-shaduni |
+| `theme` | `stores/theme.ts` | 主题 + tt-shaduni；H5 亮暗切换圆弧 View Transition（`theme.css` `vm-theme-flip`，不改 token；小程序即时） |
 
 `TAB_LIST` 字段为 **`url`**（pages 路径），不是 Web 的 `path`。user 与 app **勿合并**。
 
