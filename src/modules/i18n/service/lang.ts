@@ -39,6 +39,31 @@ export class I18nLangService extends BaseService {
     data.tenantId = normalizeTenantId(
       data.tenantId ?? Context.get()?.tenantId,
     )
+
+    // 行内开关等局部更新只带 id+status，勿强校验 code/name
+    if (type === 'update') {
+      const hasCode = data.code !== undefined
+      const hasName = data.name !== undefined
+      const hasFlag = data.flag !== undefined
+      if (!hasCode && !hasName && !hasFlag) return
+
+      if (hasCode) {
+        const code = String(data.code ?? '').trim()
+        if (!code) throw new CommException('语种编码不能为空')
+        data.code = code
+        await this.assertCodeUnique(code, Number(data.id))
+      }
+      if (hasName) {
+        const name = String(data.name ?? '').trim()
+        if (!name) throw new CommException('语言名称不能为空')
+        data.name = name
+      }
+      if (hasFlag) {
+        data.flag = String(data.flag ?? '').trim() || '🏳️'
+      }
+      return
+    }
+
     const code = String(data.code ?? '').trim()
     const name = String(data.name ?? '').trim()
     const flag = String(data.flag ?? '').trim() || '🏳️'
@@ -47,10 +72,7 @@ export class I18nLangService extends BaseService {
     data.code = code
     data.name = name
     data.flag = flag
-    await this.assertCodeUnique(
-      code,
-      type === 'update' ? Number(data.id) : undefined,
-    )
+    await this.assertCodeUnique(code)
   }
 
   /** 启用语种；按语种 id 升序 */

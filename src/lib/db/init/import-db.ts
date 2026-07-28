@@ -1,5 +1,13 @@
 import { readFile } from 'node:fs/promises'
-import { getTableColumns, getTableName, sql, type Table } from 'drizzle-orm'
+import {
+  and,
+  eq,
+  getTableColumns,
+  getTableName,
+  isNull,
+  sql,
+  type Table,
+} from 'drizzle-orm'
 import type { createDrizzle } from '../client'
 import { buildTableMap } from './table-map'
 
@@ -9,11 +17,20 @@ type Db = ReturnType<typeof createDrizzle> & {
       returning: (sel: { id: unknown }) => Promise<Array<{ id: number }>>
     }
   }
+  select: (sel: Record<string, unknown>) => {
+    from: (t: Table) => {
+      where: (cond: unknown) => {
+        limit: (n: number) => Promise<Array<Record<string, unknown>>>
+      }
+    }
+  }
 }
 
 type Row = Record<string, unknown>
 
 const CHILD_KEY = '@childDatas'
+const DICT_TYPE_TABLE = 'base_dict_type'
+const DICT_INFO_TABLE = 'base_dict_info'
 
 /**
  * 解析 db.json 占位符：
@@ -45,6 +62,10 @@ function stripMeta(row: Row) {
   return data
 }
 
+function sameDictValue(a: unknown, b: unknown) {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+}
+
 async function insertReturningId(db: Db, table: Table, row: Row): Promise<number> {
   const cols = getTableColumns(table)
   const idCol = cols.id
@@ -59,6 +80,176 @@ async function insertReturningId(db: Db, table: Table, row: Row): Promise<number
   return id
 }
 
+async function findDictTypeId(db: Db, table: Table, key: string): Promise<number | null> {
+  const cols = getTableColumns(table)
+  if (!cols.id || !cols.key) return null
+  const cond =
+    cols.deletedAt != null
+      ? and(eq(cols.key, key), isNull(cols.deletedAt))
+      : eq(cols.key, key)
+  const rows = await db.select({ id: cols.id }).from(table).where(cond).limit(1)
+  const id = rows[0]?.id
+  return typeof id === 'number' ? id : null
+}
+
+async function listDictInfoRows(
+  db: Db,
+  table: Table,
+  typeId: number,
+): Promise<Array<{ id: number; value: unknown; name: unknown; parentId: unknown }>> {
+  const cols = getTableColumns(table)
+  if (!cols.typeId || !cols.id) return []
+  const cond =
+    cols.deletedAt != null
+      ? and(eq(cols.typeId, typeId), isNull(cols.deletedAt))
+      : eq(cols.typeId, typeId)
+  const rows = await db
+    .select({
+      id: cols.id,
+      value: cols.value,
+      name: cols.name,
+      parentId: cols.parentId,
+    })
+    .from(table)
+    .where(cond)
+    .limit(10_000)
+  return rows
+    .map((r) => ({
+      id: r.id as number,
+      value: r.value,
+      name: r.name,
+      parentId: r.parentId,
+    }))
+    .filter((r) => typeof r.id === 'number')
+}
+
+function sameParentId(a: unknown, b: unknown) {
+  if (a == null && b == null) return true
+  if (a == null || b == null) return false
+  return Number(a) === Number(b)
+}
+
+/**
+ * 递归种字典 info（含 color 等孙节点）。
+ * 根项按 value 幂等；同名子项（如 color）按 parentId+name 幂等并回写 value。
+ */
+async function seedDictInfoChildren(
+  db: Db,
+  infoTable: Table,
+  typeId: number,
+  childRows: unknown[],
+  tokenParentId: number,
+  rootId: number,
+  existing: Array<{ id: number; value: unknown; name: unknown; parentId: unknown }>,
+) {
+  for (const childRow of childRows) {
+    if (!childRow || typeof childRow !== 'object' || Array.isArray(childRow)) {
+      continue
+    }
+    const resolved = resolveTokens(childRow, tokenParentId, rootId) as Row
+    const nestedDatas = resolved[CHILD_KEY]
+    const childData = stripMeta(resolved)
+    const parentId =
+      childData.parentId === '' || childData.parentId == null
+        ? null
+        : Number(childData.parentId)
+
+    let infoId: number | null = null
+    const name = String(childData.name ?? '')
+    if (name === 'color' && parentId != null) {
+      const hit = existing.find(
+        (e) => sameParentId(e.parentId, parentId) && String(e.name ?? '') === 'color',
+      )
+      if (hit) infoId = hit.id
+    } else {
+      const hit = existing.find(
+        (e) =>
+          sameParentId(e.parentId, parentId) &&
+          sameDictValue(e.value, childData.value),
+      )
+      if (hit) infoId = hit.id
+    }
+
+    if (infoId == null) {
+      infoId = await insertReturningId(db, infoTable, {
+        ...childData,
+        parentId,
+        typeId: childData.typeId ?? typeId,
+      })
+      existing.push({
+        id: infoId,
+        value: childData.value,
+        name: childData.name,
+        parentId,
+      })
+    }
+
+    if (
+      nestedDatas &&
+      typeof nestedDatas === 'object' &&
+      !Array.isArray(nestedDatas)
+    ) {
+      const nestedRows = (nestedDatas as Record<string, unknown>)[DICT_INFO_TABLE]
+      if (Array.isArray(nestedRows) && nestedRows.length) {
+        await seedDictInfoChildren(
+          db,
+          infoTable,
+          typeId,
+          nestedRows,
+          infoId,
+          rootId,
+          existing,
+        )
+      }
+    }
+  }
+}
+
+/**
+ * 字典按 key 增量：类型已存在则跳过类型插入，仅补缺失的 info；
+ * 避免共享 base_dict_type 重种撞唯一键。支持 info 下嵌套 color 等孙节点。
+ */
+async function seedDictTypeRow(
+  db: Db,
+  tableMap: Map<string, Table>,
+  row: Row,
+) {
+  const typeTable = tableMap.get(DICT_TYPE_TABLE)
+  const infoTable = tableMap.get(DICT_INFO_TABLE)
+  if (!typeTable || !infoTable) {
+    throw new Error(`[init] 缺少 ${DICT_TYPE_TABLE} / ${DICT_INFO_TABLE} schema`)
+  }
+
+  const childDatas = row[CHILD_KEY]
+  const data = stripMeta(row)
+  const key = String(data.key ?? '').trim()
+  if (!key) throw new Error('[init] base_dict_type.key 不能为空')
+
+  let typeId = await findDictTypeId(db, typeTable, key)
+  if (typeId == null) {
+    typeId = await insertReturningId(db, typeTable, data)
+    console.log(`[init] dict type ← ${key}`)
+  }
+
+  if (!childDatas || typeof childDatas !== 'object' || Array.isArray(childDatas)) {
+    return
+  }
+
+  const childRows = (childDatas as Record<string, unknown>)[DICT_INFO_TABLE]
+  if (!Array.isArray(childRows)) return
+
+  const existing = await listDictInfoRows(db, infoTable, typeId)
+  await seedDictInfoChildren(
+    db,
+    infoTable,
+    typeId,
+    childRows,
+    typeId,
+    typeId,
+    existing,
+  )
+}
+
 async function insertRow(
   db: Db,
   tableMap: Map<string, Table>,
@@ -66,6 +257,11 @@ async function insertRow(
   row: Row,
   rootId?: number,
 ) {
+  if (tableName === DICT_TYPE_TABLE) {
+    await seedDictTypeRow(db, tableMap, row)
+    return
+  }
+
   const table = tableMap.get(tableName)
   if (!table) throw new Error(`[init] db.json 未知表: ${tableName}`)
 
@@ -106,7 +302,7 @@ async function tableIsEmpty(db: Db, table: Table) {
   return (rows[0]?.count ?? 0) === 0
 }
 
-/** 模块已初始化后，仅为 db.json 里仍为空的表补种 */
+/** 模块已初始化后：空表全量补种；字典表按 key 增量补缺失项 */
 export async function seedEmptyTablesFromModuleDb(
   file: string,
   db: ReturnType<typeof createDrizzle>,
@@ -120,6 +316,16 @@ export async function seedEmptyTablesFromModuleDb(
     if (!Array.isArray(rows) || !rows.length) continue
     const table = tableMap.get(tableName)
     if (!table) continue
+
+    if (tableName === DICT_TYPE_TABLE) {
+      for (const row of rows) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+        await seedDictTypeRow(db as Db, tableMap, row as Row)
+      }
+      console.log(`[init] db seed ← ${tableName} (incremental)`)
+      continue
+    }
+
     if (!(await tableIsEmpty(db as Db, table))) continue
 
     for (const row of rows) {
@@ -130,7 +336,7 @@ export async function seedEmptyTablesFromModuleDb(
   }
 }
 
-/** 导入单个模块 db.json */
+/** 导入单个模块 db.json（字典按 key 幂等） */
 export async function importModuleDb(
   file: string,
   db: ReturnType<typeof createDrizzle>,

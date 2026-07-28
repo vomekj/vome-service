@@ -1,7 +1,7 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm'
 import { CommException, Provide } from '/#/server'
 import { InjectRepository, type Repository } from '/#/server'
-import { BaseService } from '/#/server'
+import { BaseService, type CrudDeleteOptions } from '/#/server'
 import { baseMenu } from '../entity/menu'
 import { baseDepartment } from '../entity/department'
 import { baseRole } from '../entity/role'
@@ -17,6 +17,56 @@ export class MenuService extends BaseService {
 
   async listAll() {
     return this.menuRepo.find(isNull(baseMenu.deletedAt))
+  }
+
+  /** 删除菜单后级联删子孙（parentId 树）；软删/彻底删共用 */
+  async delete(
+    whereOrIds: SQL | number | string | Array<number | string>,
+    options?: CrudDeleteOptions,
+  ) {
+    const where = this.resolveMenuIdWhere(whereOrIds)
+    if (!where) return
+
+    const rows = await this.menuRepo.find(where, { withTrashed: true })
+    const ids = rows.map((r) => r.id)
+    await super.delete(whereOrIds, options)
+    for (const id of ids) {
+      await this.delChildMenus(id, options?.force === true)
+    }
+  }
+
+  private resolveMenuIdWhere(
+    whereOrIds: SQL | number | string | Array<number | string>,
+  ): SQL | undefined {
+    if (
+      whereOrIds &&
+      typeof whereOrIds === 'object' &&
+      !Array.isArray(whereOrIds) &&
+      (whereOrIds as { getSQL?: unknown }).getSQL != null
+    ) {
+      return whereOrIds as SQL
+    }
+    const ids = (Array.isArray(whereOrIds) ? whereOrIds : [whereOrIds])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id))
+    if (!ids.length) return undefined
+    return inArray(baseMenu.id, ids)
+  }
+
+  private async delChildMenus(parentId: number, force: boolean) {
+    const children = await this.menuRepo.find(eq(baseMenu.parentId, parentId), {
+      withTrashed: true,
+    })
+    if (!children.length) return
+    const childIds = children.map((c) => c.id)
+    if (force) {
+      await this.menuRepo.forceDelete(inArray(baseMenu.id, childIds))
+    } else {
+      await this.menuRepo.softDelete(inArray(baseMenu.id, childIds))
+    }
+    for (const id of childIds) {
+      await this.delChildMenus(id, force)
+    }
   }
 }
 

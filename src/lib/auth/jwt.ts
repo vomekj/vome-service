@@ -1,6 +1,9 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from 'jose'
 import { Inject, Provide, VomeConfig } from '/#/server'
-import type { AdminAccessJwtPayload } from '../../../typings/base/auth'
+import type {
+  AdminAccessJwtPayload,
+  AgentAccessJwtPayload,
+} from '../../../typings/base/auth'
 import { JWT_AUD } from '../../../typings/auth/jwt'
 import { AuthExpires, resolveAuthConfig } from './config'
 import { TokenService } from './token'
@@ -9,7 +12,8 @@ import { TokenService } from './token'
  * JWT 签发与校验（可注入）
  *
  * - `admin.sign` / `admin.verify`
- * - `web.verify`
+ * - `web.sign` / `web.verify`
+ * - `agent.sign` / `agent.verify`
  */
 @Provide()
 export class JwtService {
@@ -81,6 +85,37 @@ export class JwtService {
         })
         return payload
       }
+    },
+  }
+
+  readonly agent = {
+    /** 签发本地 Agent JWT；需配合 TokenService.agent.store */
+    sign: async (
+      userId: number,
+      claims: {
+        projectId: number
+        sessionId: string
+        deviceId?: string
+        [k: string]: unknown
+      },
+    ) => {
+      const cfg = resolveAuthConfig()
+      return new SignJWT({ ...claims, aud: JWT_AUD.AGENT })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setSubject(String(userId))
+        .setIssuedAt()
+        .setIssuer(cfg.baseURL)
+        .setExpirationTime(AuthExpires.access.jwt())
+        .sign(this.secretKey())
+    },
+    verify: async (token: string): Promise<AgentAccessJwtPayload | null> => {
+      if (!(await this.token.agent.has(token))) return null
+      const cfg = resolveAuthConfig()
+      const { payload } = await jwtVerify<AgentAccessJwtPayload>(token, this.secretKey(), {
+        issuer: cfg.baseURL,
+        audience: JWT_AUD.AGENT,
+      })
+      return payload
     },
   }
 }

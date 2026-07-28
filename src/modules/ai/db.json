@@ -9,31 +9,86 @@
             "typeId": "@id",
             "name": "GET",
             "value": "GET",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#16A34A",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "POST",
             "value": "POST",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "PUT",
             "value": "PUT",
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "PATCH",
             "value": "PATCH",
-            "orderNum": 3
+            "orderNum": 3,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#7C3AED",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "DELETE",
             "value": "DELETE",
-            "orderNum": 4
+            "orderNum": 4,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DC2626",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -47,19 +102,52 @@
             "typeId": "@id",
             "name": "OpenAI 兼容",
             "value": "openai_compatible",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#16A34A",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "Anthropic",
             "value": "anthropic",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "Google Gemini",
             "value": "gemini",
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -73,37 +161,103 @@
             "typeId": "@id",
             "name": "对话",
             "value": "chat",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "生图",
             "value": "image",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DB2777",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "生视频",
             "value": "video",
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#7C3AED",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "语音合成",
             "value": "audio_tts",
-            "orderNum": 3
+            "orderNum": 3,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#0891B2",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "语音识别",
             "value": "audio_stt",
-            "orderNum": 4
+            "orderNum": 4,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#CA8A04",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "向量嵌入",
             "value": "embed",
-            "orderNum": 5
+            "orderNum": 5,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#A16207",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -117,19 +271,52 @@
             "typeId": "@id",
             "name": "同步",
             "value": "sync",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#16A34A",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "流式",
             "value": "stream",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "异步",
             "value": "async",
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -143,13 +330,35 @@
             "typeId": "@id",
             "name": "JSON",
             "value": "json",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "Multipart",
             "value": "multipart",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -163,19 +372,52 @@
             "typeId": "@id",
             "name": "URL",
             "value": "url",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "Base64",
             "value": "b64",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#7C3AED",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "二进制",
             "value": "binary",
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#475569",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -189,25 +431,69 @@
             "typeId": "@id",
             "name": "等待中",
             "value": "pending",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "执行中",
             "value": "running",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "已成功",
             "value": "succeeded",
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#16A34A",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "已失败",
             "value": "failed",
-            "orderNum": 3
+            "orderNum": 3,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DC2626",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -221,13 +507,35 @@
             "typeId": "@id",
             "name": "网关",
             "value": "gateway",
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "连通探测",
             "value": "test",
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#0891B2",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }

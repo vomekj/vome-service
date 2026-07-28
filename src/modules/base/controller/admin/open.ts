@@ -9,6 +9,7 @@ import {
   Query,
 } from '/#/server'
 import { AdminAuthService } from '../../service/auth'
+import { DictInfoService } from '../../service/dict'
 
 const captchaQuery = t.Object({
   width: t.Optional(t.Numeric()),
@@ -22,10 +23,16 @@ export class AdminOpenController extends BaseController {
   @Inject()
   auth: AdminAuthService
 
+  @Inject()
+  dictInfo: DictInfoService
+
   @Public()
-  @Get('/eps', { summary: '实体信息与路径' })
-  eps() {
-    return this.ok(Eps.admin())
+  @Get('/eps', { summary: '实体信息与路径（含完整字典）' })
+  async eps() {
+    return this.ok({
+      modules: Eps.admin(),
+      dict: await this.dictInfo.data([]),
+    })
   }
 
   @Public()

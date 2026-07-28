@@ -20,19 +20,52 @@
             "typeId": "@id",
             "name": "菜单",
             "value": 0,
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "页面",
             "value": 1,
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#16A34A",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "权限",
             "value": 2,
-            "orderNum": 2
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -46,13 +79,35 @@
             "typeId": "@id",
             "name": "禁用",
             "value": 0,
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DC2626",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "启用",
             "value": 1,
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -66,13 +121,35 @@
             "typeId": "@id",
             "name": "全部数据",
             "value": 0,
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "自定义部门",
             "value": 1,
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
@@ -86,13 +163,35 @@
             "typeId": "@id",
             "name": "否",
             "value": false,
-            "orderNum": 0
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DC2626",
+                  "orderNum": 0
+                }
+              ]
+            }
           },
           {
             "typeId": "@id",
             "name": "是",
             "value": true,
-            "orderNum": 1
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
           }
         ]
       }
