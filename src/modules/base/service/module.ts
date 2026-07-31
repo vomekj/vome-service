@@ -62,17 +62,16 @@ export class ModuleService extends BaseService {
       )
     }
 
-    const { manifest, hasHook } = installed
+    const { manifest } = installed
     try {
-      if (hasHook) {
-        await this.pluginInfo.registerFromModule(manifest)
-      }
+      // 钩子 / 纯前端 / 全栈都写入已安装列表（纯前端此前只写菜单，卡片缺失）
+      await this.pluginInfo.registerFromModule(manifest)
       if (manifest.menus?.length) {
         await this.syncMenus(manifest.key, manifest.menus)
       }
     } catch (e) {
       try {
-        if (hasHook) await this.pluginInfo.unregisterByKey(manifest.key)
+        await this.pluginInfo.unregisterByKey(manifest.key)
       } catch {
         /* ignore */
       }
@@ -141,8 +140,10 @@ export class ModuleService extends BaseService {
       /* ignore */
     }
 
-    if (manifest?.hook) {
+    try {
       await this.pluginInfo.unregisterByKey(key)
+    } catch {
+      /* 未登记过插件表也可卸载落盘 */
     }
     try {
       uninstallModuleFiles(key)
@@ -153,11 +154,55 @@ export class ModuleService extends BaseService {
     return { ok: true }
   }
 
-  /** 按 appKey / perms 幂等写入菜单 */
+  /**
+   * 微应用页面统一挂在「无界渲染」下（幂等：router=/wujie type=0）
+   */
+  private async ensureWujieParent(): Promise<number> {
+    const router = '/wujie'
+    const existing = await this.menuService.menuRepo.findOne(
+      and(
+        eq(baseMenu.router, router),
+        eq(baseMenu.type, 0),
+        isNull(baseMenu.deletedAt),
+      )!,
+    )
+    const row = {
+      name: '无界渲染',
+      router,
+      type: 0,
+      icon: 'ri-artboard-fill',
+      orderNum: 20,
+      parentId: null as number | null,
+      appKey: null as string | null,
+      perms: null as string | null,
+      isShow: true,
+      keepAlive: true,
+    }
+    if (existing) {
+      await this.menuService.menuRepo.save({ ...existing, ...row })
+      return Number(existing.id)
+    }
+    const saved = (await this.menuService.menuRepo.save(row)) as {
+      id: number
+    }
+    return Number(saved.id)
+  }
+
+  /** 按 appKey / perms 幂等写入菜单；微应用页挂到「无界渲染」、无 icon */
   private async syncMenus(moduleKey: string, menus: ModuleMenuDef[]) {
+    let wujieParentId: number | null = null
+
     for (const item of menus) {
       const appKey = item.appKey || moduleKey
       const perms = item.perms
+      const isMicroPage =
+        Boolean(item.appKey) ||
+        (item.type !== 0 && item.type !== 2 && Boolean(item.router))
+
+      if (isMicroPage && wujieParentId == null) {
+        wujieParentId = await this.ensureWujieParent()
+      }
+
       const existing = perms
         ? await this.menuService.menuRepo.findOne(
             and(eq(baseMenu.perms, perms), isNull(baseMenu.deletedAt))!,
@@ -171,9 +216,11 @@ export class ModuleService extends BaseService {
         router: item.router ?? null,
         perms: perms ?? null,
         type: item.type ?? 1,
-        icon: item.icon ?? null,
+        // 微应用页面不设 icon；父「无界渲染」才带 ri-artboard-fill
+        icon: isMicroPage ? null : (item.icon ?? null),
         orderNum: item.orderNum ?? 0,
-        appKey,
+        appKey: isMicroPage ? appKey : (item.appKey ?? null),
+        parentId: isMicroPage ? wujieParentId : (existing?.parentId ?? null),
         isShow: item.isShow ?? true,
         keepAlive: true,
       }

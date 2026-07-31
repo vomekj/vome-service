@@ -397,12 +397,14 @@ export class UserLoginService extends BaseService {
     return this.issueTokens(user.id, user.tenantId)
   }
 
-  /** 密码注册（不自动登录即注册；成功后直接发 token） */
-  async register(account: string, password: string) {
+  /** 密码注册：须先通过短信/邮箱验证码（与 otpCode 发送配套） */
+  async register(account: string, password: string, code: string) {
     const raw = normalizeAccount(account)
     if (!password || password.length < 6) {
       throw new CommException('密码至少 6 位')
     }
+    if (!code?.trim()) throw new CommException('请输入验证码')
+
     const existing = await this.findByAccount(raw)
     if (existing) throw new CommException('账号已注册，请直接登录')
 
@@ -413,11 +415,13 @@ export class UserLoginService extends BaseService {
     const hashed = md5(password)
 
     if (isPhone(raw)) {
+      const ok = await this.sms.checkCode(raw, code.trim())
+      if (!ok) throw new CommException('验证码错误')
       const user = oneRow(
         await this.infoRepo.create({
           id,
           phone: raw,
-          phoneVerified: false,
+          phoneVerified: true,
           unionid: raw,
           name: maskPhone(raw),
           email: `${raw}@phone.invalid`,
@@ -432,11 +436,13 @@ export class UserLoginService extends BaseService {
 
     if (isEmail(raw)) {
       const email = raw.toLowerCase()
+      const ok = await this.email.checkCode(email, code.trim())
+      if (!ok) throw new CommException('验证码错误')
       const user = oneRow(
         await this.infoRepo.create({
           id,
           email,
-          emailVerified: false,
+          emailVerified: true,
           unionid: email,
           name: maskEmail(email),
           password: hashed,
@@ -482,8 +488,27 @@ export class UserLoginService extends BaseService {
     return this.issueTokens(user.id, user.tenantId)
   }
 
+  /**
+   * Docs SSO / 桥接票换可吊销会话：
+   * 验 JWKS 或（仅此处）无白名单 HS256 → 重新签发并写入 Redis。
+   */
+  async exchange(accessToken: string) {
+    const token = accessToken.trim()
+    if (!token) throw new CommException('缺少 accessToken')
+    const payload = await this.jwt.web.verifyForExchange(token)
+    if (!payload?.sub) throw new CommException('凭证无效或已过期，请重新登录官方账号')
+    const userId = String(payload.sub)
+    const user = await this.infoRepo.findById(userId)
+    if (!user || user.deletedAt) throw new CommException('用户不存在')
+    this.assertActive(user)
+    const tenantId =
+      (payload.tenantId as number | null | undefined) ?? user.tenantId ?? null
+    return this.issueTokens(user.id, tenantId)
+  }
+
   private assertActive(user: { status?: number | null }) {
     if (user.status === 2) throw new CommException('账号已注销')
+    if (user.status === 3) throw new CommException('账号已禁用')
   }
 
   private async issueTokens(userId: string, tenantId?: number | null) {

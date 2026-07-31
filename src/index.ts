@@ -1,9 +1,11 @@
 import 'reflect-metadata'
 import './lib/host'
 import { Ioc, vome } from '/#/server'
+import { cors } from './middleware/cors'
 import { LogService } from './modules/base/service/log'
 
 vome(({ App }) => {
+  App.use((app) => app.use(cors))
   // App.bootstrap(async () => {})
   // 进程退出前强制刷出请求日志缓冲
   App.shutdown(async () => {
@@ -13,5 +15,4 @@ vome(({ App }) => {
       console.error('[RequestLog] shutdown flush failed', err)
     }
   })
-  // App.use((app) => app.use())
 })

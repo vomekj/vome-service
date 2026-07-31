@@ -19,7 +19,7 @@ import { UserInfoService } from '../../service/rbac'
   pageQueryOp: {
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
-      { column: 'status', dict: 'status' },
+      { column: 'status', dict: 'user_status' },
       { column: 'emailVerified', dict: 'yes_no' },
       { column: 'phoneVerified', dict: 'yes_no' },
       'tenantId',
@@ -34,7 +34,7 @@ import { UserInfoService } from '../../service/rbac'
   listQueryOp: {
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
-      { column: 'status', dict: 'status' },
+      { column: 'status', dict: 'user_status' },
       { column: 'emailVerified', dict: 'yes_no' },
       { column: 'phoneVerified', dict: 'yes_no' },
       'tenantId',

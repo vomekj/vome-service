@@ -2,7 +2,6 @@
 export const JWT_AUD = {
   WEB: 'web',
   ADMIN: 'admin',
-  AGENT: 'agent',
 } as const
 
 export type JwtAud = (typeof JWT_AUD)[keyof typeof JWT_AUD]

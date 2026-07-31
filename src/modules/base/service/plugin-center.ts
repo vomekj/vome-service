@@ -82,6 +82,8 @@ export class PluginCenterService {
 
     for (const plugin of rows) {
       const serverPath = resolvePluginServerPath(plugin.keyName)
+      // 纯前端无 server / 无 hook：只占已安装列表，不进钩子槽位
+      if (!serverPath && !plugin.hook) continue
       let PluginClass: PluginCtor
       if (serverPath) {
         // 落盘模块：直接 require，避免读入整包字符串再写临时文件（bun --watch 会死循环）

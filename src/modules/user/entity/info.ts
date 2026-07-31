@@ -35,7 +35,7 @@ export const userInfo = columnComments(
       password: varchar('password', { length: 64 }),
       /** 备注 */
       remark: varchar('remark', { length: 500 }),
-      /** 1 正常 / 2 已注销 */
+      /** 1 正常 / 2 已注销 / 3 禁用 */
       status: integer('status').notNull().default(1),
       createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
       updatedAt: timestamp('updatedAt', { withTimezone: true })

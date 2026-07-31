@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
+    "@elysiajs/cors": "^1.4.2",
     "@socket.io/bun-engine": "^0.1.1",
     "@socket.io/redis-adapter": "^8.3.0",
     "adm-zip": "^0.6.0",
@@ -26,7 +27,7 @@
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
     "svg-captcha": "^1.4.0",
-    "vome-core": "^0.0.89",
+    "vome-core": "^0.1.2",
     "zod": "4"
   },
   "devDependencies": {

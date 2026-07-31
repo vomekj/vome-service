@@ -1,0 +1,63 @@
+{
+  "base_dict_type": [
+    {
+      "name": "用户状态",
+      "key": "user_status",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "正常",
+            "value": 1,
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
+          },
+          {
+            "typeId": "@id",
+            "name": "已注销",
+            "value": 2,
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#6B7280",
+                  "orderNum": 0
+                }
+              ]
+            }
+          },
+          {
+            "typeId": "@id",
+            "name": "禁用",
+            "value": 3,
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DC2626",
+                  "orderNum": 0
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

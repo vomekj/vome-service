@@ -1,9 +1,6 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from 'jose'
 import { Inject, Provide, VomeConfig } from '/#/server'
-import type {
-  AdminAccessJwtPayload,
-  AgentAccessJwtPayload,
-} from '../../../typings/base/auth'
+import type { AdminAccessJwtPayload } from '../../../typings/base/auth'
 import { JWT_AUD } from '../../../typings/auth/jwt'
 import { AuthExpires, resolveAuthConfig } from './config'
 import { TokenService } from './token'
@@ -12,8 +9,8 @@ import { TokenService } from './token'
  * JWT 签发与校验（可注入）
  *
  * - `admin.sign` / `admin.verify`
- * - `web.sign` / `web.verify`
- * - `agent.sign` / `agent.verify`
+ * - `web.sign` / `web.verify`（日常鉴权：白名单 HS256 或 JWKS）
+ * - `web.verifyForExchange`（仅换票：可验无白名单 HS256，再签发可吊销票）
  */
 @Provide()
 export class JwtService {
@@ -66,9 +63,38 @@ export class JwtService {
         .setExpirationTime(AuthExpires.access.jwt())
         .sign(this.secretKey())
     },
+    /** 日常鉴权：Redis 白名单 HS256，或 Better Auth JWKS（可吊销 / 标准 SSO） */
     verify: async (token: string) => {
-      if (!(await this.token.web.has(token))) return null
-
+      const cfg = resolveAuthConfig()
+      if (await this.token.web.has(token)) {
+        try {
+          const { payload } = await jwtVerify(token, this.secretKey(), {
+            issuer: cfg.baseURL,
+            audience: JWT_AUD.WEB,
+          })
+          return payload
+        } catch {
+          /* 再试 JWKS */
+        }
+      }
+      try {
+        if (!this.webJwks) this.webJwks = createRemoteJWKSet(this.webJwksUrl())
+        const { payload } = await jwtVerify(token, this.webJwks, {
+          issuer: cfg.baseURL,
+          audience: JWT_AUD.WEB,
+        })
+        return payload
+      } catch {
+        return null
+      }
+    },
+    /**
+     * 仅供 login/exchange：在 verify 之外，允许验无白名单的 HS256（Docs 桥接票）。
+     * 验过即应 issueTokens 写入白名单，勿用于日常接口鉴权。
+     */
+    verifyForExchange: async (token: string) => {
+      const viaNormal = await this.web.verify(token)
+      if (viaNormal) return viaNormal
       const cfg = resolveAuthConfig()
       try {
         const { payload } = await jwtVerify(token, this.secretKey(), {
@@ -77,45 +103,8 @@ export class JwtService {
         })
         return payload
       } catch {
-        // Better Auth JWKS（邮箱登录等）
-        if (!this.webJwks) this.webJwks = createRemoteJWKSet(this.webJwksUrl())
-        const { payload } = await jwtVerify(token, this.webJwks, {
-          issuer: cfg.baseURL,
-          audience: JWT_AUD.WEB,
-        })
-        return payload
+        return null
       }
-    },
-  }
-
-  readonly agent = {
-    /** 签发本地 Agent JWT；需配合 TokenService.agent.store */
-    sign: async (
-      userId: number,
-      claims: {
-        projectId: number
-        sessionId: string
-        deviceId?: string
-        [k: string]: unknown
-      },
-    ) => {
-      const cfg = resolveAuthConfig()
-      return new SignJWT({ ...claims, aud: JWT_AUD.AGENT })
-        .setProtectedHeader({ alg: 'HS256' })
-        .setSubject(String(userId))
-        .setIssuedAt()
-        .setIssuer(cfg.baseURL)
-        .setExpirationTime(AuthExpires.access.jwt())
-        .sign(this.secretKey())
-    },
-    verify: async (token: string): Promise<AgentAccessJwtPayload | null> => {
-      if (!(await this.token.agent.has(token))) return null
-      const cfg = resolveAuthConfig()
-      const { payload } = await jwtVerify<AgentAccessJwtPayload>(token, this.secretKey(), {
-        issuer: cfg.baseURL,
-        audience: JWT_AUD.AGENT,
-      })
-      return payload
     },
   }
 }

@@ -90,16 +90,12 @@ export class AdminAuthController extends BaseController {
     const adminId = Number(ctx?.adminId)
     if (!Number.isFinite(adminId)) return status(401, this.fail('unauthorized'))
 
-    // adminAuth 已写入 Context，勿再查库
+    // 身份摘要；权限码只走 /perms（壳层用，勿在此下发完整权限表）
     return this.ok({
       adminId,
       username: ctx?.username,
-      isSuper: Boolean(ctx?.isSuper),
-      perms: (ctx?.perms as string[] | undefined) ?? [],
       tenantId: (ctx?.tenantId as number | null | undefined) ?? null,
       tenantEnabled: isTenantEnabled(),
-      dataScope: (ctx?.dataScope as string | undefined) ?? 'none',
-      dataScopeDeptIds: (ctx?.dataScopeDeptIds as number[] | undefined) ?? [],
     })
   }
 

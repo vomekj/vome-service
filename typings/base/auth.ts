@@ -6,13 +6,6 @@ export interface AdminAccessJwtPayload extends JWTPayload {
   tenantId?: number | null
 }
 
-/** Agent access JWT payload（HS256，aud=agent） */
-export interface AgentAccessJwtPayload extends JWTPayload {
-  projectId: number
-  sessionId: string
-  deviceId?: string
-}
-
 /** 登录 / 刷新成功返回的双 token */
 export interface AdminTokenPayload {
   accessToken: string

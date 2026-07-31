@@ -147,17 +147,20 @@ export class AppUserLoginController extends BaseController {
   }
 
   @Public()
-  @Post('/register', { summary: '密码注册（手机号或邮箱）' })
+  @Post('/register', { summary: '密码注册（须短信/邮箱验证码；手机/邮箱自动分流）' })
   async register(
     @Body(
       t.Object({
         account: t.String({ minLength: 1 }),
         password: t.String({ minLength: 1 }),
+        code: t.String({ minLength: 1 }),
       }),
     )
-    body: { account: string; password: string },
+    body: { account: string; password: string; code: string },
   ) {
-    return this.ok(await this.login.register(body.account, body.password))
+    return this.ok(
+      await this.login.register(body.account, body.password, body.code),
+    )
   }
 
   @Public()
@@ -230,5 +233,14 @@ export class AppUserLoginController extends BaseController {
     body: { refreshToken: string },
   ) {
     return this.ok(await this.login.refreshToken(body.refreshToken))
+  }
+
+  @Public()
+  @Post('/exchange', { summary: '桥接票换可吊销会话（Docs SSO）' })
+  async exchange(
+    @Body(t.Object({ accessToken: t.String({ minLength: 1 }) }))
+    body: { accessToken: string },
+  ) {
+    return this.ok(await this.login.exchange(body.accessToken))
   }
 }

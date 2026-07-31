@@ -36,6 +36,9 @@ const DICT_INFO_TABLE = 'base_dict_info'
  * 解析 db.json 占位符：
  * - `@id`：当前父行 id
  * - `@rootId`：根行 id（如 base_dict_type.id，供孙节点 typeId）
+ *
+ * 不递归 `@childDatas`：孙节点的 `@id` 必须等父行插入后再解析，
+ * 否则会把 color 的 parentId 提前解析成字典类型 id，脏成一级节点。
  */
 function resolveTokens(
   value: unknown,
@@ -50,6 +53,10 @@ function resolveTokens(
   if (value && typeof value === 'object') {
     const out: Row = {}
     for (const [key, val] of Object.entries(value)) {
+      if (key === CHILD_KEY) {
+        out[key] = val
+        continue
+      }
       out[key] = resolveTokens(val, parentId, rootId)
     }
     return out

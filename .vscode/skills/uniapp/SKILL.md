@@ -57,7 +57,7 @@ H5 代理与 Web 同模式：`config/proxy.ts` + Vite `server.proxy`。
 
 ```
 uniapp/src/
-  pages/              # 与 pages.json 对应
+  pages/              # 约定式 …/index.vue → pages.json
   windows/
   stores/             # user / app / theme
   api/client.ts
@@ -68,7 +68,7 @@ uniapp/src/
   config/
 ```
 
-`pages.json` / `manifest.json` 为 JSONC。`main.ts`：`bootEps`、`ensureFreshToken`、`setupRouteAuthGuard`、`connectWs`（以现文件为准）。
+`pages.config.ts` 静态配置；`pages.json` 由 `@uni-helper/vite-plugin-uni-pages` 生成；`manifest.json` 为 JSONC。`main.ts`：`bootEps`、`ensureFreshToken`、`setupRouteAuthGuard`、`connectWs`（以现文件为准）。
 
 ## 初始化（api/client.ts）
 
@@ -121,7 +121,7 @@ ensureFreshToken()      // 导航 / 请求前
 refreshAccessToken()    // POST /app/user/login/refreshToken
 ```
 
-成功：`uni.$emit('session:token', data)`；失败：`redirectLogin()` → `uni.reLaunch('/pages/login/login')` 并 `session:logout`。
+成功：`uni.$emit('session:token', data)`；失败：`redirectLogin()` → `uni.reLaunch('/pages/login/index')` 并 `session:logout`。
 
 ## request / service / apiUrl
 
@@ -166,7 +166,7 @@ useUserStore().setToken(payload)
 2. `POST /app/user/login/mini` 换 token
 3. `useUserStore().setToken(payload)`
 
-### 与 Web 对齐的接口（登录页 `pages/login/login.vue`）
+### 与 Web 对齐的接口（登录页 `pages/login/index.vue`）
 
 | 能力 | 路径 |
 |------|------|
@@ -184,7 +184,7 @@ useUserStore().setToken(payload)
 
 对 `navigateTo` / `redirectTo` / `reLaunch` / `switchTab` 加 interceptor，导航前 **`await ensureFreshToken()`**（过期则 refresh；**不是**白名单 ACL）。
 
-真正跳登录在请求层：401 → `redirectLogin()` → `uni.reLaunch('/pages/login/login')`。
+真正跳登录在请求层：401 → `redirectLogin()` → `uni.reLaunch('/pages/login/index')`。
 
 `pages.json` **没有** `needLogin` 元数据；是否要登录由接口是否要求 token 决定。
 
@@ -218,7 +218,7 @@ await user.logout()
 ```ts
 clearTokens()
 useUserStore().logout?.()
-uni.reLaunch({ url: '/pages/login/login' })
+uni.reLaunch({ url: '/pages/login/index' })
 ```
 
 ## Socket.IO
@@ -243,8 +243,8 @@ io(config.host, {
 
 ## 页面
 
-- 新页：`pages/...` + `pages.json` 注册
-- TabBar：改 `pages.json` tabBar
+- 新页：`pages/<path>/index.vue`（插件自动注册）
+- TabBar：改 `pages.config.ts` tabBar + TAB_LIST
 - 业务代码放 `@/`；需要 client 能力用 `/@`
 
 ## 与 Web 差异（对照）
@@ -259,7 +259,7 @@ io(config.host, {
 
 ## 新增页面清单
 
-1. 加 `pages/...` + `pages.json` 注册（Tab 则改 tabBar）
+1. 加 `pages/<path>/index.vue`（Tab：pages.config.ts tabBar + TAB_LIST）
 2. 需要登录的接口失败会 `redirectLogin`；导航前有 `ensureFreshToken`
 3. 调 `service.*` / `request('/app/...')`
 4. 用户：`useUserStore().info` / `get()`；壳：`useAppStore`（`TAB_LIST` 用 `url`）

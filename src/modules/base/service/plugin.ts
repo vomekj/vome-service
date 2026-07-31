@@ -1,4 +1,4 @@
-import { unlinkSync, existsSync, readFileSync } from 'node:fs'
+import { unlinkSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   and,
@@ -20,6 +20,7 @@ import {
   readPluginScript,
   resolvePluginServerPath,
   pModulePath,
+  pModulesPath,
   pPluginPath,
   InjectRepository,
   type Repository,
@@ -113,11 +114,47 @@ export class PluginInfoService extends BaseService {
   }
 
   private normalizeListRow(row: Record<string, unknown>) {
-    const key = String(row.key || '')
+    const keyName = String(row.keyName || '')
+    const dir = keyName ? pModulePath(keyName) : ''
+    const hasWeb =
+      Boolean(dir) && existsSync(join(dir, 'web', 'index.html'))
+    const hasServer = Boolean(keyName && resolvePluginServerPath(keyName))
     return {
       ...row,
       hasReadme: Boolean(row.hasReadme),
-      seat: formatSeatDisplay(getModuleSeatStatus(key)),
+      hasWeb,
+      hasServer,
+      seat: formatSeatDisplay(getModuleSeatStatus(keyName)),
+    }
+  }
+
+  /**
+   * 把已落盘但未进 base_plugin_info 的模块补登记（历史纯前端装完只写菜单的情况）
+   */
+  async ensureDiskModulesRegistered() {
+    const root = pModulesPath()
+    if (!existsSync(root)) return
+    for (const name of readdirSync(root)) {
+      const dir = join(root, name)
+      if (!statSync(dir).isDirectory()) continue
+      const metaPath = join(dir, 'module.json')
+      if (!existsSync(metaPath)) continue
+      const [exists] = await this.pluginRepo.find(
+        eq(basePluginInfo.keyName, name),
+      )
+      if (exists) continue
+      try {
+        const manifest = JSON.parse(
+          readFileSync(metaPath, 'utf8'),
+        ) as ModuleManifest
+        if (!manifest?.key) continue
+        await this.registerFromModule(manifest)
+      } catch (e) {
+        console.warn(
+          `[Plugin] sync module ${name}:`,
+          e instanceof Error ? e.message : e,
+        )
+      }
     }
   }
 
@@ -138,6 +175,7 @@ export class PluginInfoService extends BaseService {
     where?: SQL,
     options?: CrudTrashQueryOptions & { orderBy?: SQL[] },
   ) {
+    await this.ensureDiskModulesRegistered()
     const scoped = this.listWhere(where, options)
     let query: any = this.drizzle.select(listSelectFields()).from(basePluginInfo)
     if (scoped) query = query.where(scoped)
@@ -152,6 +190,7 @@ export class PluginInfoService extends BaseService {
       orderBy?: SQL[]
     } & CrudTrashQueryOptions = {},
   ): Promise<PageResult> {
+    await this.ensureDiskModulesRegistered()
     const page = Math.max(1, query.page ?? 1)
     const size = Math.min(100, Math.max(1, query.size ?? 20))
     const trashOpts: CrudTrashQueryOptions = {
@@ -366,32 +405,34 @@ export class PluginInfoService extends BaseService {
   }
 
   /**
-   * 从已落盘 modules/{key} 注册钩子（由 ModuleService.install 调用）
+   * 从已落盘 modules/{key} 登记到已安装列表（钩子 / 纯前端 / 全栈均写 base_plugin_info）
    */
   async registerFromModule(manifest: ModuleManifest) {
-    if (!manifest.hook) {
-      throw new CommException('module.json 缺少 hook')
-    }
     if (manifest.key === 'plugin') {
       throw new CommException('插件 key 不能为 plugin，请更换')
     }
 
+    const hasHook = Boolean(manifest.hook)
     const serverPath = resolvePluginServerPath(manifest.key)
     let script = ''
-    try {
-      if (serverPath) {
-        loadPluginClassFromPath(serverPath)
-      } else {
-        script = readPluginScript(manifest.key) ?? ''
-        if (!script) {
-          throw new CommException('缺少 server/index.js（钩子需导出 Plugin）')
+
+    // 仅钩子插件必须能加载 Plugin；纯前端只登记卡片
+    if (hasHook) {
+      try {
+        if (serverPath) {
+          loadPluginClassFromPath(serverPath)
+        } else {
+          script = readPluginScript(manifest.key) ?? ''
+          if (!script) {
+            throw new CommException('缺少 server/index.js（钩子需导出 Plugin）')
+          }
+          loadPluginClass(script)
         }
-        loadPluginClass(script)
+      } catch (e) {
+        throw new CommException(
+          e instanceof Error ? e.message : 'Plugin 加载失败',
+        )
       }
-    } catch (e) {
-      throw new CommException(
-        e instanceof Error ? e.message : 'Plugin 加载失败',
-      )
     }
 
     const dir = pModulePath(manifest.key)
@@ -443,7 +484,7 @@ export class PluginInfoService extends BaseService {
       keyName: manifest.key,
       version: manifest.version,
       author: manifest.author ?? null,
-      hook: manifest.hook,
+      hook: manifest.hook ?? null,
       readme,
       logo,
       content: { type: 'comm' as const, data: script },
@@ -466,10 +507,10 @@ export class PluginInfoService extends BaseService {
       await this.pluginRepo.create(row)
     }
 
-    if (manifest.hook && nextStatus === 1) {
+    if (hasHook && nextStatus === 1) {
       const others = await this.pluginRepo.find(
         and(
-          eq(basePluginInfo.hook, manifest.hook),
+          eq(basePluginInfo.hook, manifest.hook!),
           eq(basePluginInfo.status, 1),
           ne(basePluginInfo.keyName, manifest.key),
         ),
@@ -479,11 +520,14 @@ export class PluginInfoService extends BaseService {
           status: 0,
         })
       }
-      await this.center.remove(manifest.hook, true)
+      await this.center.remove(manifest.hook!, true)
     }
 
-    if (nextStatus === 1) await this.reInit(manifest.key)
-    return { type: 3 as const, message: '钩子注册成功' }
+    if (nextStatus === 1 && hasHook) await this.reInit(manifest.key)
+    return {
+      type: 3 as const,
+      message: hasHook ? '钩子注册成功' : '插件登记成功',
+    }
   }
 
   /** 卸载模块时清理钩子记录与槽位 */

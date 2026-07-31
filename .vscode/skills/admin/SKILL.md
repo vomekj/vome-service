@@ -1,21 +1,21 @@
 ---
 name: admin-usage
 description: >-
-  Admin 业务开发：vome-core/admin CRUD 组件与 hooks、筛选、字典、主题、权限、防连点。
+  Admin 业务页用法：CRUD、筛选、字典 get/options、主题、权限、防连点。
   Use when editing admin/ Vue pages, CRUD views, or admin UI.
 ---
 
 # Admin 用法（业务开发）
 
-> **范围**：`admin/` 后台业务页。CRUD / 布局组件来自 npm **`vome-core/admin`**（别名 `/@`）。
+> **范围**：`admin/` 后台业务页。CRUD / 布局组件经别名 `/@` 使用（npm 包提供）。
 
 ## IDE
 
 与 Service 相同：把含 `vm-crud` 等 snippet 的 `.vscode` **移到项目根**；Skills 建议 `.cursor/skills/` + 根 `AGENTS.md`（见 [AGENTS.md](../AGENTS.md)）。
 
-## Core（`vome-core/admin`）完整 API
+## 框架 API（`/@` → admin 包）
 
-别名 `/@` → admin 包。CRUD 组件靠 **自动引入**（`vm-*`），不必从桶里 import SFC。
+CRUD 组件靠 **自动引入**（`vm-*`），不必手写 import SFC。
 
 ### 入口与 EPS / 请求
 
@@ -59,7 +59,7 @@ description: >-
 | `useUserStore` | 后台登录用户（admin 侧） |
 | `useTagsStore` | 多页签 |
 
-主题色在宿主 `theme.css` / `stores/theme.ts`，不要改 core `base.css`。
+主题色在宿主 `theme.css` / `stores/theme.ts` 配置，业务页不要改框架结构样式。
 
 ### 工具与其它
 
@@ -70,7 +70,7 @@ description: >-
 | `config` | 宿主配置桥 |
 | `pluginDev` | 插件开发脚手架配置 |
 
-样式入口：`@vome-core/admin/styles/base.css`（结构，禁止换肤乱改）。
+样式：业务换色只改 `src/styles/theme.css`；页面用 `scoped` SCSS。
 
 ---
 
@@ -89,7 +89,7 @@ bun run dev       # 需先启动 service；常见端口 9000
 | 别名 | 指向 |
 |------|------|
 | `@/` | `admin/src/` |
-| `/@` | `vome-core` **admin**（CRUD、stores、组件） |
+| `/@` | 框架 admin 包（CRUD、stores、组件） |
 | `@config` / `@typings` | 宿主 config / typings |
 
 业务页优先 **自动引入** 的 `vm-*`，少手写 import。
@@ -134,13 +134,39 @@ const { dict } = useDict()
 useUpsert({
   items: [
     { prop: 'name', label: '名称', required: true, span: 12 },
-    { prop: 'status', label: '状态', component: { name: 'vm-select', options: dict('status') } },
+    {
+      prop: 'status',
+      label: '启用',
+      span: 12,
+      type: 'switch',
+      value: 1,
+      component: { props: dict.get('status') },
+    },
+    {
+      prop: 'type',
+      label: '类型',
+      span: 12,
+      type: 'select',
+      options: dict.get('shop_goods_type'),
+    },
   ],
 })
 useTable({
   columns: [
     { prop: 'name', label: '名称' },
-    { prop: 'status', label: '状态' },
+    {
+      prop: 'type',
+      label: '类型',
+      width: 100,
+      dict: dict.options('shop_goods_type'),
+    },
+    {
+      prop: 'status',
+      label: '启用',
+      width: 88,
+      component: { name: 'vm-switch', props: dict.get('status') },
+    },
+    { type: 'op', buttons: ['edit', 'delete'] },
   ],
 })
 
@@ -209,11 +235,10 @@ const Crud = useCrud(
 | 层 | 路径 | 业务 |
 |----|------|------|
 | 主题色 | `src/styles/theme.css` | ✅ 换色 |
-| 结构 | `@vome-core/admin/styles/base.css` | ❌ 不为换肤改 |
-| 主题切换 | `src/themes/*`、`stores/theme.ts` | ✅；`setTheme` 亮暗变化时圆弧 View Transition（`theme.css` `vm-theme-flip`，**只加动效不改 token**） |
+| 主题切换 | `src/themes/*`、`stores/theme.ts` | ✅ |
 | 业务页 | `style lang="scss" scoped` | ✅ |
 
-- 主色 `#4E5DFF`；`main.ts`：先 `theme.css` 再 `base.css`
+- 主色建议 `#4E5DFF`；`main.ts` 先引入 `theme.css` 再引入框架样式
 - 布局用 SCSS + CSS 变量；不要用 Tailwind 铺满业务页（`components/ui/**` 除外）
 - 顺序：`template` → `script setup` → `style lang="scss" scoped`
 
@@ -255,10 +280,10 @@ registerViews(viewModules)
 | `span` | 24 栅格；业务表单默认常用 `12`（半宽） |
 | `required` | 必填（走 `Plugins.Form.setRules`） |
 | `rules` | 额外校验规则 |
-| `dict` | 字典 key，如 `'status'` → `useDict().dict.get(...)` |
-| `options` | 手写 `{ label, value }[]`（可代替 dict） |
+| `dict` | 表格彩色标签：传 `dict.options('status')`（见下「字典」） |
+| `options` | 表单/下拉选项：传 `dict.get('status')` 或手写 `{ label, value }[]` |
 | `type` | 内置控件类型，见下 |
-| `component` | `{ name: 'vm-xxx', props: { … } }` 自定义注册表组件 |
+| `component` | `{ name: 'vm-xxx', props: { … } }`；开关常用 `props: dict.get('status')` |
 | `hidden` / `disabled` | 隐藏 / 禁用 |
 
 ### 内置 `type`
@@ -266,14 +291,28 @@ registerViews(viewModules)
 | type | 用途 |
 |------|------|
 | `input`（默认） | 单行文本 |
-| `textarea` | 多行 |
-| `select` | 下拉（可配 dict/options；多选用 `vm-multi-select`） |
-| `switch` / `radio` | 开关 / 单选 |
+| `textarea` | 多行；大文本可用 `span: 24` + `component: { props: { height: 300 } }` |
+| `select` | 下拉；`options: dict.get('xxx')`；多选用 `vm-multi-select` |
+| `switch` / `radio` | 开关 / 单选；开关 `component: { props: dict.get('status') }` |
 | `date` / `daterange` / `number-range` | 搜索常用；区间可配 `range: { min, max, rangeType }` |
 
 ```ts
-// 字典下拉
-{ prop: 'status', label: '状态', type: 'select', dict: 'status', span: 12 }
+// 表单：下拉 / 开关 → dict.get（一级项，不带颜色）
+{
+  prop: 'type',
+  label: '类型',
+  type: 'select',
+  span: 12,
+  options: dict.get('shop_goods_type'),
+}
+{
+  prop: 'status',
+  label: '启用',
+  type: 'switch',
+  value: 1,
+  span: 12,
+  component: { props: dict.get('status') },
+}
 
 // 自定义组件
 {
@@ -301,8 +340,21 @@ registerViews(viewModules)
 | `prop` / `label` | 列字段与标题 |
 | `minWidth` / `width` | 宽度 |
 | `sortable` | 排序（若后端支持） |
+| `dict` | 彩色标签：`dict: dict.options('xxx')` |
 | 插槽 | 模板 `#cell-{prop}` 自定义单元格 |
 | 展示组件 | 列内可用 `vm-dict-tag`、`vm-date-text`、`vm-status-tag`、`vm-avatar`、`vm-preview-viewer` 等 |
+
+开关列须紧挨 `{ type: 'op' }` 左侧：
+
+```ts
+{
+  prop: 'status',
+  label: '启用',
+  width: 88,
+  component: { name: 'vm-switch', props: dict.get('status') },
+},
+{ type: 'op', buttons: ['edit', 'delete'] },
+```
 
 ### 上传（vm-upload）
 
@@ -335,10 +387,39 @@ registerViews(viewModules)
 
 ## 字典 / 权限 / 微应用
 
+### 字典（`useDict`）
+
+```ts
+const { dict } = useDict()
+```
+
+| API | 返回 | 用在哪 |
+|-----|------|--------|
+| `dict.get('status')` | 字典树（含 `children`；下拉用一级） | **表单下拉**、**开关**、搜索下拉 |
+| `dict.options('status')` | `{ label, value, color? }` | **彩色标签**（表格 `dict:`、菜单类型、邮箱/手机是否验证等） |
+| `dict.find('status', value)` | 按 value 查节点 | 需要展示完整路径时 |
+
+```ts
+// ✅ 下拉 / 开关
+options: dict.get('plugin_type')
+component: { props: dict.get('status') }
+
+// ✅ 表格彩色标签 / 菜单类型等
+dict: dict.options('plugin_type')
+options: dict.options('base_menu_type') // 需要色值的类型下拉
+
+// ❌ 开关不要用 options（用不着颜色）
+component: { props: dict.options('status') }
+```
+
+- 字典内容随登录后的 EPS 下发，业务页**不要**进页再请求 `/dict/info/data`
+- 筛选项：后端 `fieldEq: [{ column: 'status', dict: 'status' }]` → `vm-search` 自动出下拉（一级项）
+- 字典管理页：`modules/base/views/dict`；改完后才 `dict.refresh(['status'], true)`
+- **用户列**：业务页控制器 join `user_info`，表格 `id` 后展示 用户ID / 手机号 / 昵称；`user_info` 自身页不 join，列序相同
+- **`status` 列**：`fixed: 'right'` 且紧挨 `op` 左侧；`op` 内置贴右
+
 | 场景 | 用法 |
 |------|------|
-| 字典管理 | `modules/base/views/dict` |
-| 筛选项字典 | 后端 `fieldEq: [{ column: 'status', dict: 'status' }]` → 前端自动下拉 |
 | 按钮权限 | `v-perm="'shop:goods:add'"` |
 | 微应用 | 菜单 `appKey` → wujie → `/vome/apps/{key}/` |
 
@@ -361,8 +442,9 @@ async function onSubmit() {
 
 1. 缺 `vm-search` 或 `:search="false"` → 没有重置与自动筛选。
 2. 筛选项以后端 `pageQueryOp` 为准；`none: true` 不出控件。
-3. 不要改 core `base.css` 换肤；颜色只动 `theme.css`。
+3. 换肤只改 `theme.css`；业务页用 scoped SCSS。
 4. service 未启动 / 代理错 → EPS、登录、CRUD 全挂。
 5. 新页面必须能被 `views-registry` 的 glob 扫到，且菜单 `viewPath` 正确。
-6. 升级 `vome-core` 后 `bun install`，按本 Skill 调整用法。
+6. 依赖升级后 `bun install`，按本 Skill 调整用法。
 7. 提交类按钮一律防连点。
+8. 下拉/开关用 `dict.get`；彩色标签用 `dict.options`（不要混用）。

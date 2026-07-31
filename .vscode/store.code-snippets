@@ -1,6 +1,6 @@
 {
   "store": {
-    "prefix": "store",
+    "prefix": "vm-store",
     "body": [
       "export const use${1:Xxx}Store = defineStore('${2:xxx}', {",
       "  state: () => ({",
