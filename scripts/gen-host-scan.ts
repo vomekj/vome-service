@@ -3,7 +3,7 @@
  * bun scripts/gen-host-scan.ts
  */
 import { Glob } from 'bun'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const OUT = 'src/lib/host/scan.ts'
 
@@ -93,7 +93,12 @@ lines.push(
 )
 
 mkdirSync('src/lib/host', { recursive: true })
-writeFileSync(OUT, lines.join('\n'))
-console.log(
-  `[gen-host-scan] → ${OUT} services=${services.length} admin=${admin.length} app=${app.length}`,
-)
+const next = lines.join('\n')
+const summary = `services=${services.length} admin=${admin.length} app=${app.length}`
+// 内容不变则不写盘：避免 bun --watch 因 mtime 变化 → 重启 → 再 gen 死循环
+if (existsSync(OUT) && readFileSync(OUT, 'utf8') === next) {
+  console.log(`[gen-host-scan] unchanged ${OUT} ${summary}`)
+} else {
+  writeFileSync(OUT, next)
+  console.log(`[gen-host-scan] → ${OUT} ${summary}`)
+}

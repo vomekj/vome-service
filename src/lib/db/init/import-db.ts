@@ -42,8 +42,8 @@ const DICT_INFO_TABLE = 'base_dict_info'
  */
 function resolveTokens(
   value: unknown,
-  parentId: number,
-  rootId?: number,
+  parentId: number | string,
+  rootId?: number | string,
 ): unknown {
   if (value === '@id') return parentId
   if (value === '@rootId') return rootId ?? parentId
@@ -73,7 +73,11 @@ function sameDictValue(a: unknown, b: unknown) {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 }
 
-async function insertReturningId(db: Db, table: Table, row: Row): Promise<number> {
+async function insertReturningId(
+  db: Db,
+  table: Table,
+  row: Row,
+): Promise<number | string> {
   const cols = getTableColumns(table)
   const idCol = cols.id
   if (!idCol) {
@@ -81,7 +85,7 @@ async function insertReturningId(db: Db, table: Table, row: Row): Promise<number
   }
   const inserted = await db.insert(table).values(row).returning({ id: idCol })
   const id = inserted[0]?.id
-  if (typeof id !== 'number') {
+  if (typeof id !== 'number' && typeof id !== 'string') {
     throw new Error(`[init] 插入 ${table} 未返回 id`)
   }
   return id
@@ -262,7 +266,7 @@ async function insertRow(
   tableMap: Map<string, Table>,
   tableName: string,
   row: Row,
-  rootId?: number,
+  rootId?: number | string,
 ) {
   if (tableName === DICT_TYPE_TABLE) {
     await seedDictTypeRow(db, tableMap, row)
@@ -309,6 +313,41 @@ async function tableIsEmpty(db: Db, table: Table) {
   return (rows[0]?.count ?? 0) === 0
 }
 
+/** user_info 是否已有同 phone / email（避免重复种默认账号） */
+async function userInfoExists(
+  db: Db,
+  table: Table,
+  data: Row,
+): Promise<boolean> {
+  const cols = getTableColumns(table)
+  const client = db as unknown as {
+    select: (sel: { id: unknown }) => {
+      from: (t: Table) => {
+        where: (cond: unknown) => {
+          limit: (n: number) => Promise<Array<{ id: unknown }>>
+        }
+      }
+    }
+  }
+  if (data.phone != null && cols.phone) {
+    const rows = await client
+      .select({ id: cols.id })
+      .from(table)
+      .where(eq(cols.phone, data.phone))
+      .limit(1)
+    if (rows.length) return true
+  }
+  if (data.email != null && cols.email) {
+    const rows = await client
+      .select({ id: cols.id })
+      .from(table)
+      .where(eq(cols.email, data.email))
+      .limit(1)
+    if (rows.length) return true
+  }
+  return false
+}
+
 /** 模块已初始化后：空表全量补种；字典表按 key 增量补缺失项 */
 export async function seedEmptyTablesFromModuleDb(
   file: string,
@@ -330,6 +369,20 @@ export async function seedEmptyTablesFromModuleDb(
         await seedDictTypeRow(db as Db, tableMap, row as Row)
       }
       console.log(`[init] db seed ← ${tableName} (incremental)`)
+      continue
+    }
+
+    /** user_info：按 phone/email 幂等补种（agent 本地上传默认账号） */
+    if (tableName === 'user_info') {
+      let added = 0
+      for (const row of rows) {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+        const data = stripMeta(row as Row)
+        if (await userInfoExists(db as Db, table, data)) continue
+        await insertRow(db as Db, tableMap, tableName, row as Row)
+        added++
+      }
+      if (added) console.log(`[init] db seed ← ${tableName} (+${added})`)
       continue
     }
 
