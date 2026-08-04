@@ -320,7 +320,7 @@ vome(({ App }) => {
 | 文件 | 作用 |
 |------|------|
 | `src/lib/host/index.ts` | `registerHost({ Db…Socket, middleware, scan })` |
-| `src/lib/host/scan.ts` | **生成物**（勿手改）：`bun run gen:host-scan` / 各 build 脚本前置 |
+| `src/lib/host/scan.ts` | **生成物**（勿手改）：由 `dev`/`build`/`binary` 内嵌 `scripts/gen-host-scan.ts` 生成 |
 | `scripts/gen-host-scan.ts` | 扫描 `modules/*/service|controller` 写出相对 `import()` |
 
 `App.start()`：`registerHost` 中间件 → `scanHost`（优先 `registerHost.scan`）→ IoC → 路由。  
@@ -342,9 +342,8 @@ vome(({ App }) => {
 
 | 命令 | 说明 |
 |------|------|
-| `bun run gen:host-scan` | 新增模块后手动重生成（dev/build 已自动） |
-| `bun run build` / `binary` | 含 `--define SEAT_ENFORCE:true`：生产验 `market.sig`、付费包 `market.lic`/联网签发、席位心跳 |
-| `bun run dev` | 无 `SEAT_ENFORCE`：本地/自研包安装放行 |
+| `bun run build` / `binary` | 内嵌 gen-host-scan；含 `--define SEAT_ENFORCE:true`：生产验 `market.sig`、付费包 `market.lic`/联网签发、席位心跳 |
+| `bun run dev` | 内嵌 gen-host-scan；无 `SEAT_ENFORCE`：本地/自研包安装放行 |
 
 ## 鉴权（adminAuth 样例）
 

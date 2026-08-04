@@ -57,13 +57,15 @@ cd web && bun install && bun run dev   # 需先启动 service；常见端口 990
 
 ```
 web/src/
-  pages/              # login、home、mine…
-  components/
+  pages/              # login、home、mine…（/pages/<name>/index）
+  components/         # vm-header / vm-aside / vm-tabbar / vm-ri-icon
   stores/             # user / app / theme
   router/
   api/client.ts       # request、token、bootEps、service
-  lib/auth-client.ts  # Better Auth
-  lib/socket.ts       # Socket.IO
+  lib/auth-client.ts  # Better Auth（与 uni 同路径）
+  lib/utils.ts        # cn()（shadcn）
+  utils/socket.ts     # Socket.IO（与 uni 同路径）
+  utils/              # favicon、login-bubble、navigation、page-path
   config/
 ```
 
@@ -159,7 +161,7 @@ export const authClient = createAuthClient({
 | 注册 | `POST /app/user/login/register` |
 | 发验证码 | `POST /app/user/login/otpCode` |
 | 验证码登录 | `POST /app/user/login/otp` |
-| 社交列表 | `GET /app/user/login/socialProviders` |
+| 社交列表 | `GET /app/user/login/socialProviders` → `{ key, label, icon, color }[]` |
 | SSO | `authClient.signIn.social({ provider, callbackURL })` → 回调 `?sso=1` → `syncBetterAuthJwt` → `setTokens` |
 
 Session → 业务 JWT：
@@ -221,12 +223,12 @@ app.setActive('mine')
 ```ts
 await useUserStore().logout()
 // 可选：await authClient.signOut()
-router.push('/login')
+router.push('/pages/login/index')
 ```
 
 ## Socket.IO
 
-`lib/socket.ts`（`socket.io-client`）：
+`utils/socket.ts`（`socket.io-client`；路径与 uni `utils/socket.ts` 对齐）：
 
 ```ts
 io(config.host, {

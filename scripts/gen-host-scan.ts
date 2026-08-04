@@ -7,17 +7,30 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const OUT = 'src/lib/host/scan.ts'
 
-const services = [...new Glob('src/modules/*/service/**/*.ts').scanSync()].sort()
+/** Windows Glob 可能返回 `\`；生成的 import / file 一律正斜杠 */
+function toPosix(p: string) {
+  return String(p).replace(/\\/g, '/')
+}
+
+const services = [
+  ...new Glob('src/modules/*/service/**/*.ts').scanSync(),
+]
+  .map(toPosix)
+  .sort()
 const admin = [
   ...new Glob('src/modules/*/controller/admin/**/*.ts').scanSync(),
-].sort()
+]
+  .map(toPosix)
+  .sort()
 const app = [
   ...new Glob('src/modules/*/controller/app/**/*.ts').scanSync(),
-].sort()
+]
+  .map(toPosix)
+  .sort()
 
 /** scan.ts 在 src/lib/host/，到 modules 用 ../../；保留 .ts 供 Bun 打包解析 */
 function importPath(p: string) {
-  return '../../' + p.replace(/^src\//, '')
+  return '../../' + toPosix(p).replace(/^src\//, '')
 }
 
 const lines: string[] = [

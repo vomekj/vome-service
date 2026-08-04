@@ -58,7 +58,7 @@ H5 代理与 Web 同模式：`config/proxy.ts` + Vite `server.proxy`。
 ```
 uniapp/src/
   pages/              # 约定式 …/index.vue → pages.json
-  windows/
+  components/         # vm-header / vm-aside / vm-tabbar（aside：leftWindow 注释占位）
   stores/             # user / app / theme
   api/client.ts
   lib/auth-client.ts
@@ -68,7 +68,7 @@ uniapp/src/
   config/
 ```
 
-`pages.config.ts` 静态配置；`pages.json` 由 `@uni-helper/vite-plugin-uni-pages` 生成；`manifest.json` 为 JSONC。`main.ts`：`bootEps`、`ensureFreshToken`、`setupRouteAuthGuard`、`connectWs`（以现文件为准）。
+`pages.config.ts` 静态配置（`topWindow`→`vm-header`；`leftWindow`→`vm-aside` 注释默认关）；`pages.json` 由 `@uni-helper/vite-plugin-uni-pages` 生成；`manifest.json` 为 JSONC。`main.ts`：`bootEps`、`ensureFreshToken`、`setupRouteAuthGuard`、`connectWs`（以现文件为准）。
 
 ## 初始化（api/client.ts）
 
@@ -173,7 +173,7 @@ useUserStore().setToken(payload)
 | 密码登录 | `POST /app/user/login/password` |
 | 注册 | `POST /app/user/login/register` |
 | OTP | `otpCode` → `otp` |
-| 社交列表 | `GET /app/user/login/socialProviders` |
+| 社交列表 | `GET /app/user/login/socialProviders` → `{ key, label, icon, color }[]` |
 | 小程序 | `POST /app/user/login/mini` |
 
 密钥与 OAuth 只在 Service `config/`。

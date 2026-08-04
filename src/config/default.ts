@@ -62,20 +62,37 @@ const config: DefaultConfig = {
       github: {
         clientId: "your-github-client-id",
         clientSecret: "your-github-client-secret",
+        label: "GitHub",
+        icon: "ri-github-fill",
+        color: "#24292f",
       },
       google: {
         clientId: "your-google-client-id.apps.googleusercontent.com",
         clientSecret: "your-google-client-secret",
+        label: "Google",
+        icon: "ri-google-fill",
+        color: "#ea4335",
       },
       wechat: {
         clientId: "your-wechat-appid",
         clientSecret: "your-wechat-secret",
+        label: "微信",
+        icon: "ri-wechat-fill",
+        color: "#07c160",
       },
       gitee: {
         clientId: "your-gitee-client-id",
         clientSecret: "your-gitee-client-secret",
+        label: "Gitee",
+        icon: "ri-git-repository-fill",
+        color: "#c71d23",
       },
-      steam: { apiKey: "your-steam-api-key" },
+      steam: {
+        apiKey: "12345678901234567890123456789012",
+        label: "Steam",
+        icon: "ri-steam-fill",
+        color: "#171a21",
+      },
     },
   },
   vome: {

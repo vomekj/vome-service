@@ -4,6 +4,7 @@ import type { createDrizzle } from '../client'
 import { importModuleDb, seedEmptyTablesFromModuleDb } from './import-db'
 import { importModuleMenu } from './import-menu'
 import { isModuleInitialized, markModuleInitialized } from './judge'
+import { patchMissingMenusFromJson } from './patch-menu'
 
 type Db = ReturnType<typeof createDrizzle>
 
@@ -56,6 +57,19 @@ export async function initModules(options: {
       if (!ok) continue
       await markModuleInitialized(name, 'menu', judge, options.sql)
       console.log(`[init] menu ← ${name}`)
+    }
+    /* 已种过的环境：按 router 补缺失页面（如「订阅套餐配置」） */
+    if (options.sql) {
+      for (const file of files) {
+        try {
+          await patchMissingMenusFromJson(file, options.sql)
+        } catch (e) {
+          console.warn(
+            `[init] menu patch fail ${moduleName(file)}:`,
+            e instanceof Error ? e.message : e,
+          )
+        }
+      }
     }
   }
 }
