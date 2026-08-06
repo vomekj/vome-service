@@ -1,6 +1,6 @@
 import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { columnComments, entitySchemas } from '/#/server'
+import { columnComments, entitySchemas } from '@core/server'
 import { userInfo } from './info'
 
 /** Better Auth 第三方账号关联表 */

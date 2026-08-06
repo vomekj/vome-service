@@ -6,7 +6,7 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import {
   decryptSecret,
   encryptSecret,

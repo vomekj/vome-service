@@ -1,6 +1,6 @@
 import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { columnComments, entitySchemas } from '/#/server'
+import { columnComments, entitySchemas } from '@core/server'
 
 /** Better Auth JWT 插件 JWKS 表 */
 export const userJwks = columnComments(

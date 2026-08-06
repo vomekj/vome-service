@@ -1,6 +1,7 @@
+import './config/provide'
 import 'reflect-metadata'
 import './lib/host'
-import { Ioc, vome } from '/#/server'
+import { Ioc, vome } from '@core/server'
 import { cors } from './middleware/cors'
 import { LogService } from './modules/base/service/log'
 

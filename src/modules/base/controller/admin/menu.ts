@@ -3,7 +3,7 @@ import {
   Controller,
   Get,
   Inject,
-} from '/#/server'
+} from '@core/server'
 import { baseMenu } from '../../entity/menu'
 import { MenuService } from '../../service/rbac'
 

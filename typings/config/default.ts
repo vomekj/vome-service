@@ -1,5 +1,5 @@
 import type { Loose } from '../common'
-import type { CrudUpsertMode } from '/#/server'
+import type { CrudUpsertMode } from '@core/server'
 import type { AuthConfig } from './auth'
 import type { CacheManagerConfig } from './cache'
 import type { SocketIOConfig } from './socket'

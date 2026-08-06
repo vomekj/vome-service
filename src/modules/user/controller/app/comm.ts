@@ -6,7 +6,7 @@ import {
   Inject,
   Post,
   Public,
-} from '/#/server'
+} from '@core/server'
 import { UserWxService } from '../../service/wx'
 
 @Controller({ description: 'App 用户通用' })

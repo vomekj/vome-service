@@ -1,7 +1,7 @@
 import {
   BaseController,
   Controller,
-} from '/#/server'
+} from '@core/server'
 import { userRole } from '../../entity/role'
 import { UserRoleService } from '../../service/rbac'
 

@@ -8,7 +8,7 @@ import {
   Controller,
   Inject,
   Post,
-} from '/#/server'
+} from '@core/server'
 import { ModuleService } from '../../service/module'
 
 @Controller()

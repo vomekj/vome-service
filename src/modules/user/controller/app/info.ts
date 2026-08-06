@@ -7,7 +7,7 @@ import {
   Get,
   Inject,
   Post,
-} from '/#/server'
+} from '@core/server'
 import { UserPersonService } from '../../service/person'
 
 @Controller({ description: 'App 用户信息' })

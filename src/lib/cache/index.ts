@@ -1,5 +1,5 @@
 import { RedisClient } from 'bun'
-import { Ioc, VomeConfig } from '/#/server'
+import { Ioc, VomeConfig } from '@core/server'
 import type { CacheManagerConfig } from '../../../typings/config/cache'
 import { redisConfig } from './config'
 

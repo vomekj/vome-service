@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { CommException, Inject, Provide } from '/#/server'
+import { CommException, Inject, Provide } from '@core/server'
 import { PluginInfoService } from '../../base/service/plugin'
 
 type WxAccount = {

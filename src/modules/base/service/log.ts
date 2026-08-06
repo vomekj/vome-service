@@ -1,5 +1,5 @@
 import { isNotNull, lt } from 'drizzle-orm'
-import { Inject, Provide } from '/#/server'
+import { Inject, Provide } from '@core/server'
 import type { RequestLogInput } from '../../../../typings/base/log'
 import {
   DEFAULT_LOG_SCOPES,
@@ -9,8 +9,8 @@ import {
   shouldRecordByScope,
   type LogScope,
 } from '../../../../typings/base/log-scope'
-import { InjectRepository, type Repository } from '/#/server'
-import { BaseService } from '/#/server'
+import { InjectRepository, type Repository } from '@core/server'
+import { BaseService } from '@core/server'
 import { baseLog } from '../entity/log'
 import { ConfService } from './conf'
 

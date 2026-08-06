@@ -1,5 +1,5 @@
 import { defineConfig } from 'drizzle-kit'
-import { VomeConfig } from '/#/server'
+import { VomeConfig } from '@core/server'
 import type { DbConfig } from './typings/config/db'
 import { buildDbUrl, drizzleDialect } from './src/lib/db/config'
 

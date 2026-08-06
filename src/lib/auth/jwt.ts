@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from 'jose'
-import { Inject, Provide, VomeConfig } from '/#/server'
+import { Inject, Provide, VomeConfig } from '@core/server'
 import type { AdminAccessJwtPayload } from '../../../typings/base/auth'
 import { JWT_AUD } from '../../../typings/auth/jwt'
 import { AuthExpires, resolveAuthConfig } from './config'

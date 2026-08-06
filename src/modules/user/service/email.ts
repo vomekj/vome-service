@@ -1,4 +1,4 @@
-import { CommException, Inject, Provide } from '/#/server'
+import { CommException, Inject, Provide } from '@core/server'
 import { CacheStore } from '../../../lib/cache'
 import { PluginInfoService } from '../../base/service/plugin'
 

@@ -7,7 +7,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 export const projectAiMessage = columnComments(
   pgTable(

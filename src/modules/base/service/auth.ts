@@ -1,13 +1,13 @@
 import { eq } from 'drizzle-orm'
-import { Inject, Provide, noTenant } from '/#/server'
+import { Inject, Provide, noTenant } from '@core/server'
 import type {
   AdminAuthResult,
   AdminRefreshCache,
   AdminSession,
   AdminTokenPayload,
 } from '../../../../typings/base/auth'
-import { InjectRepository, type Repository } from '/#/server'
-import { BaseService } from '/#/server'
+import { InjectRepository, type Repository } from '@core/server'
+import { BaseService } from '@core/server'
 import { AuthExpires } from '../../../lib/auth/config'
 import { JwtService } from '../../../lib/auth/jwt'
 import { TokenService } from '../../../lib/auth/token'

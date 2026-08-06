@@ -7,7 +7,7 @@ import {
   Inject,
   Post,
   Query,
-} from '/#/server'
+} from '@core/server'
 import { userInfo } from '../../entity/info'
 import { UserInfoService } from '../../service/rbac'
 

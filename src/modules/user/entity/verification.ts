@@ -1,6 +1,6 @@
 import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { columnComments, entitySchemas } from '/#/server'
+import { columnComments, entitySchemas } from '@core/server'
 
 /** Better Auth 验证码 / 临时凭证表 */
 export const userVerification = columnComments(

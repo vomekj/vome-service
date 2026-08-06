@@ -117,11 +117,9 @@ export function steamOpenId(options: SteamPluginOptions) {
           }
 
           const profile = await fetchSteamProfile(options.apiKey, steamId)
-          const email = `${steamId}@steam.invalid`
           const userInfo = {
             id: steamId,
             name: profile?.personaname ?? `Steam_${steamId.slice(-6)}`,
-            email,
             emailVerified: false,
             image: profile?.avatarfull,
           }

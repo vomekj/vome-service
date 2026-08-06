@@ -44,9 +44,9 @@ cd web && bun install && bun run dev   # 需先启动 service；常见端口 990
 | 前缀 | 目标 | rewrite |
 |------|------|---------|
 | `/dev/` | `http://127.0.0.1:3000` | 去掉 `/dev` |
-| `/prod/` | 同上（可改） | 去掉 `/prod` |
+| `/api/` | 同上 | 去掉 `/api` |
 
-与 `config.baseUrl`（`/dev` 或 `/prod`）对齐。线上 Nginx 剥前缀转到 `/api/auth`、`/app`。
+与 `config.baseUrl`（开发 `/dev`，生产 `/api`）对齐。线上 Nginx 剥 `/api` 前缀转到 `/api/auth`、`/app`、`/admin`。
 
 ## 路径别名与目录
 
@@ -80,7 +80,7 @@ await bootEps()  // createEps({ side: 'app', requireRoot: false })
 `api/client.ts`：
 
 ```ts
-import { configureClient, createEps, getService, bindEpsHotReload } from '/@'
+import { configureClient, createEps, getService, bindEpsHotReload } from '@core/client'
 
 configureClient({ request })
 bindEpsHotReload('app')
@@ -148,7 +148,7 @@ import { createAuthClient } from 'better-auth/vue'
 import { jwtClient, genericOAuthClient } from 'better-auth/client/plugins'
 
 export const authClient = createAuthClient({
-  baseURL: authBaseURL, // 必须绝对地址：origin + /dev|/prod
+  baseURL: authBaseURL, // 必须绝对地址：origin + /dev|/api
   plugins: [jwtClient(), genericOAuthClient()],
 })
 ```
@@ -233,6 +233,7 @@ router.push('/pages/login/index')
 ```ts
 io(config.host, {
   autoConnect: false,
+  path: '/socket/',
   transports: ['websocket', 'polling'],
   auth: { token: getAccessToken() || '' },
 })
@@ -241,6 +242,7 @@ io(config.host, {
 | 项 | 说明 |
 |----|------|
 | URL | **`config.host`**（如 `http://127.0.0.1:3000`），**不是** `/dev` |
+| path | **`/socket/`**（与服务端 / Admin / UniApp 一致） |
 | 鉴权 | `auth.token` = access JWT |
 | 启动有 token | `connectWs()` |
 | 登录 / 换 token | `reconnectWs()` |

@@ -6,7 +6,7 @@ import {
   Inject,
   Public,
   Query,
-} from '/#/server'
+} from '@core/server'
 import {
   HOST_SCOPE_KEYS,
   isHostScopeKey,

@@ -5,7 +5,7 @@ import {
   Controller,
   Inject,
   Post,
-} from '/#/server'
+} from '@core/server'
 import { QueueAdminService } from '../../service/queue'
 
 @Controller({

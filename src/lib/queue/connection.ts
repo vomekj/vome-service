@@ -1,5 +1,5 @@
 import type { RedisCacheOptions } from '../../../typings/config/cache'
-import { VomeConfig } from '/#/server'
+import { VomeConfig } from '@core/server'
 import type { CacheManagerConfig } from '../../../typings/config/cache'
 import { redisConfig } from '../cache/config'
 import Redis from 'ioredis'

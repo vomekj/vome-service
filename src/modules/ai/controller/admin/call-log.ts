@@ -5,7 +5,7 @@ import {
   Controller,
   Inject,
   Post,
-} from '/#/server'
+} from '@core/server'
 import { aiCallLog } from '../../entity/call-log'
 import { AiCallLogService } from '../../service/call-log'
 import { AiGateway } from '../../service/gateway'

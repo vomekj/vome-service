@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
-import { VomeConfig } from '/#/server'
+import { VomeConfig } from '@core/server'
 
 /** 前端回显 / 未改动时提交的脱敏占位符 */
 export const PLUGIN_SECRET_MASK = '********'

@@ -1,6 +1,6 @@
 import { boolean, integer, pgTable, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 后台角色 */
 export const baseRole = columnComments(

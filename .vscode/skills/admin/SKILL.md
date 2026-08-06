@@ -82,7 +82,7 @@ bun install
 bun run dev       # 需先启动 service；常见端口 9000
 ```
 
-代理：`src/config/proxy.ts`（`/dev/`、`/prod/`、`/vome/` → service）。
+代理：`src/config/proxy.ts` 只配 `/dev/`、`/api/` → service；微应用 `/vome/` 由 `plugins/micro-proxy.ts` 的 `ensureMicroAppProxy` 在 Vite 侧自动补齐（`vome-core/client/vite-micro-proxy` 同逻辑）。
 
 ## 路径别名
 
@@ -246,15 +246,15 @@ const Crud = useCrud(
 
 `main.ts` 典型顺序：
 
-1. 引入 `theme.css` → `/@/styles/base.css`
+1. 引入 `theme.css` → `@core/admin/styles/base.css`
 2. `import './views-registry'`（注册业务页）
 3. `await createEps()` 后挂路由 / 登录态
-4. `createApp` + Pinia + `router`（`/@/router`）
+4. `createApp` + Pinia + `router`（`@core/admin/router`）
 
 `views-registry.ts`：
 
 ```ts
-import { registerViews } from '/@'
+import { registerViews } from '@core/admin'
 const viewModules = import.meta.glob('./modules/*/views/**/*.vue')
 registerViews(viewModules)
 ```

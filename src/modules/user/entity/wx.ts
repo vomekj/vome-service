@@ -1,6 +1,6 @@
 import { index, integer, pgTable, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 微信用户（openid / unionid 绑定） */
 export const userWx = columnComments(

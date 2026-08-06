@@ -1,5 +1,5 @@
 import { t } from 'elysia'
-import { BaseController, Body, Context, Controller, Inject, Post } from '/#/server'
+import { BaseController, Body, Context, Controller, Inject, Post } from '@core/server'
 import { ProjectKbService } from '../../service/kb'
 
 @Controller({ description: 'App 项目知识库（用户侧）' })

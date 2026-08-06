@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { Context, Ioc, isPublicHttpRoute } from '/#/server'
+import { Context, Ioc, isPublicHttpRoute } from '@core/server'
 import { extractBizCode, resolveLogType } from '../../typings/base/log-scope'
 import { LogService } from '../modules/base/service/log'
 

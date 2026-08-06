@@ -10,7 +10,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { columnComments, entitySchemas } from '/#/server'
+import { columnComments, entitySchemas } from '@core/server'
 
 /** Better Auth 用户表（含租户 / 手机号 / 微信绑定字段） */
 export const userInfo = columnComments(
@@ -21,7 +21,8 @@ export const userInfo = columnComments(
       /** 业务侧数字 ID（自增，区别于 Better Auth 的 text id） */
       userId: serial('userId').notNull(),
       name: text('name').notNull(),
-      email: text('email').notNull().unique(),
+      /** 可空：仅邮箱注册/绑定时写入，禁止占位自动生成 */
+      email: text('email').unique(),
       emailVerified: boolean('emailVerified').notNull().default(false),
       image: text('image'),
       /** 所属租户；按注册域名自动写入 */

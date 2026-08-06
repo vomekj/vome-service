@@ -7,7 +7,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
  * AI 调用记录（同步 / 流式 / 异步统一）

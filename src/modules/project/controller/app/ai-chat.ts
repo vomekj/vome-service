@@ -1,5 +1,5 @@
 import { t } from 'elysia'
-import { BaseController, Body, Context, Controller, Inject, Post } from '/#/server'
+import { BaseController, Body, Context, Controller, Inject, Post } from '@core/server'
 import { ProjectAiChatService } from '../../service/ai-chat'
 
 @Controller({ description: 'App 项目 AI 会话（用户侧）' })

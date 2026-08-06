@@ -1,6 +1,6 @@
 import { pgTable, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 字典类型（字典名） */
 export const baseDictType = columnComments(

@@ -1,4 +1,4 @@
-import { VomeConfig } from '/#/server'
+import { VomeConfig } from '@core/server'
 import type {
   AuthConfig,
   SocialProviderConfig,

@@ -9,7 +9,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { columnComments, entitySchemas } from '/#/server'
+import { columnComments, entitySchemas } from '@core/server'
 
 /**
  * 租户（商户）主表

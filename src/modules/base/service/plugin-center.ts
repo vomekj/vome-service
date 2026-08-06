@@ -9,7 +9,7 @@ import {
   type PluginInfo,
   InjectRepository,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { decryptPluginConfig } from '../../../lib/plugin-config-crypto'
 import { basePluginInfo } from '../entity/plugin-info'
 import { PluginInfoService } from './plugin'

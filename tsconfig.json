@@ -20,9 +20,9 @@
     "types": ["bun-types"],
     "paths": {
       "@/*": ["./src/*"],
-      "/#": ["./node_modules/vome-core/dist/index.js"],
-      "/#/typings/*": ["./node_modules/vome-core/typings/admin/*"],
-      "/#/*": ["./node_modules/vome-core/dist/*"],
+      "@core": ["./node_modules/vome-core/dist/index.js"],
+      "@core/*": ["./node_modules/vome-core/dist/*"],
+      "@core/typings/*": ["./node_modules/vome-core/typings/admin/*"],
       "drizzle-orm": ["./node_modules/drizzle-orm"],
       "drizzle-orm/*": ["./node_modules/drizzle-orm/*"]
     }

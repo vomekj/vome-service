@@ -6,7 +6,7 @@ import {
   Inject,
   Post,
   Query,
-} from '/#/server'
+} from '@core/server'
 import { t } from 'elysia'
 import { baseRole } from '../../entity/role'
 import { RoleService } from '../../service/rbac'

@@ -6,8 +6,8 @@ import {
   Provide,
   isTenantEnabled,
   type Repository,
-} from '/#/server'
-import { BaseService } from '/#/server'
+} from '@core/server'
+import { BaseService } from '@core/server'
 import { AuthExpires } from '../../../lib/auth/config'
 import { JwtService } from '../../../lib/auth/jwt'
 import { TokenService } from '../../../lib/auth/token'
@@ -210,8 +210,6 @@ export class UserLoginService extends BaseService {
           phoneVerified: true,
           unionid: phone,
           name: maskPhone(phone),
-          email: `${phone}@phone.invalid`,
-          emailVerified: false,
           status: 1,
           tenantId: tenantId ?? null,
         }),
@@ -376,8 +374,6 @@ export class UserLoginService extends BaseService {
           unionid,
           name: wxUser.nickName || '微信用户',
           image,
-          email: `${unionid}@wx.invalid`,
-          emailVerified: false,
           status: 1,
           tenantId: tenantId ?? null,
         }),
@@ -424,8 +420,6 @@ export class UserLoginService extends BaseService {
           phoneVerified: true,
           unionid: raw,
           name: maskPhone(raw),
-          email: `${raw}@phone.invalid`,
-          emailVerified: false,
           password: hashed,
           status: 1,
           tenantId: tenantId ?? null,

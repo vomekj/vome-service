@@ -7,7 +7,7 @@ import {
   Inject,
   Post,
   Query,
-} from '/#/server'
+} from '@core/server'
 import { baseTask } from '../../entity/task'
 import { TaskService } from '../../service/task'
 

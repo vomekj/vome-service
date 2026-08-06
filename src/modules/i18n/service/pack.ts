@@ -14,7 +14,7 @@ import {
   listColumnCommentTables,
   getColumnComments,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { AiGateway } from '../../ai/service/gateway'
 import { aiModel } from '../../ai/entity/model'
 import { baseMenu } from '../../base/entity/menu'

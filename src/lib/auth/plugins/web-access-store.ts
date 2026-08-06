@@ -1,6 +1,6 @@
 import type { BetterAuthPlugin } from '@better-auth/core'
 import { createAuthMiddleware } from '@better-auth/core/api'
-import { Ioc } from '/#/server'
+import { Ioc } from '@core/server'
 import { TokenService } from '../token'
 
 /** 签发 web access JWT 时写入 Redis */

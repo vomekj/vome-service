@@ -8,7 +8,7 @@ import {
   Post,
   Query,
   sseResponse,
-} from '/#/server'
+} from '@core/server'
 import { i18nPack } from '../../entity/pack'
 import {
   isHostScopeKey,

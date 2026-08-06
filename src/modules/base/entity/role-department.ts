@@ -1,6 +1,6 @@
 import { index, integer, pgTable, uniqueIndex } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 角色 ↔ 部门（数据权限） */
 export const baseRoleDepartment = columnComments(

@@ -4,7 +4,7 @@ import {
   IgnorePerms,
   Inject,
   Post,
-} from '/#/server'
+} from '@core/server'
 import { PluginInfoService } from '../../service/plugin'
 
 type UploadPlugin = {

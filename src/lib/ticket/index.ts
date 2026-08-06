@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { CommException, Inject, Provide } from '/#/server'
+import { CommException, Inject, Provide } from '@core/server'
 import { CacheStore } from '../cache'
 
 const DEFAULT_TTL_MS = 10 * 60 * 1000

@@ -1,5 +1,5 @@
 import { SQL } from 'bun'
-import { DbStore, Ioc, VomeConfig, syncColumnCommentsToPg } from '/#/server'
+import { DbStore, Ioc, VomeConfig, syncColumnCommentsToPg } from '@core/server'
 import type { DbConfig } from '../../../typings/config/db'
 import { buildSchemaIndex } from './schema/build'
 import {

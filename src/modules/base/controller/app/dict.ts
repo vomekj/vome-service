@@ -7,7 +7,7 @@ import {
   Inject,
   Post,
   Public,
-} from '/#/server'
+} from '@core/server'
 import { DictInfoService } from '../../service/dict'
 
 /** App 端字典同步（公开） */

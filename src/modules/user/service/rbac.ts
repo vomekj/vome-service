@@ -1,9 +1,9 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { hashPassword } from 'better-auth/crypto'
-import { CommException, Provide } from '/#/server'
+import { CommException, Provide } from '@core/server'
 import type { UserAuthz } from '../../../../typings/user/permission'
-import { InjectRepository, type Repository } from '/#/server'
-import { BaseService } from '/#/server'
+import { InjectRepository, type Repository } from '@core/server'
+import { BaseService } from '@core/server'
 import { userAccount } from '../entity/account'
 import { userInfo } from '../entity/info'
 import { parseUserRolePerms, userRole } from '../entity/role'
@@ -70,10 +70,10 @@ export class UserInfoService extends BaseService {
   async add(data: Record<string, unknown>) {
     await this.modifyBefore(data, 'add')
 
-    const email = String(data.email ?? '').trim()
+    const email = String(data.email ?? '').trim() || null
+    const phone = String(data.phone ?? '').trim() || null
     const name = String(data.name ?? '').trim()
     const password = String(data.password ?? '')
-    if (!email) throw new CommException('邮箱不能为空')
     if (!name) throw new CommException('名称不能为空')
     if (!password) throw new CommException('新增用户请填写密码')
 
@@ -82,8 +82,9 @@ export class UserInfoService extends BaseService {
       id: userId,
       name,
       email,
-      emailVerified: Boolean(data.emailVerified ?? false),
-      phoneVerified: Boolean(data.phoneVerified ?? false),
+      phone,
+      emailVerified: email ? Boolean(data.emailVerified ?? false) : false,
+      phoneVerified: phone ? Boolean(data.phoneVerified ?? false) : false,
       image: data.image ? String(data.image) : null,
       tenantId:
         data.tenantId == null || data.tenantId === ''
@@ -94,7 +95,7 @@ export class UserInfoService extends BaseService {
     await this.accountRepo.create({
       id: crypto.randomUUID(),
       userId,
-      accountId: email,
+      accountId: email || phone || userId,
       providerId: 'credential',
       password: await hashPassword(password),
     })
@@ -173,6 +174,16 @@ export class UserInfoService extends BaseService {
       }
       if (data.phoneVerified != null) {
         data.phoneVerified = Boolean(data.phoneVerified)
+      }
+      if (data.email != null) {
+        const e = String(data.email).trim()
+        data.email = e || null
+        if (!e) data.emailVerified = false
+      }
+      if (data.phone != null) {
+        const p = String(data.phone).trim()
+        data.phone = p || null
+        if (!p) data.phoneVerified = false
       }
       return
     }

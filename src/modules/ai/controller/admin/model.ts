@@ -7,7 +7,7 @@ import {
   Inject,
   Post,
   sseResponse,
-} from '/#/server'
+} from '@core/server'
 import { aiModel } from '../../entity/model'
 import { AiGateway } from '../../service/gateway'
 import { AiModelService } from '../../service/model'

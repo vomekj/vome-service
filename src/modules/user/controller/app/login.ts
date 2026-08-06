@@ -8,7 +8,7 @@ import {
   Post,
   Public,
   Query,
-} from '/#/server'
+} from '@core/server'
 import { listEnabledSocialProviders } from '../../../../lib/auth/config'
 import { UserLoginService } from '../../service/login'
 

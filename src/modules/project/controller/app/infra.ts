@@ -1,4 +1,4 @@
-import { BaseController, Controller, Inject, Post } from '/#/server'
+import { BaseController, Controller, Inject, Post } from '@core/server'
 import { ProjectInfraService } from '../../service/infra'
 
 @Controller({ description: 'App 项目基础设施探测' })

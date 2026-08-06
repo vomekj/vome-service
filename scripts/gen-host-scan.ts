@@ -42,7 +42,7 @@ const lines: string[] = [
   'import {',
   '  parseModuleFromPath,',
   '  setControllerScanContext,',
-  '} from "/#/server"',
+  '} from "@core/server"',
   '',
   'const services: Array<() => Promise<unknown>> = [',
 ]

@@ -11,7 +11,7 @@ import {
   isTenantEnabled,
   Post,
   Public,
-} from '/#/server'
+} from '@core/server'
 import { BaseUserSchema } from '../../entity/user'
 import { AdminAuthService } from '../../service/auth'
 import { PermissionService } from '../../service/permission'

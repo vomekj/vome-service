@@ -38,7 +38,7 @@ import {
   assertModuleSeatActive,
   formatSeatDisplay,
   getModuleSeatStatus,
-} from '/#/server'
+} from '@core/server'
 import { CacheStore } from '../../../lib/cache'
 import {
   maskPluginConfig,

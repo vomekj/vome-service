@@ -10,7 +10,7 @@ import {
   Perms,
   Post,
   Query,
-} from '/#/server'
+} from '@core/server'
 import { baseUser } from '../../entity/user'
 import { AdminUserService } from '../../service/rbac'
 

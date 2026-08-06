@@ -7,7 +7,7 @@ import {
   createHash,
   randomBytes,
 } from 'node:crypto'
-import { VomeConfig } from '/#/server'
+import { VomeConfig } from '@core/server'
 
 function aesKey() {
   const secret = String(

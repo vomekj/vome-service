@@ -6,7 +6,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 语种（如简体中文 / 英语）；code 为技术键，name 为显示名，flag 为国旗 emoji */
 export const i18nLang = columnComments(

@@ -21,8 +21,12 @@ export const obfuscatorOptions: ObfuscatorOptions = {
   stringArrayCallsTransform: false,
   stringArrayEncoding: ['base64'],
   stringArrayThreshold: 0.75,
-  /** 插件 external 入口，混淆后宿主靠字面量/require 拦截注入 BasePlugin */
-  reservedStrings: ['vome-plugin-runtime'],
+  /** 插件 runtime 入口 + 跨混淆模块共享键（禁止进 stringArray） */
+  reservedStrings: [
+    'vome-plugin-runtime',
+    'vome.hostConfig',
+    'vome.hostBindings',
+  ],
   transformObjectKeys: false,
   unicodeEscapeSequence: false,
   target: 'node',

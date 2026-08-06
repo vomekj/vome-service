@@ -1,4 +1,4 @@
-import { VomeConfig, scanFiles } from '/#/server'
+import { VomeConfig, scanFiles } from '@core/server'
 import type { SQL } from 'bun'
 import type { createDrizzle } from '../client'
 import { importModuleDb, seedEmptyTablesFromModuleDb } from './import-db'

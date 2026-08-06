@@ -7,7 +7,7 @@ import {
   Inject,
   Post,
   Public,
-} from '/#/server'
+} from '@core/server'
 import { baseDictInfo } from '../../entity/dict-info'
 import { baseDictType } from '../../entity/dict-type'
 import { DictInfoService, DictTypeService } from '../../service/dict'

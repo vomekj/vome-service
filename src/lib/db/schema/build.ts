@@ -1,6 +1,6 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
-import { VomeConfig, scanFiles } from '/#/server'
+import { VomeConfig, scanFiles } from '@core/server'
 import type { DbConfig } from '../../../../typings/config/db'
 
 /** 固定相对项目根，避免 bun build 后 import.meta.dir 落到 dist/ */

@@ -47,7 +47,7 @@ const config: DefaultConfig = {
   },
   /** Socket.IO */
   socketIO: {
-    path: "/socket.io/",
+    path: "/socket/",
     upgrades: ["websocket"],
     redisAdapter: true,
   },

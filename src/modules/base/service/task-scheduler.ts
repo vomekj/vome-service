@@ -1,8 +1,8 @@
 import { Cron } from 'croner'
 import { and, eq, isNull } from 'drizzle-orm'
-import { CommException, Inject, Ioc, listProviders, Logger, Provide } from '/#/server'
-import { InjectRepository, type Repository } from '/#/server'
-import { BaseService } from '/#/server'
+import { CommException, Inject, Ioc, listProviders, Logger, Provide } from '@core/server'
+import { InjectRepository, type Repository } from '@core/server'
+import { BaseService } from '@core/server'
 import type { BaseTask } from '../entity/task'
 import { baseTask } from '../entity/task'
 

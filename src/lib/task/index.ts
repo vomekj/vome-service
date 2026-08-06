@@ -1,6 +1,6 @@
 import { Cron } from 'croner'
 import { and, eq } from 'drizzle-orm'
-import { getRepository, Ioc, Logger } from '/#/server'
+import { getRepository, Ioc, Logger } from '@core/server'
 import { baseTask } from '../../modules/base/entity/task'
 import { baseTaskLog } from '../../modules/base/entity/task-log'
 import { LogService } from '../../modules/base/service/log'

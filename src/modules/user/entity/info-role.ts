@@ -1,6 +1,6 @@
 import { index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 前端用户（user_info.id）↔ 角色 */
 export const userInfoRole = columnComments(

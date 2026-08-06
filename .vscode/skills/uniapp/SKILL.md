@@ -73,7 +73,7 @@ uniapp/src/
 ## 初始化（api/client.ts）
 
 ```ts
-import { configureClient, createEps, getService } from '/@'
+import { configureClient, createEps, getService } from '@core/client'
 
 configureClient({ request })
 export const service = getService('app')
@@ -149,7 +149,7 @@ apiUrl('/app/user/info/person')
 
 ```ts
 export const authClient = createAuthClient({
-  baseURL: authBaseURL, // H5: origin + /dev|/prod
+  baseURL: authBaseURL, // H5: origin + /dev|/api
   plugins: [jwtClient(), genericOAuthClient()],
 })
 ```
@@ -228,6 +228,7 @@ uni.reLaunch({ url: '/pages/login/index' })
 ```ts
 io(config.host, {
   autoConnect: false,
+  path: '/socket/',
   transports: ['websocket'],
   auth: { token: getAccessToken() || '' },
 })
@@ -239,7 +240,7 @@ io(config.host, {
 | 登录成功 | `reconnectWs()` |
 | 登出 | `disconnectWs()` |
 
-小程序 `host` 必须是 **wss** 可达域名，并在后台配 socket 合法域名。业务：`ws.on('event', ...)`。
+`path` 固定 **`/socket/`**（与 Admin / Web / 服务端一致）。小程序 `host` 必须是 **wss** 可达域名，并在后台配 socket 合法域名。业务：`ws.on('event', ...)`。
 
 ## 页面
 

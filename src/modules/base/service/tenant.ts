@@ -9,7 +9,7 @@ import {
   noTenant,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { baseTenant } from '../entity/tenant'
 
 @Provide()

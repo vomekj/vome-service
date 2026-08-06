@@ -12,7 +12,7 @@ import {
   type ModuleInstalled,
   type ModuleManifest,
   type ModuleMenuDef,
-} from '/#/server'
+} from '@core/server'
 import { and, eq, isNull } from 'drizzle-orm'
 import {
   existsSync,

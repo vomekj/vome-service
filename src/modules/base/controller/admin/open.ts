@@ -7,7 +7,7 @@ import {
   Inject,
   Public,
   Query,
-} from '/#/server'
+} from '@core/server'
 import { AdminAuthService } from '../../service/auth'
 import { DictInfoService } from '../../service/dict'
 

@@ -1,4 +1,4 @@
-import { BaseController, Controller, Get, Inject, Perms, Query } from '/#/server'
+import { BaseController, Controller, Get, Inject, Perms, Query } from '@core/server'
 import { t } from 'elysia'
 import { baseDepartment } from '../../entity/department'
 import { DepartmentService } from '../../service/rbac'

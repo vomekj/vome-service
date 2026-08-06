@@ -1,6 +1,6 @@
 import { integer, pgTable, text, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
  * 请求监控日志（admin / app 全量）

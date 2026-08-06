@@ -6,7 +6,7 @@
 import {
   parseModuleFromPath,
   setControllerScanContext,
-} from "/#/server"
+} from "@core/server"
 
 const services: Array<() => Promise<unknown>> = [
   () => import("../../modules/ai/service/call-log.ts"),

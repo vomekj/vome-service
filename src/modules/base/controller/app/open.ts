@@ -1,4 +1,4 @@
-import { BaseController, Controller, Eps, Get, Inject, Public } from '/#/server'
+import { BaseController, Controller, Eps, Get, Inject, Public } from '@core/server'
 import { DictInfoService } from '../../service/dict'
 
 /** App 开放接口（免登录）；与 admin/open 对称 */

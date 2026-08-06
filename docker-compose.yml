@@ -1,0 +1,18 @@
+# 本机打包：bun run docker:pack → dist/vome-service.tar
+# Linux：docker load -i dist/vome-service.tar && docker compose up -d
+networks:
+  1panel-network:
+    external: true
+
+services:
+  service:
+    image: vome-docs-service:latest
+    container_name: vome-docs-service
+    restart: unless-stopped
+    networks:
+      - 1panel-network
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./.vome:/app/.vome
+      - ./logging:/app/logging

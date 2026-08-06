@@ -1,4 +1,4 @@
-import { BaseController, Context, Controller, Get } from '/#/server'
+import { BaseController, Context, Controller, Get } from '@core/server'
 
 /** 前端权限：登录态由 webAuth 的 auth macro 自动挂上（非 @Public） */
 @Controller()

@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth'
 import type { BetterAuthPlugin } from '@better-auth/core'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { bearer, genericOAuth, jwt } from 'better-auth/plugins'
-import { Ioc, VomeConfig, isTenantEnabled } from '/#/server'
+import { Ioc, VomeConfig, isTenantEnabled } from '@core/server'
 import type { DbConfig, DbType } from '../../../typings/config/db'
 import { CacheStore } from '../cache'
 import { createSecondaryStorage } from '../cache/secondary-storage'
@@ -92,8 +92,14 @@ function buildPlugins(cfg: ReturnType<typeof resolveAuthConfig>): BetterAuthPlug
               return {
                 name: profile.name ?? profile.login,
                 image: profile.avatar_url,
-                email: profile.email ?? `${profile.id}@gitee.invalid`,
-                emailVerified: !!profile.email,
+                ...(profile.email
+                  ? {
+                      email: profile.email,
+                      emailVerified: true,
+                    }
+                  : {
+                      emailVerified: false,
+                    }),
               }
             },
           },

@@ -1,4 +1,4 @@
-import { Context, Ioc, defineAuthMacro } from '/#/server'
+import { Context, Ioc, defineAuthMacro } from '@core/server'
 import { AdminAuthService } from '../modules/base/service/auth'
 import { PermissionService } from '../modules/base/service/permission'
 

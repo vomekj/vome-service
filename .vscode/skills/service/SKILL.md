@@ -308,7 +308,7 @@ fieldEq: [
 ```ts
 import 'reflect-metadata'
 import './lib/host' // registerHost 静态绑定（build 与 IoC 同一模块图）
-import { Ioc, vome } from '/#/server'
+import { Ioc, vome } from '@core/server'
 
 vome(({ App }) => {
   // App.bootstrap(async () => { /* 启动后初始化 */ })
@@ -348,7 +348,7 @@ vome(({ App }) => {
 ## 鉴权（adminAuth 样例）
 
 ```ts
-import { Context, Ioc, defineAuthMacro } from '/#/server'
+import { Context, Ioc, defineAuthMacro } from '@core/server'
 
 export const adminAuth = defineAuthMacro('adminAuth', async ({ status, request }) => {
   const session = await Ioc.get(AdminAuthService).resolveAuth(request.headers)

@@ -1,5 +1,5 @@
 import { asc, eq, inArray, type SQL } from 'drizzle-orm'
-import { deepTree } from '/#'
+import { deepTree } from '@core'
 import {
   BaseService,
   CommException,
@@ -7,7 +7,7 @@ import {
   Provide,
   type CrudDeleteOptions,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import type { DictDataResult, DictInfoItem } from '../../../../typings/base/dict'
 import { baseDictInfo } from '../entity/dict-info'
 import { baseDictType } from '../entity/dict-type'

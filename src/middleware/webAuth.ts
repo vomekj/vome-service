@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { Context, Ioc } from '/#/server'
+import { Context, Ioc } from '@core/server'
 import { AuthService } from '../lib/auth'
 import { UserPermissionService } from '../modules/user/service/rbac'
 

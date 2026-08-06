@@ -2,7 +2,7 @@ import type { AnyElysia } from 'elysia'
 import { Server as Engine } from '@socket.io/bun-engine'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { Server, type Socket as IoSocket } from 'socket.io'
-import { Ioc, VomeConfig } from '/#/server'
+import { Ioc, VomeConfig } from '@core/server'
 import type { SocketIOConfig } from '../../../typings/config/socket'
 import { JwtService } from '../auth/jwt'
 import { createQueueRedis, getSharedQueueRedis } from '../queue/connection'
@@ -60,7 +60,7 @@ async function bootstrap() {
   if (io) return
 
   const cfg = socketConfig()
-  const path = cfg.path || '/socket.io/'
+  const path = cfg.path || '/socket/'
 
   engine = new Engine({
     path,
@@ -116,7 +116,7 @@ function apply(app: AnyElysia): AnyElysia {
   if (!engine) {
     throw new Error('[Socket] 请先 Socket.bootstrap()')
   }
-  const path = socketConfig().path || '/socket.io/'
+  const path = socketConfig().path || '/socket/'
   return app.all(path, ({ request, server }) =>
     engine!.handleRequest(request, server!),
   )

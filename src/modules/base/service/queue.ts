@@ -1,4 +1,4 @@
-import { Inject, Provide } from '/#/server'
+import { Inject, Provide } from '@core/server'
 import { QueueStore } from '../../../lib/queue'
 import type { JobType } from 'bullmq'
 

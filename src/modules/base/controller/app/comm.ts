@@ -3,7 +3,7 @@ import {
   Controller,
   Inject,
   Post,
-} from '/#/server'
+} from '@core/server'
 import { PluginInfoService } from '../../../base/service/plugin'
 
 type UploadPlugin = {

@@ -1,4 +1,4 @@
-import { BaseController, Controller } from '/#/server'
+import { BaseController, Controller } from '@core/server'
 import { baseTenant } from '../../entity/tenant'
 import { TenantService } from '../../service/tenant'
 

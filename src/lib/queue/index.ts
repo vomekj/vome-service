@@ -1,4 +1,4 @@
-import { Ioc, Logger } from '/#/server'
+import { Ioc, Logger } from '@core/server'
 import {
   closeSharedQueueRedis,
   getSharedQueueRedis,

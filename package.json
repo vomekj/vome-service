@@ -4,14 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env NODE_ENV=dev bun --watch scripts/dev.ts",
-    "build": "bun scripts/gen-host-scan.ts && bun build src/index.ts --target bun --outdir ./dist --external drizzle-kit --define SEAT_ENFORCE:true",
-    "build:obfuscate": "bun scripts/gen-host-scan.ts && bun build src/index.ts --target bun --outdir ./dist --minify --external drizzle-kit --define SEAT_ENFORCE:true && bun scripts/obfuscate.ts",
-    "binary": "bun scripts/gen-host-scan.ts && bun build src/index.ts --compile --target=bun-linux-x64 --outfile ./dist/service --external drizzle-kit --define SEAT_ENFORCE:true",
-    "binary:obfuscate": "bun run build:obfuscate && bun build ./dist/index.js --compile --target=bun-linux-x64 --outfile ./dist/service"
+    "build": "cross-env NODE_ENV=prod bun scripts/gen-host-scan.ts && cross-env NODE_ENV=prod bun build src/index.ts --target bun --outdir ./dist --external drizzle-kit --define SEAT_ENFORCE:true",
+    "build:obfuscate": "cross-env NODE_ENV=prod bun scripts/gen-host-scan.ts && cross-env NODE_ENV=prod bun build src/index.ts --target bun --outdir ./dist --minify --external drizzle-kit --define SEAT_ENFORCE:true && bun scripts/obfuscate.ts",
+    "binary": "cross-env NODE_ENV=prod bun scripts/gen-host-scan.ts && cross-env NODE_ENV=prod bun build src/index.ts --compile --target=bun-linux-x64 --outfile ./dist/service --external drizzle-kit --define SEAT_ENFORCE:true",
+    "binary:obfuscate": "bun run build:obfuscate && cross-env NODE_ENV=prod bun build ./dist/index.js --compile --target=bun-linux-x64 --outfile ./dist/service --external drizzle-kit",
+    "docker:pack": "bun run binary:obfuscate && docker build -t vome-service:latest . && docker save -o dist/vome-service.tar vome-service:latest && docker rmi vome-service:latest"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
     "@elysiajs/cors": "^1.4.2",
+    "@opentelemetry/api": "^1.9.1",
     "@socket.io/bun-engine": "^0.1.1",
     "@socket.io/redis-adapter": "^8.3.0",
     "adm-zip": "^0.6.0",
@@ -26,7 +28,7 @@
     "reflect-metadata": "^0.2.2",
     "socket.io": "^4.8.3",
     "svg-captcha": "^1.4.0",
-    "vome-core": "^0.1.2",
+    "vome-core": "0.1.18",
     "zod": "4"
   },
   "devDependencies": {

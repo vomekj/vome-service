@@ -3,7 +3,7 @@ import {
   Controller,
   Get,
   Inject,
-} from '/#/server'
+} from '@core/server'
 import { i18nLang } from '../../entity/lang'
 import { I18nLangService } from '../../service/lang'
 

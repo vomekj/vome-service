@@ -2,7 +2,7 @@ import {
   BaseController,
   Controller,
   Inject,
-} from '/#/server'
+} from '@core/server'
 import { aiProvider } from '../../entity/provider'
 import { AiProviderService } from '../../service/provider'
 

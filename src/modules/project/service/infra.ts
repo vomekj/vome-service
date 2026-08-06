@@ -3,7 +3,7 @@ import {
   DbStore,
   Inject,
   Provide,
-} from '/#/server'
+} from '@core/server'
 import { PluginInfoService } from '../../base/service/plugin'
 import { getSharedQueueRedis } from '../../../lib/queue/connection'
 import { ensureVectorInfra } from '../../../lib/pgvector'

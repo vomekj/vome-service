@@ -1,6 +1,6 @@
 import { index, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 用户侧知识文档：adoption / context / rule / design */
 export const projectKbDoc = columnComments(

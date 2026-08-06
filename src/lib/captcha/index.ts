@@ -2,13 +2,107 @@
  * 图片验证码（svg-captcha 风格 + 内置混合四则运算）
  *
  * 1-9 加减乘除随机；÷ 用几何路径绘制（svg-captcha 字体无该字符）
+ * 字体从 cwd/assets/captcha 加载。
+ * 禁止 require('svg-captcha/lib/random')：它会拉 option-manager，
+ * bun compile 会把本机 __dirname/fonts 绝对路径打进二进制，Docker 必崩。
  */
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const opentype = require('opentype.js')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const chToPath = require('svg-captcha/lib/ch-to-path')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const captchaRandom = require('svg-captcha/lib/random')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const captchaOptionMngr = require('svg-captcha/lib/option-manager')
+const charPreset = require('svg-captcha/lib/char-preset')
+
+function resolveCaptchaFontPath(): string {
+  const candidates = [
+    join(process.cwd(), 'assets/captcha/Comismsh.ttf'),
+    join(process.cwd(), 'node_modules/svg-captcha/fonts/Comismsh.ttf'),
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+  throw new Error(
+    '[captcha] 缺少字体 Comismsh.ttf（期望 assets/captcha/ 或 node_modules/svg-captcha/fonts/）',
+  )
+}
+
+/** 自研 random（仅 int/color），避免拉进 option-manager */
+function captchaInt(min: number, max: number) {
+  return Math.round(min + Math.random() * (max - min))
+}
+
+function captchaHue2rgb(p: number, q: number, h: number) {
+  h = (h + 1) % 1
+  if (h * 6 < 1) return p + (q - p) * h * 6
+  if (h * 2 < 1) return q
+  if (h * 3 < 2) return p + (q - p) * (2 / 3 - h) * 6
+  return p
+}
+
+function captchaGetLightness(rgbColor: string) {
+  if (rgbColor[0] !== '#') return 1.0
+  let hex = rgbColor.slice(1)
+  if (hex.length === 3) {
+    hex = hex[0]! + hex[0]! + hex[1]! + hex[1]! + hex[2]! + hex[2]!
+  }
+  const n = parseInt(hex, 16)
+  const r = n >> 16
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / (2 * 255)
+}
+
+function captchaColor(bgColor?: string) {
+  const hue = captchaInt(0, 24) / 24
+  const saturation = captchaInt(60, 80) / 100
+  const bgLightness = bgColor ? captchaGetLightness(bgColor) : 1.0
+  let minLightness: number
+  let maxLightness: number
+  if (bgLightness >= 0.5) {
+    minLightness = Math.round(bgLightness * 100) - 45
+    maxLightness = Math.round(bgLightness * 100) - 25
+  } else {
+    minLightness = Math.round(bgLightness * 100) + 25
+    maxLightness = Math.round(bgLightness * 100) + 45
+  }
+  const lightness = captchaInt(minLightness, maxLightness) / 100
+  const q =
+    lightness < 0.5
+      ? lightness * (lightness + saturation)
+      : lightness + saturation - lightness * saturation
+  const p = 2 * lightness - q
+  const r = Math.floor(captchaHue2rgb(p, q, hue + 1 / 3) * 255)
+  const g = Math.floor(captchaHue2rgb(p, q, hue) * 255)
+  const b = Math.floor(captchaHue2rgb(p, q, hue - 1 / 3) * 255)
+  const c = ((b | (g << 8) | (r << 16) | (1 << 24)) >>> 0)
+    .toString(16)
+    .slice(1)
+  return `#${c}`
+}
+
+let captchaBaseOptions: Record<string, unknown> | null = null
+
+function getCaptchaBaseOptions() {
+  if (captchaBaseOptions) return captchaBaseOptions
+  const captchaFont = opentype.loadSync(resolveCaptchaFontPath())
+  captchaBaseOptions = {
+    width: 150,
+    height: 50,
+    noise: 1,
+    color: false,
+    background: '',
+    size: 4,
+    ignoreChars: '',
+    fontSize: 56,
+    charPreset,
+    font: captchaFont,
+    ascender: captchaFont.ascender,
+    descender: captchaFont.descender,
+  }
+  return captchaBaseOptions
+}
 
 const DIVIDE_CHAR = '÷'
 
@@ -85,11 +179,11 @@ function buildCaptchaNoiseLines(
 ) {
   const lines: string[] = []
   for (let i = 0; i < noise; i++) {
-    const start = `${captchaRandom.int(1, 21)} ${captchaRandom.int(1, height - 1)}`
-    const end = `${captchaRandom.int(width - 21, width - 1)} ${captchaRandom.int(1, height - 1)}`
-    const mid1 = `${captchaRandom.int(width / 2 - 21, width / 2 + 21)} ${captchaRandom.int(1, height - 1)}`
-    const mid2 = `${captchaRandom.int(width / 2 - 21, width / 2 + 21)} ${captchaRandom.int(1, height - 1)}`
-    const color = captchaRandom.color(bg)
+    const start = `${captchaInt(1, 21)} ${captchaInt(1, height - 1)}`
+    const end = `${captchaInt(width - 21, width - 1)} ${captchaInt(1, height - 1)}`
+    const mid1 = `${captchaInt(width / 2 - 21, width / 2 + 21)} ${captchaInt(1, height - 1)}`
+    const mid2 = `${captchaInt(width / 2 - 21, width / 2 + 21)} ${captchaInt(1, height - 1)}`
+    const color = captchaColor(bg)
     lines.push(
       `<path d="M${start} C${mid1},${mid2},${end}" stroke="${color}" fill="none"/>`,
     )
@@ -98,7 +192,7 @@ function buildCaptchaNoiseLines(
 }
 
 function renderCaptchaSvg(text: string, options: Record<string, unknown>) {
-  const opts = Object.assign({}, captchaOptionMngr.options, options)
+  const opts = Object.assign({}, getCaptchaBaseOptions(), options)
   const width = Number(opts.width) || 150
   const height = Number(opts.height) || 50
   const bg = opts.background as string | undefined
@@ -113,7 +207,7 @@ function renderCaptchaSvg(text: string, options: Record<string, unknown>) {
   for (let i = 0; i < len; i++) {
     const x = spacing * (i + 1)
     const y = height / 2
-    const color = captchaRandom.color(bg)
+    const color = captchaColor(bg)
     const ch = text[i]!
 
     if (ch === DIVIDE_CHAR) {

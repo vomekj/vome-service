@@ -7,7 +7,7 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { searchEmbeddingIds, syncEmbeddingVec } from '../../../lib/pgvector'
 import { projectAiMessage } from '../entity/project-ai-message'
 import { projectAiSession } from '../entity/project-ai-session'

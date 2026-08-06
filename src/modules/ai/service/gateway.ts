@@ -3,7 +3,7 @@ import {
   CommException,
   Inject,
   Provide,
-} from '/#/server'
+} from '@core/server'
 import { randomBytes } from 'node:crypto'
 import { getAiAdapter } from '../lib/ai/adapters'
 import type {

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
-import { Provide } from '/#/server'
-import { InjectRepository, type Repository } from '/#/server'
-import { BaseService } from '/#/server'
+import { Provide } from '@core/server'
+import { InjectRepository, type Repository } from '@core/server'
+import { BaseService } from '@core/server'
 import { baseConf } from '../entity/conf'
 
 /** 系统键值配置（如 logKeep） */

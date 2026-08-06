@@ -4,7 +4,7 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { aiCallLog } from '../entity/call-log'
 
 export {

@@ -1,6 +1,6 @@
 import { integer, jsonb, pgTable, index, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { baseColumns, columnComments, entitySchemas } from '/#/server'
+import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 字典条目（类型下多值；parentId 组树） */
 export const baseDictInfo = columnComments(

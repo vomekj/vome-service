@@ -1,6 +1,6 @@
 /** Socket.IO 配置 */
 export interface SocketIOConfig {
-  /** Engine path，默认 `/socket.io/` */
+  /** Engine path，默认 `/socket/` */
   path?: string
   /** 可升级协议，默认 `['websocket']` */
   upgrades?: string[]

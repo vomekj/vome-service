@@ -7,7 +7,7 @@ import {
   InjectRepository,
   BaseService,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import type { AdminAuthz, MenuTreeNode } from '../../../../typings/base/permission'
 import { baseMenu } from '../entity/menu'
 import { baseDepartment } from '../entity/department'

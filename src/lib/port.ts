@@ -12,13 +12,18 @@ function isDev() {
   return Bun.env.NODE_ENV === 'dev'
 }
 function spawnQuiet(cmd: string[]): string {
-  const result = Bun.spawnSync({
-    cmd,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
-  if (result.exitCode !== 0) return ''
-  return new TextDecoder().decode(result.stdout).trim()
+  try {
+    const result = Bun.spawnSync({
+      cmd,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+    if (result.exitCode !== 0) return ''
+    return new TextDecoder().decode(result.stdout).trim()
+  } catch {
+    // 容器等环境可能无 lsof/netstat：视为未占用
+    return ''
+  }
 }
 
 function isPortListening(port: number): boolean {

@@ -6,7 +6,7 @@ import {
   Inject,
   Post,
   type QueryOp,
-} from '/#/server'
+} from '@core/server'
 import type { LogScope } from '../../../../../typings/base/log-scope'
 import { baseLog } from '../../entity/log'
 import { LogService } from '../../service/log'

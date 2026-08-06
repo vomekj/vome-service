@@ -8,7 +8,7 @@ import {
   Inject,
   Post,
   getEnv,
-} from '/#/server'
+} from '@core/server'
 import { ProjectAiModelService } from '../../service/ai-model'
 
 /**

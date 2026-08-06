@@ -7,7 +7,7 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { searchEmbeddingIds, syncEmbeddingVec } from '../../../lib/pgvector'
 import { projectSkill } from '../entity/project-skill'
 

@@ -2,7 +2,7 @@ import {
   BaseController,
   Controller,
   Inject,
-} from '/#/server'
+} from '@core/server'
 import { basePluginInfo } from '../../entity/plugin-info'
 import { PluginInfoService } from '../../service/plugin'
 

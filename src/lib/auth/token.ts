@@ -1,4 +1,4 @@
-import { Inject, Provide } from '/#/server'
+import { Inject, Provide } from '@core/server'
 import { CacheStore } from '../cache'
 import { AuthExpires } from './config'
 

@@ -1,4 +1,4 @@
-import { createModuleGateway } from '/#/server'
+import { createModuleGateway } from '@core/server'
 import { adminAuth } from './adminAuth'
 
 /** 业务模块网关：注入宿主 adminAuth */

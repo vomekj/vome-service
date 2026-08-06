@@ -7,7 +7,7 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { searchEmbeddingIds, syncEmbeddingVec } from '../../../lib/pgvector'
 import { projectKbAdoption } from '../entity/project-kb-adoption'
 import { projectKbChunk } from '../entity/project-kb-chunk'

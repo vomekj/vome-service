@@ -1,4 +1,4 @@
-import { Ioc } from '/#/server'
+import { Ioc } from '@core/server'
 import { PluginCenterService } from '../../modules/base/service/plugin-center'
 
 /**

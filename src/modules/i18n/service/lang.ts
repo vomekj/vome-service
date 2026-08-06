@@ -6,7 +6,7 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { i18nLang } from '../entity/lang'
 
 function normalizeTenantId(raw: unknown): number {

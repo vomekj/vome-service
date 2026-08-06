@@ -5,8 +5,8 @@ import {
   InjectRepository,
   Provide,
   type Repository,
-} from '/#/server'
-import { BaseService } from '/#/server'
+} from '@core/server'
+import { BaseService } from '@core/server'
 import { TokenService } from '../../../lib/auth/token'
 import { CacheStore } from '../../../lib/cache'
 import { PluginInfoService } from '../../base/service/plugin'
@@ -24,7 +24,7 @@ function isPhone(addr: string) {
 }
 
 function isPlaceholderEmail(addr: string) {
-  return /@(phone|wx)\.invalid$/i.test(addr)
+  return /@.+\.invalid$/i.test(addr)
 }
 
 type UploadPlugin = {

@@ -6,7 +6,7 @@ import {
   Provide,
   getEnv,
   type Repository,
-} from '/#/server'
+} from '@core/server'
 import { decryptSecret, encryptSecret } from '../../../lib/secret-box'
 import { projectAiModel } from '../entity/project-ai-model'
 
