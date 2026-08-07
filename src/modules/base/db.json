@@ -195,6 +195,156 @@
           }
         ]
       }
+    },
+    {
+      "name": "是否(0/1)",
+      "key": "base_yes_no",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "否",
+            "value": 0,
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#DC2626",
+                  "orderNum": 0
+                }
+              ]
+            }
+          },
+          {
+            "typeId": "@id",
+            "name": "是",
+            "value": 1,
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "参数类型",
+      "key": "base_param_type",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "字符串",
+            "value": 0,
+            "orderNum": 0,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#4E5DFF",
+                  "orderNum": 0
+                }
+              ]
+            }
+          },
+          {
+            "typeId": "@id",
+            "name": "富文本",
+            "value": 1,
+            "orderNum": 1,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#7C3AED",
+                  "orderNum": 0
+                }
+              ]
+            }
+          },
+          {
+            "typeId": "@id",
+            "name": "文件",
+            "value": 2,
+            "orderNum": 2,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#16A34A",
+                  "orderNum": 0
+                }
+              ]
+            }
+          },
+          {
+            "typeId": "@id",
+            "name": "JSON",
+            "value": 3,
+            "orderNum": 3,
+            "@childDatas": {
+              "base_dict_info": [
+                {
+                  "typeId": "@rootId",
+                  "parentId": "@id",
+                  "name": "color",
+                  "value": "#EA580C",
+                  "orderNum": 0
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "JSON值类型",
+      "key": "base_json_value_kind",
+      "@childDatas": {
+        "base_dict_info": [
+          {
+            "typeId": "@id",
+            "name": "文本",
+            "value": "string",
+            "orderNum": 0
+          },
+          {
+            "typeId": "@id",
+            "name": "数字",
+            "value": "number",
+            "orderNum": 1
+          },
+          {
+            "typeId": "@id",
+            "name": "布尔",
+            "value": "boolean",
+            "orderNum": 2
+          },
+          {
+            "typeId": "@id",
+            "name": "对象",
+            "value": "object",
+            "orderNum": 3
+          }
+        ]
+      }
     }
   ]
 }

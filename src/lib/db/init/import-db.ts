@@ -5,7 +5,6 @@ import {
   getTableColumns,
   getTableName,
   isNull,
-  sql,
   type Table,
 } from 'drizzle-orm'
 import type { createDrizzle } from '../client'
@@ -182,11 +181,15 @@ async function seedDictInfoChildren(
     }
 
     if (infoId == null) {
-      infoId = await insertReturningId(db, infoTable, {
+      const inserted = await insertReturningId(db, infoTable, {
         ...childData,
         parentId,
         typeId: childData.typeId ?? typeId,
       })
+      if (typeof inserted !== 'number') {
+        throw new Error(`[init] ${DICT_INFO_TABLE} id 须为 number`)
+      }
+      infoId = inserted
       existing.push({
         id: infoId,
         value: childData.value,
@@ -217,8 +220,8 @@ async function seedDictInfoChildren(
 }
 
 /**
- * 字典按 key 增量：类型已存在则跳过类型插入，仅补缺失的 info；
- * 避免共享 base_dict_type 重种撞唯一键。支持 info 下嵌套 color 等孙节点。
+ * 首次种字典类型：同 key 已存在则复用（多模块共用 base_dict_type），
+ * 再补本行下缺失的 info / color。仅在 importModuleDb（模块首次 init）内调用。
  */
 async function seedDictTypeRow(
   db: Db,
@@ -238,7 +241,11 @@ async function seedDictTypeRow(
 
   let typeId = await findDictTypeId(db, typeTable, key)
   if (typeId == null) {
-    typeId = await insertReturningId(db, typeTable, data)
+    const inserted = await insertReturningId(db, typeTable, data)
+    if (typeof inserted !== 'number') {
+      throw new Error(`[init] ${DICT_TYPE_TABLE} id 须为 number`)
+    }
+    typeId = inserted
     console.log(`[init] dict type ← ${key}`)
   }
 
@@ -300,103 +307,7 @@ async function insertRow(
   }
 }
 
-async function tableIsEmpty(db: Db, table: Table) {
-  // Db 与自定义 insert 交叉后，drizzle 多方言 select 推断失效；收窄为可执行查询
-  const client = db as unknown as {
-    select: (sel: { count: ReturnType<typeof sql> }) => {
-      from: (t: Table) => Promise<Array<{ count: number | null }>>
-    }
-  }
-  const rows = await client
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(table)
-  return (rows[0]?.count ?? 0) === 0
-}
-
-/** user_info 是否已有同 phone / email（避免重复种默认账号） */
-async function userInfoExists(
-  db: Db,
-  table: Table,
-  data: Row,
-): Promise<boolean> {
-  const cols = getTableColumns(table)
-  const client = db as unknown as {
-    select: (sel: { id: unknown }) => {
-      from: (t: Table) => {
-        where: (cond: unknown) => {
-          limit: (n: number) => Promise<Array<{ id: unknown }>>
-        }
-      }
-    }
-  }
-  if (data.phone != null && cols.phone) {
-    const rows = await client
-      .select({ id: cols.id })
-      .from(table)
-      .where(eq(cols.phone, data.phone))
-      .limit(1)
-    if (rows.length) return true
-  }
-  if (data.email != null && cols.email) {
-    const rows = await client
-      .select({ id: cols.id })
-      .from(table)
-      .where(eq(cols.email, data.email))
-      .limit(1)
-    if (rows.length) return true
-  }
-  return false
-}
-
-/** 模块已初始化后：空表全量补种；字典表按 key 增量补缺失项 */
-export async function seedEmptyTablesFromModuleDb(
-  file: string,
-  db: ReturnType<typeof createDrizzle>,
-  schema: Record<string, unknown>,
-) {
-  const raw = await readFile(file, 'utf8')
-  const payload = JSON.parse(raw) as Record<string, unknown>
-  const tableMap = buildTableMap(schema)
-
-  for (const [tableName, rows] of Object.entries(payload)) {
-    if (!Array.isArray(rows) || !rows.length) continue
-    const table = tableMap.get(tableName)
-    if (!table) continue
-
-    if (tableName === DICT_TYPE_TABLE) {
-      for (const row of rows) {
-        if (!row || typeof row !== 'object' || Array.isArray(row)) continue
-        await seedDictTypeRow(db as Db, tableMap, row as Row)
-      }
-      console.log(`[init] db seed ← ${tableName} (incremental)`)
-      continue
-    }
-
-    /** user_info：按 phone/email 幂等补种（agent 本地上传默认账号） */
-    if (tableName === 'user_info') {
-      let added = 0
-      for (const row of rows) {
-        if (!row || typeof row !== 'object' || Array.isArray(row)) continue
-        const data = stripMeta(row as Row)
-        if (await userInfoExists(db as Db, table, data)) continue
-        await insertRow(db as Db, tableMap, tableName, row as Row)
-        added++
-      }
-      if (added) console.log(`[init] db seed ← ${tableName} (+${added})`)
-      continue
-    }
-
-    if (!(await tableIsEmpty(db as Db, table))) continue
-
-    for (const row of rows) {
-      if (!row || typeof row !== 'object' || Array.isArray(row)) continue
-      await insertRow(db as Db, tableMap, tableName, row as Row)
-    }
-    console.log(`[init] db seed ← ${tableName}`)
-  }
-}
-
-/** 导入单个模块 db.json（字典按 key 幂等） */
+/** 导入单个模块 db.json（仅模块首次 init 调用） */
 export async function importModuleDb(
   file: string,
   db: ReturnType<typeof createDrizzle>,

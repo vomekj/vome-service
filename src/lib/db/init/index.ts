@@ -1,10 +1,9 @@
 import { VomeConfig, scanFiles } from '@core/server'
 import type { SQL } from 'bun'
 import type { createDrizzle } from '../client'
-import { importModuleDb, seedEmptyTablesFromModuleDb } from './import-db'
+import { importModuleDb } from './import-db'
 import { importModuleMenu } from './import-menu'
 import { isModuleInitialized, markModuleInitialized } from './judge'
-import { patchMissingMenusFromJson } from './patch-menu'
 
 type Db = ReturnType<typeof createDrizzle>
 
@@ -23,6 +22,10 @@ function moduleName(file: string) {
   return matched[1]
 }
 
+/**
+ * 仅首次初始化种入：模块已标记 init 后不再补种、不增量。
+ * 重种需清 base_conf 的 initDB:* / initMenu:*（或 lock）后重启。
+ */
 export async function initModules(options: {
   db: Db
   schema: Record<string, unknown>
@@ -36,13 +39,10 @@ export async function initModules(options: {
     const files = await scanFiles(DB_JSON, { cwd, ext: /\.json$/ })
     for (const file of files) {
       const name = moduleName(file)
-      if (!(await isModuleInitialized(name, 'db', judge, options.sql))) {
-        await importModuleDb(file, options.db, options.schema)
-        await markModuleInitialized(name, 'db', judge, options.sql)
-        console.log(`[init] db ← ${name}`)
-      }
-      // 模块已初始化后，db.json 新增表仍可补种
-      await seedEmptyTablesFromModuleDb(file, options.db, options.schema)
+      if (await isModuleInitialized(name, 'db', judge, options.sql)) continue
+      await importModuleDb(file, options.db, options.schema)
+      await markModuleInitialized(name, 'db', judge, options.sql)
+      console.log(`[init] db ← ${name}`)
     }
   }
 
@@ -50,26 +50,11 @@ export async function initModules(options: {
     const files = await scanFiles(MENU_JSON, { cwd, ext: /\.json$/ })
     for (const file of files) {
       const name = moduleName(file)
-      if (await isModuleInitialized(name, 'menu', judge, options.sql)) {
-        continue
-      }
+      if (await isModuleInitialized(name, 'menu', judge, options.sql)) continue
       const ok = await importModuleMenu(file, options.db, options.schema, name)
       if (!ok) continue
       await markModuleInitialized(name, 'menu', judge, options.sql)
       console.log(`[init] menu ← ${name}`)
-    }
-    /* 已种过的环境：按 router 补缺失页面（如「订阅套餐配置」） */
-    if (options.sql) {
-      for (const file of files) {
-        try {
-          await patchMissingMenusFromJson(file, options.sql)
-        } catch (e) {
-          console.warn(
-            `[init] menu patch fail ${moduleName(file)}:`,
-            e instanceof Error ? e.message : e,
-          )
-        }
-      }
     }
   }
 }

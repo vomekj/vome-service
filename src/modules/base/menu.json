@@ -298,6 +298,73 @@
         "viewPath": "modules/base/views/log",
         "keepAlive": true,
         "isShow": true
+      },
+      {
+        "name": "系统参数",
+        "router": "/base/param",
+        "type": 1,
+        "orderNum": 4,
+        "viewPath": "modules/base/views/param",
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "base:param:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "base:param:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "base:param:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "base:param:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "base:param:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "base:param:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复",
+            "perms": "base:param:restore",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       }
     ]
   },
