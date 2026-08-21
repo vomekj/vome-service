@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { and, asc, desc, eq, getTableName, isNull, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, getTableName, inArray, isNull, ne } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
@@ -351,6 +351,34 @@ export class I18nPackService extends BaseService {
         isNull(i18nPack.deletedAt),
       ),
     )
+    return this.buildLocaleOptions(rows)
+  }
+
+  /**
+   * 插件语言包可切换语种（App 登录拉取）
+   * scopeKey 由调用方传入（插件名称或 module.key，见 pluginScopeKeyCandidates）
+   */
+  async listPluginLocales(scopeKey: string) {
+    const scope = normalizeScope('plugin', scopeKey)
+    const tenantId = normalizeTenantId(Context.get()?.tenantId)
+    const scopeKeys = await this.pluginScopeKeyCandidates(scope.scopeKey)
+    if (!scopeKeys.length) {
+      return [{ code: 'zh-CN', name: '简体中文', flag: '🇨🇳' }]
+    }
+    const rows = await this.packRepo.find(
+      and(
+        eq(i18nPack.tenantId, tenantId),
+        eq(i18nPack.scopeType, 'plugin'),
+        inArray(i18nPack.scopeKey, scopeKeys),
+        isNull(i18nPack.deletedAt),
+      ),
+    )
+    return this.buildLocaleOptions(rows)
+  }
+
+  private async buildLocaleOptions(
+    rows: Array<{ langCode?: string | null }> | null | undefined,
+  ) {
     const codeSet = new Set<string>()
     for (const row of rows ?? []) {
       const code = String(row.langCode || '').trim()
@@ -374,7 +402,6 @@ export class I18nPackService extends BaseService {
         flag: String(l.flag || '🏳️'),
       })
     }
-    // 有包但语种配置已删：按编码补在末尾
     for (const code of codeSet) {
       if (used.has(code)) continue
       out.push({ code, name: code, flag: '🏳️' })

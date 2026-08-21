@@ -33,6 +33,14 @@ function serializeResponse(response: unknown): string {
   return safeJson(response)
 }
 
+/** 日志管理接口自身不入库，避免把 page/info 再记进 base_log */
+function shouldSkipPath(pathname: string): boolean {
+  return (
+    pathname === '/admin/base/log' ||
+    pathname.startsWith('/admin/base/log/')
+  )
+}
+
 function resolveSide(path: string): 'admin' | 'app' | null {
   if (path === ADMIN_PREFIX || path.startsWith(`${ADMIN_PREFIX}/`)) return 'admin'
   if (path === APP_PREFIX || path.startsWith(`${APP_PREFIX}/`)) return 'app'
@@ -103,6 +111,7 @@ function scheduleRecord(payload: {
   const url = new URL(payload.request.url)
   const side = resolveSide(url.pathname)
   if (!side) return
+  if (shouldSkipPath(url.pathname)) return
 
   const status = resolveHttpStatus(payload.set, payload.response)
   const bizCode = extractBizCode(payload.response)

@@ -20,11 +20,27 @@ const logQueryOp: QueryOp = {
     { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
     { column: 'duration', min: 'minDuration', max: 'maxDuration', type: 'int' },
   ],
+  /** 列表不拉 params/response 大字段，详情走 info */
+  select: [
+    'a.id',
+    'a.createTime',
+    'a.updateTime',
+    'a.deletedAt',
+    'a.tenantId',
+    'a.userId',
+    'a.side',
+    'a.ip',
+    'a.method',
+    'a.action',
+    'a.logType',
+    'a.duration',
+    'a.status',
+  ],
   addOrderBy: { createTime: 'desc' },
 }
 
 @Controller({
-  api: ['delete', 'info', 'list', 'page'],
+  api: ['info', 'list', 'page'],
   entity: baseLog,
   service: LogService,
   pageQueryOp: logQueryOp,

@@ -186,7 +186,7 @@ const Crud = useCrud({ service: service.shop.goods })
 | `useUpsert({ items })` | 弹窗字段；`span`、`component`、`required` |
 | `useSearch({ items? })` | 可选手写筛选项，与自动项按 prop 合并 |
 | `vm-search` | **标准页必须挂**；缺了则无自动筛选与工具栏搜索/重置 |
-| `vm-toolbar` | 默认新增/删除 + 搜索重置 + 列表/回收站；`:trash="false"`；`:show-add="false"` 等 |
+| `vm-toolbar` | 新增/删除/回收站仅跟随 EPS 权限；可用 `add-data` / 插槽扩展 |
 | `vmConfirm` | 删除/危险操作确认 |
 
 ```ts
@@ -227,8 +227,8 @@ const Crud = useCrud(
 
 ### 工具栏变体
 
-- 自定义左侧按钮：放 `vm-toolbar` 默认槽；必要时关掉默认 add/delete
-- 无回收站（如日志）：`:trash="false"`
+- 自定义左侧按钮：放 `vm-toolbar` 默认槽；新增默认值用 `add-data`（可返回 `null` 中止）
+- 无对应 api/权限时增删与回收站 Tab 自动隐藏（如日志仅 info/list/page + clear）
 
 ## 样式分层（业务可改范围）
 

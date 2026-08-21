@@ -279,7 +279,97 @@
         "orderNum": 1,
         "viewPath": "modules/base/views/task",
         "keepAlive": false,
-        "isShow": true
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "base:task:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "base:task:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "base:task:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "base:task:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "base:task:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "base:task:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复",
+            "perms": "base:task:restore",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "启动任务",
+            "perms": "base:task:start",
+            "type": 2,
+            "orderNum": 8,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "停止任务",
+            "perms": "base:task:stop",
+            "type": 2,
+            "orderNum": 9,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "立即执行",
+            "perms": "base:task:once",
+            "type": 2,
+            "orderNum": 10,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "执行记录",
+            "perms": "base:task:log",
+            "type": 2,
+            "orderNum": 11,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       },
       {
         "name": "任务队列",
@@ -288,7 +378,81 @@
         "orderNum": 2,
         "viewPath": "modules/base/views/queue",
         "keepAlive": true,
-        "isShow": true
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "队列列表",
+            "perms": "base:queue:queues",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "队列内任务分页",
+            "perms": "base:queue:jobs",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "投递任务",
+            "perms": "base:queue:enqueue",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "重试失败任务",
+            "perms": "base:queue:retry",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除任务",
+            "perms": "base:queue:remove",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "清理已完成/失败任务",
+            "perms": "base:queue:clean",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "暂停队列",
+            "perms": "base:queue:pause",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复队列",
+            "perms": "base:queue:resume",
+            "type": 2,
+            "orderNum": 8,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除整个队列",
+            "perms": "base:queue:obliterate",
+            "type": 2,
+            "orderNum": 9,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       },
       {
         "name": "请求日志",
@@ -297,7 +461,73 @@
         "orderNum": 3,
         "viewPath": "modules/base/views/log",
         "keepAlive": true,
-        "isShow": true
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "单个信息",
+            "perms": "base:log:info",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "base:log:list",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "base:log:page",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "清空日志",
+            "perms": "base:log:clear",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "设置保留天数",
+            "perms": "base:log:setKeep",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "获取保留天数",
+            "perms": "base:log:getKeep",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "获取写入日志范围",
+            "perms": "base:log:getScope",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "设置写入日志范围",
+            "perms": "base:log:setScope",
+            "type": 2,
+            "orderNum": 8,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       },
       {
         "name": "系统参数",

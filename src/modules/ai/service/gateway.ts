@@ -240,23 +240,53 @@ export class AiGateway {
     let usage: AiInvokeResult['usage']
     let failed: { code: string; message: string } | undefined
     let text = ''
-    let data: Record<string, unknown> | undefined
+    let reasoning = ''
+    let usageEstimated = false
+    let finishReason: string | undefined
     try {
       for await (const chunk of stream) {
         if (chunk.text) text += chunk.text
-        if (chunk.data && typeof chunk.data === 'object') {
-          data = { ...data, ...(chunk.data as Record<string, unknown>) }
+        if (chunk.type === 'delta' && chunk.reasoning) {
+          reasoning += chunk.reasoning
         }
+        if (chunk.type === 'done') {
+          if (typeof chunk.reasoning === 'string' && chunk.reasoning) {
+            reasoning = chunk.reasoning
+          } else if (
+            chunk.data &&
+            typeof chunk.data === 'object' &&
+            typeof (chunk.data as Record<string, unknown>).reasoning ===
+              'string'
+          ) {
+            reasoning = String(
+              (chunk.data as Record<string, unknown>).reasoning,
+            )
+          }
+          if (
+            chunk.data &&
+            typeof chunk.data === 'object' &&
+            (chunk.data as Record<string, unknown>).usageEstimated
+          ) {
+            usageEstimated = true
+          }
+        }
+        const fr =
+          chunk.data && typeof chunk.data === 'object'
+            ? (chunk.data as Record<string, unknown>).finish_reason
+            : undefined
+        if (typeof fr === 'string' && fr) finishReason = fr
         if (chunk.usage) usage = chunk.usage
         if (chunk.type === 'error') failed = chunk.error
         yield chunk
       }
     } finally {
       const responseData =
-        text || data
+        text || reasoning
           ? {
-              ...(data ?? {}),
               ...(text ? { text } : {}),
+              ...(reasoning ? { reasoning } : {}),
+              ...(finishReason ? { finish_reason: finishReason } : {}),
+              ...(usageEstimated ? { usageEstimated: true } : {}),
             }
           : null
       void this.callLogService.write({

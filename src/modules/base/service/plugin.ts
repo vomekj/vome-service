@@ -298,12 +298,12 @@ export class PluginInfoService extends BaseService {
   }
 
   /**
-   * 按 id 列表删除。
-   * 删前卸槽位 + 清磁盘缓存，再硬删记录（插件不做软删回收站）。
+   * 按 id 列表删除：先卸槽位 + 清磁盘，再硬删。
+   * Controller 未声明 restore，插件不做回收站。
    */
   async delete(
     whereOrIds: SQL | number | string | Array<number | string>,
-    _options?: CrudDeleteOptions,
+    options?: CrudDeleteOptions,
   ) {
     const where = this.resolveDeleteWhere(whereOrIds)
     if (!where) return
@@ -313,14 +313,11 @@ export class PluginInfoService extends BaseService {
       await this.remove(item.hook || item.keyName, Boolean(item.hook))
       await this.deleteData(item.keyName)
     }
-    if (rows.length) {
-      await this.pluginRepo.forceDelete(
-        inArray(
-          basePluginInfo.id,
-          rows.map((r) => r.id),
-        ),
-      )
-    }
+    if (!rows.length) return
+    await super.delete(
+      rows.map((r) => r.id),
+      { ...options, force: true },
+    )
   }
 
   private resolveDeleteWhere(
@@ -536,9 +533,7 @@ export class PluginInfoService extends BaseService {
       eq(basePluginInfo.keyName, keyName),
     )
     if (!info) return
-    await this.remove(info.hook || info.keyName, Boolean(info.hook))
-    await this.deleteData(keyName)
-    await this.pluginRepo.forceDelete(eq(basePluginInfo.id, info.id))
+    await this.delete(info.id)
   }
 
   /** 优先 modules/{key}/server/index.js，回退旧 plugin/ 与库内 content */
