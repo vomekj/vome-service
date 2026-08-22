@@ -131,7 +131,7 @@ Snippets / Tasks 在 `service/.vscode/`，需**手动移到项目根**才生效�
 | API | 用法 |
 |-----|------|
 | `buildExcelBuffer(columns, rows)` | 导出 xlsx |
-| `buildImportTemplateBuffer(columns)` | 仅表头模板 |
+| `buildImportTemplateBuffer(props)` | 仅表头模板（字段名数组） |
 | `parseExcelBuffer(buf)` | 解析上传 |
 | `excelFilename` / `excelResponseHeaders` | 下载名与响应头 |
 | `IMPORT_SKIP_FIELDS` / `isImportSkipField` | 导入跳过 id/时间/tenant 等 |
@@ -296,7 +296,7 @@ fieldEq: [
 | API | 用法 |
 |-----|------|
 | `buildExcelBuffer(columns, rows)` | 列 + 行 → xlsx 二进制 |
-| `buildImportTemplateBuffer(columns)` | 导入模板 |
+| `buildImportTemplateBuffer(props)` | 导入模板（字段名数组） |
 | `parseExcelBuffer(buf)` | 解析上传文件 |
 | `excelFilename(name)` / `excelResponseHeaders` | 下载文件名与头 |
 | `this.excel(buf, 'x.xlsx')` | Controller 返回文件 Response |
