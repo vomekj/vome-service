@@ -54,7 +54,8 @@ function killPort(port: number): void {
         }
       }
     } else {
-      const out = spawnQuiet(['lsof', '-ti', `:${port}`])
+      // 必须加 -sTCP:LISTEN：否则会把连到该端口的客户端（admin/front Vite 代理）一并杀掉
+      const out = spawnQuiet(['lsof', '-tiTCP', `:${port}`, '-sTCP:LISTEN'])
       const pids = [...new Set(out.split('\n').filter(Boolean))]
       if (pids.length > 0) {
         Bun.spawnSync({ cmd: ['kill', '-9', ...pids], stderr: 'ignore', stdout: 'ignore' })
