@@ -96,6 +96,7 @@ export class I18nPackController extends BaseController {
         scopeType: t.Optional(t.String()),
         scopeKey: t.Optional(t.String()),
         model: t.Optional(t.String()),
+        mode: t.Optional(t.Union([t.Literal('full'), t.Literal('incremental')])),
       }),
     )
     body: {
@@ -104,6 +105,7 @@ export class I18nPackController extends BaseController {
       scopeType?: string
       scopeKey?: string
       model?: string
+      mode?: 'full' | 'incremental'
     },
   ) {
     return sseResponse(this.i18nPack.translateByAiStream(body))

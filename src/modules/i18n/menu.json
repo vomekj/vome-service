@@ -158,6 +158,158 @@
             "isShow": false
           }
         ]
+      },
+      {
+        "name": "业务字段",
+        "router": "/i18n/data-field",
+        "perms": "i18n:dataField:list",
+        "type": 1,
+        "orderNum": 3,
+        "viewPath": "modules/i18n/views/data-field",
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "i18n:dataField:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "i18n:dataField:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "i18n:dataField:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "i18n:dataField:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "i18n:dataField:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "i18n:dataField:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复",
+            "perms": "i18n:dataField:restore",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
+      },
+      {
+        "name": "业务翻译",
+        "router": "/i18n/data-pack",
+        "perms": "i18n:dataPack:list",
+        "type": 1,
+        "orderNum": 4,
+        "viewPath": "modules/i18n/views/data-pack",
+        "keepAlive": false,
+        "isShow": true,
+        "childMenus": [
+          {
+            "name": "新增",
+            "perms": "i18n:dataPack:add",
+            "type": 2,
+            "orderNum": 1,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "删除",
+            "perms": "i18n:dataPack:delete",
+            "type": 2,
+            "orderNum": 2,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "修改",
+            "perms": "i18n:dataPack:update",
+            "type": 2,
+            "orderNum": 3,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "单个信息",
+            "perms": "i18n:dataPack:info",
+            "type": 2,
+            "orderNum": 4,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "列表查询",
+            "perms": "i18n:dataPack:list",
+            "type": 2,
+            "orderNum": 5,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "分页查询",
+            "perms": "i18n:dataPack:page",
+            "type": 2,
+            "orderNum": 6,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "恢复",
+            "perms": "i18n:dataPack:restore",
+            "type": 2,
+            "orderNum": 7,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "业务表列表",
+            "perms": "i18n:dataPack:tables",
+            "type": 2,
+            "orderNum": 8,
+            "keepAlive": true,
+            "isShow": false
+          },
+          {
+            "name": "AI翻译",
+            "perms": "i18n:dataPack:translateTable",
+            "type": 2,
+            "orderNum": 9,
+            "keepAlive": true,
+            "isShow": false
+          }
+        ]
       }
     ]
   }

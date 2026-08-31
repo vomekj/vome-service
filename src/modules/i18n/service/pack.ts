@@ -158,7 +158,19 @@ export class I18nPackService extends BaseService {
       throw new CommException('语言包须为 JSON 对象')
     }
     data.packJson = packJson
-    data.sourceHash = hashLocaleJson(packJson as Record<string, unknown>)
+    const explicitSourceHash = String(data.sourceHash ?? '').trim()
+    if (langCode === 'zh-CN') {
+      data.sourceHash = hashLocaleJson(packJson as Record<string, unknown>)
+    } else if (explicitSourceHash) {
+      data.sourceHash = explicitSourceHash
+    } else {
+      try {
+        const source = await this.resolveSourcePack(scope)
+        data.sourceHash = hashLocaleJson(source)
+      } catch {
+        data.sourceHash = hashLocaleJson(packJson as Record<string, unknown>)
+      }
+    }
 
     if (type === 'add') {
       data.version = Number(data.version) > 0 ? Number(data.version) : 1
@@ -647,6 +659,53 @@ export class I18nPackService extends BaseService {
     )
   }
 
+  /** 增量：仅译新增/变更 key；全量：整包重译 */
+  private collectLocaleKeysToTranslate(
+    sourceFlat: Record<string, string>,
+    existingFlat: Record<string, string>,
+    zhCnFlat: Record<string, string>,
+    incremental: boolean,
+  ): Record<string, string> {
+    const toTranslate: Record<string, string> = {}
+    for (const [k, v] of Object.entries(sourceFlat)) {
+      if (typeof v !== 'string' || !v.trim()) continue
+      if (!incremental) {
+        toTranslate[k] = v
+        continue
+      }
+      if (!(k in existingFlat)) {
+        toTranslate[k] = v
+        continue
+      }
+      if (zhCnFlat[k] !== undefined && zhCnFlat[k] !== v) {
+        toTranslate[k] = v
+      } else if (!(k in zhCnFlat)) {
+        toTranslate[k] = v
+      }
+    }
+    return toTranslate
+  }
+
+  private mergeTranslatedLocale(
+    sourceFlat: Record<string, string>,
+    existingFlat: Record<string, string>,
+    translatedFlat: Record<string, string>,
+    incremental: boolean,
+  ): Record<string, unknown> {
+    const mergedFlat: Record<string, string> = incremental
+      ? { ...existingFlat }
+      : { ...sourceFlat }
+    for (const k of Object.keys(mergedFlat)) {
+      if (!(k in sourceFlat)) delete mergedFlat[k]
+    }
+    for (const [k, v] of Object.entries(translatedFlat)) {
+      if (k in sourceFlat && String(v || '').trim()) {
+        mergedFlat[k] = String(v).trim()
+      }
+    }
+    return unflattenLocale(mergedFlat)
+  }
+
   /**
    * AI 翻译（SSE：delta 推原文，done 带 packJson；不落库）
    */
@@ -656,6 +715,7 @@ export class I18nPackService extends BaseService {
     scopeType?: string
     scopeKey?: string
     model?: string
+    mode?: 'full' | 'incremental'
   }): AsyncGenerator<{
     type: 'delta' | 'done' | 'error'
     text?: string
@@ -671,6 +731,7 @@ export class I18nPackService extends BaseService {
 
       const scope = normalizeScope(body.scopeType, body.scopeKey)
       const tenantId = normalizeTenantId(Context.get()?.tenantId)
+      const incremental = body.mode !== 'full'
 
       let langName = String(body.langName || '').trim()
       if (!langName) {
@@ -695,7 +756,79 @@ export class I18nPackService extends BaseService {
       }
 
       const source = await this.resolveSourcePack(scope)
-      const sourceFlat = flattenLocale(source)
+      const sourceFlat = flattenLocale(source) as Record<string, string>
+      const sourceHash = hashLocaleJson(source)
+
+      const existingPack = await this.findPack({
+        langCode,
+        scopeType: scope.scopeType,
+        scopeKey: scope.scopeKey,
+      })
+      const existingFlat = existingPack?.packJson
+        ? (flattenLocale(existingPack.packJson) as Record<string, string>)
+        : {}
+
+      if (incremental && existingPack?.sourceHash === sourceHash) {
+        yield {
+          type: 'done',
+          data: {
+            skipped: true,
+            message: '源文案未变化，跳过增量翻译',
+            langCode,
+            scopeType: scope.scopeType,
+            scopeKey: scope.scopeKey,
+            sourceHash,
+            packJson: existingPack?.packJson ?? {},
+            translatedKeys: 0,
+          },
+        }
+        return
+      }
+
+      const zhCnPack = await this.findPack({
+        langCode: 'zh-CN',
+        scopeType: scope.scopeType,
+        scopeKey: scope.scopeKey,
+      })
+      const zhCnFlat = zhCnPack?.packJson
+        ? (flattenLocale(zhCnPack.packJson) as Record<string, string>)
+        : {}
+
+      const toTranslate = this.collectLocaleKeysToTranslate(
+        sourceFlat,
+        existingFlat,
+        zhCnFlat,
+        incremental,
+      )
+
+      if (!Object.keys(toTranslate).length) {
+        const packJson = this.mergeTranslatedLocale(
+          sourceFlat,
+          existingFlat,
+          {},
+          incremental,
+        )
+        yield {
+          type: 'done',
+          data: {
+            skipped: false,
+            langCode,
+            scopeType: scope.scopeType,
+            scopeKey: scope.scopeKey,
+            sourceHash,
+            packJson,
+            translatedKeys: 0,
+          },
+        }
+        return
+      }
+
+      const aiPayload = incremental
+        ? unflattenLocale(toTranslate)
+        : source
+      const aiHint = incremental
+        ? 'Return a JSON object with exactly the same keys as the input.'
+        : 'Return the full JSON object with the same keys.'
 
       const out = await this.aiGateway.call(
         {
@@ -710,7 +843,7 @@ export class I18nPackService extends BaseService {
               },
               {
                 role: 'user',
-                content: `Translate the following UI locale JSON from Simplified Chinese (zh-CN) into ${langName} (${langCode}). Return the full JSON object with the same keys.\n\n${JSON.stringify(source, null, 2)}`,
+                content: `Translate the following UI locale JSON from Simplified Chinese (zh-CN) into ${langName} (${langCode}). ${aiHint}\n\n${JSON.stringify(aiPayload, null, 2)}`,
               },
             ],
           },
@@ -754,13 +887,14 @@ export class I18nPackService extends BaseService {
         throw new CommException('AI 未返回翻译内容')
       }
 
-      let translated = extractJsonObject(text)
-      const translatedFlat = flattenLocale(translated)
-      const mergedFlat: Record<string, string> = { ...sourceFlat }
-      for (const [k, v] of Object.entries(translatedFlat)) {
-        if (k in sourceFlat && v.trim()) mergedFlat[k] = v
-      }
-      translated = unflattenLocale(mergedFlat)
+      const translated = extractJsonObject(text)
+      const translatedFlat = flattenLocale(translated) as Record<string, string>
+      const packJson = this.mergeTranslatedLocale(
+        sourceFlat,
+        existingFlat,
+        translatedFlat,
+        incremental,
+      )
 
       yield {
         type: 'done',
@@ -770,7 +904,9 @@ export class I18nPackService extends BaseService {
           langCode,
           scopeType: scope.scopeType,
           scopeKey: scope.scopeKey,
-          packJson: translated,
+          sourceHash,
+          packJson,
+          translatedKeys: Object.keys(toTranslate).length,
         },
       }
     } catch (e) {
@@ -791,6 +927,7 @@ export class I18nPackService extends BaseService {
     scopeType?: string
     scopeKey?: string
     model?: string
+    mode?: 'full' | 'incremental'
   }) {
     let packJson: Record<string, unknown> | undefined
     let langCode = ''
