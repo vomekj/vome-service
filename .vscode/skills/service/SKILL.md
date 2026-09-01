@@ -333,7 +333,7 @@ vome(({ App }) => {
 | `adminAuth.ts` | 后台 JWT → `Context`（adminId、perms、dataScope…） |
 | `webAuth.ts` | App 侧会话 → `userId` / `appPerms` 等 |
 | `requestLog.ts` | 请求日志入库 |
-| `microApps.ts` | 微应用静态资源 |
+| `microApps` | 微应用静态资源（`@core/server`；在 `lib/host/index.ts` 注入，**无** `middleware/microApps.ts`） |
 | `moduleGateway.ts` | `/admin/ext/{key}/…` |
 
 鉴权形态必须用 core 的 `defineAuthMacro`（见下）。
