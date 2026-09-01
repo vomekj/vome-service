@@ -1,10 +1,11 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, type SQL } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
   Context,
   InjectRepository,
   Provide,
+  type CrudTrashQueryOptions,
   type Repository,
 } from '@core/server'
 import {
@@ -54,8 +55,11 @@ export class AiProviderService extends BaseService {
     }
   }
 
-  async info(opts: { id: number | string }) {
-    const row = await super.info(opts)
+  async info(
+    idOrWhere: string | number | SQL,
+    options?: CrudTrashQueryOptions,
+  ) {
+    const row = await super.info(idOrWhere, options)
     if (row && typeof row === 'object' && 'apiKey' in row) {
       const key = (row as { apiKey?: string }).apiKey
       ;(row as { apiKey?: string }).apiKey =

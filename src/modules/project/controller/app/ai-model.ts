@@ -37,7 +37,7 @@ export class AppProjectAiModelController extends BaseController {
     @Body(t.Object({ projectId: t.Number() })) body: { projectId: number },
   ) {
     this.requireUser()
-    return this.ok(await this.aiModel.list(body.projectId))
+    return this.ok(await this.aiModel.listByProject(body.projectId))
   }
 
   @Post('/create', { summary: '添加自接模型' })

@@ -29,7 +29,7 @@ export class ProjectSkillService extends BaseService {
     })
   }
 
-  async list(projectId: number) {
+  async listByProject(projectId: number) {
     const pid = Number(projectId)
     if (!(pid > 0)) throw new CommException('项目 ID 无效')
     const rows = await this.skillRepo.find(
@@ -149,7 +149,7 @@ export class ProjectSkillService extends BaseService {
       })
       seeded += 1
     }
-    return { seeded, list: await this.list(projectId) }
+    return { seeded, list: await this.listByProject(projectId) }
   }
 
   /** 向量检索；vector 由 agent 官网 embed 后传入 */
@@ -178,7 +178,7 @@ export class ProjectSkillService extends BaseService {
           .map((r) => ({ id: r.id, name: r.name, content: r.content }))
       }
     }
-    const fallback = await this.list(projectId)
+    const fallback = await this.listByProject(projectId)
     return fallback.slice(0, topK).map((r) => ({
       id: r.id,
       name: r.name,

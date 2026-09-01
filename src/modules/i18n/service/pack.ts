@@ -26,7 +26,7 @@ import {
   flattenLocale,
   hashLocaleJson,
   unflattenLocale,
-} from '../lib/locale-json'
+} from '@core/server'
 
 /** 宿主端标识（DB scopeKey） */
 export const HOST_SCOPE_KEYS = ['admin', 'web', 'uniapp'] as const
@@ -732,6 +732,19 @@ export class I18nPackService extends BaseService {
       const scope = normalizeScope(body.scopeType, body.scopeKey)
       const tenantId = normalizeTenantId(Context.get()?.tenantId)
       const incremental = body.mode !== 'full'
+
+      // 尽早推一帧，避免客户端/代理在拉源包、查库前空等（与 dataPack.translateTable 同模式）
+      yield {
+        type: 'delta',
+        text: '',
+        data: {
+          stage: 'start',
+          langCode,
+          scopeType: scope.scopeType,
+          scopeKey: scope.scopeKey,
+          mode: incremental ? 'incremental' : 'full',
+        },
+      }
 
       let langName = String(body.langName || '').trim()
       if (!langName) {

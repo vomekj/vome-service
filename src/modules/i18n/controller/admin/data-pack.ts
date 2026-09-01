@@ -42,58 +42,69 @@ export class I18nDataPackController extends BaseController {
     return this.ok(await this.dataPack.listChatModels())
   }
 
-  @Get('/entries', { summary: '展开业务表某语种翻译条目' })
+  @Get('/entries', { summary: '业务表翻译行（按字段分列）' })
   async entries(
     @Query(
       t.Object({
         tableName: t.String(),
         langCode: t.String(),
+        sourceLangCode: t.Optional(t.String()),
       }),
     )
-    query: { tableName: string; langCode: string },
+    query: {
+      tableName: string
+      langCode: string
+      sourceLangCode?: string
+    },
   ) {
     return this.ok(
-      await this.dataPack.listEntries(query.tableName, query.langCode),
+      await this.dataPack.listEntries(
+        query.tableName,
+        query.langCode,
+        query.sourceLangCode,
+      ),
     )
   }
 
-  @Post('/updateEntry', { summary: '更新单条业务译文' })
+  @Post('/updateEntry', { summary: '更新业务译文（单字段或整行 values）' })
   async updateEntry(
     @Body(
       t.Object({
         tableName: t.String(),
         langCode: t.String(),
         id: t.String(),
-        key: t.String(),
-        value: t.String(),
+        key: t.Optional(t.String()),
+        value: t.Optional(t.String()),
+        values: t.Optional(t.Record(t.String(), t.String())),
       }),
     )
     body: {
       tableName: string
       langCode: string
       id: string
-      key: string
-      value: string
+      key?: string
+      value?: string
+      values?: Record<string, string>
     },
   ) {
     return this.ok(await this.dataPack.updateEntry(body))
   }
 
-  @Post('/deleteEntry', { summary: '删除单条业务译文' })
+  @Post('/deleteEntry', { summary: '删除业务译文（key 省略则删整行）' })
   async deleteEntry(
     @Body(
       t.Object({
         tableName: t.String(),
         langCode: t.String(),
         id: t.String(),
-        key: t.String(),
+        key: t.Optional(t.String()),
       }),
     )
     body: {
       tableName: string
       langCode: string
       id: string
-      key: string
+      key?: string
     },
   ) {
     return this.ok(await this.dataPack.deleteEntry(body))

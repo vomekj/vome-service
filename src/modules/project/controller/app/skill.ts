@@ -17,7 +17,7 @@ export class AppProjectSkillController extends BaseController {
   @Post('/list', { summary: 'Skills 列表' })
   async list(@Body(t.Object({ projectId: t.Number() })) body: { projectId: number }) {
     this.requireUser()
-    return this.ok(await this.skill.list(body.projectId))
+    return this.ok(await this.skill.listByProject(body.projectId))
   }
 
   @Post('/create', { summary: '新建 Skill' })

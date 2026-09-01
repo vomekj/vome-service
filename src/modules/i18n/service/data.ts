@@ -10,6 +10,7 @@ import {
   DbStore,
   extractChineseSegments,
   extractJsonObject,
+  getColumnComments,
   getRepository,
   hasChinese,
   Inject,
@@ -193,7 +194,7 @@ export class I18nDataService extends BaseService {
     langCode: string,
   ): Promise<DataI18nPackMap | null> {
     const code = String(langCode || '').trim()
-    if (!code || code === 'zh-CN') return null
+    if (!code) return null
     const cacheKey = `${normalizeTenantId(Context.get()?.tenantId)}:${tableName}:${code}`
     const hit = this.packCache.get(cacheKey)
     if (hit && Date.now() - hit.at < 30_000) return hit.pack
@@ -480,8 +481,8 @@ export class I18nDataService extends BaseService {
       const tableName = String(body.tableName || '').trim()
       const langCode = String(body.langCode || '').trim()
       if (!tableName) throw new CommException('tableName 不能为空')
-      if (!langCode || langCode === 'zh-CN') {
-        throw new CommException('目标语种须为非 zh-CN')
+      if (!langCode) {
+        throw new CommException('目标语种不能为空')
       }
 
       const enabled = (await this.listEnabledFields(tableName)).filter(
@@ -500,6 +501,19 @@ export class I18nDataService extends BaseService {
       const pkField = enabled[0]?.pkField || 'id'
       const seeds = getDataI18nSeeds(tableName)
       const incremental = body.mode !== 'full'
+
+      // 尽早推一帧，避免代理/客户端在首包 AI 前空等
+      yield {
+        type: 'delta',
+        text: '',
+        data: {
+          stage: 'start',
+          tableName,
+          langCode,
+          mode: incremental ? 'incremental' : 'full',
+        },
+      }
+
       let nextPack: DataI18nPackMap = incremental
         ? {
             ...((await this.loadPackMap(tableName, langCode)) || {}),
@@ -815,39 +829,68 @@ export class I18nDataService extends BaseService {
     return result
   }
 
-  /** 展开 packJson → 行：id=业务 pk，key=字段，value=译文，source=原中文 */
-  async listPackEntries(tableName: string, langCode: string) {
+  /**
+   * 语言 Tab：一行一业务 pk，每 direct 字段一列
+   * values=目标语译文；sources=对照语（默认库内中文）
+   */
+  async listPackEntries(
+    tableName: string,
+    langCode: string,
+    sourceLangCode?: string,
+  ) {
     const table = String(tableName || '').trim()
     const code = String(langCode || '').trim()
     if (!table) throw new CommException('tableName 不能为空')
-    if (!code || code === 'zh-CN') {
-      throw new CommException('语种须为非 zh-CN')
+    if (!code) {
+      throw new CommException('语种不能为空')
     }
+    const enabled = (await this.listEnabledFields(table)).filter(
+      (f) => f.mode === 'direct' && f.enabled,
+    )
+    const pgTable = this.tableMap().get(table)
+    const comments = pgTable ? getColumnComments(pgTable) : {}
     const pack = (await this.loadPackMap(table, code)) || {}
-    const sourcePack = await this.loadSourceTextMap(table)
-    const rows: Array<{
+    const refCode = String(sourceLangCode || 'zh-CN').trim() || 'zh-CN'
+    const sourcePack =
+      !refCode || refCode === 'zh-CN'
+        ? await this.loadSourceTextMap(table)
+        : refCode === code
+          ? pack
+          : (await this.loadPackMap(table, refCode)) || {}
+
+    const fieldSet = new Set(enabled.map((f) => f.fieldName))
+    for (const bag of Object.values(pack)) {
+      if (!bag || typeof bag !== 'object') continue
+      for (const k of Object.keys(bag)) fieldSet.add(k)
+    }
+    const fields = [...fieldSet].map((name) => ({
+      name,
+      label: String(comments[name] || name),
+    }))
+
+    const list: Array<{
       id: string
-      key: string
-      value: string
-      source: string
+      values: Record<string, string>
+      sources: Record<string, string>
     }> = []
     for (const [pk, bag] of Object.entries(pack)) {
       if (!bag || typeof bag !== 'object') continue
-      for (const [key, value] of Object.entries(bag)) {
-        rows.push({
-          id: String(pk),
-          key: String(key),
-          value: String(value ?? ''),
-          source: String(sourcePack[pk]?.[key] ?? ''),
-        })
+      const values: Record<string, string> = {}
+      const sources: Record<string, string> = {}
+      let hasVal = false
+      for (const { name } of fields) {
+        const v = String(bag[name] ?? '')
+        if (v) hasVal = true
+        values[name] = v
+        sources[name] = String(sourcePack[pk]?.[name] ?? '')
       }
+      if (!hasVal) continue
+      list.push({ id: String(pk), values, sources })
     }
-    rows.sort((a, b) => {
-      const byId = a.id.localeCompare(b.id, undefined, { numeric: true })
-      if (byId !== 0) return byId
-      return a.key.localeCompare(b.key)
-    })
-    return rows
+    list.sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, { numeric: true }),
+    )
+    return { fields, list }
   }
 
   /** 业务表当前库内原文（中文源），供语言 Tab「原数据」列 */
@@ -894,52 +937,78 @@ export class I18nDataService extends BaseService {
     tableName: string
     langCode: string
     id: string
-    key: string
-    value: string
+    key?: string
+    value?: string
+    /** 整行多字段：{ fieldName: text } */
+    values?: Record<string, string>
   }) {
     const tableName = String(body.tableName || '').trim()
     const langCode = String(body.langCode || '').trim()
     const pk = String(body.id ?? '').trim()
-    const key = String(body.key || '').trim()
-    if (!tableName || !langCode || langCode === 'zh-CN') {
+    if (!tableName || !langCode) {
       throw new CommException('tableName / langCode 无效')
     }
-    if (!pk || !key) throw new CommException('id / key 不能为空')
+    if (!pk) throw new CommException('id 不能为空')
     const pack: DataI18nPackMap = {
       ...((await this.loadPackMap(tableName, langCode)) || {}),
     }
-    pack[pk] = { ...(pack[pk] || {}), [key]: String(body.value ?? '') }
+    const patch: Record<string, string> = {}
+    if (body.values && typeof body.values === 'object') {
+      for (const [k, v] of Object.entries(body.values)) {
+        const field = String(k || '').trim()
+        if (!field) continue
+        patch[field] = String(v ?? '')
+      }
+    } else {
+      const key = String(body.key || '').trim()
+      if (!key) throw new CommException('key / values 不能为空')
+      patch[key] = String(body.value ?? '')
+    }
+    if (!Object.keys(patch).length) {
+      throw new CommException('无译文可保存')
+    }
+    const nextBag = { ...(pack[pk] || {}), ...patch }
+    for (const [k, v] of Object.entries(nextBag)) {
+      if (!String(v ?? '').trim()) delete nextBag[k]
+    }
+    if (Object.keys(nextBag).length) pack[pk] = nextBag
+    else delete pack[pk]
     const saved = await this.upsertPack(tableName, langCode, pack)
     this.invalidatePackCache(tableName, langCode)
-    return { tableName, langCode, id: pk, key, version: saved?.version }
+    return { tableName, langCode, id: pk, version: saved?.version }
   }
 
+  /** key 省略时删除该 pk 在目标语下的全部字段 */
   async deletePackEntry(body: {
     tableName: string
     langCode: string
     id: string
-    key: string
+    key?: string
   }) {
     const tableName = String(body.tableName || '').trim()
     const langCode = String(body.langCode || '').trim()
     const pk = String(body.id ?? '').trim()
     const key = String(body.key || '').trim()
-    if (!tableName || !langCode || langCode === 'zh-CN') {
+    if (!tableName || !langCode) {
       throw new CommException('tableName / langCode 无效')
     }
-    if (!pk || !key) throw new CommException('id / key 不能为空')
+    if (!pk) throw new CommException('id 不能为空')
     const pack: DataI18nPackMap = {
       ...((await this.loadPackMap(tableName, langCode)) || {}),
     }
     if (pack[pk]) {
-      const next = { ...pack[pk] }
-      delete next[key]
-      if (Object.keys(next).length) pack[pk] = next
-      else delete pack[pk]
+      if (!key) {
+        delete pack[pk]
+      } else {
+        const next = { ...pack[pk] }
+        delete next[key]
+        if (Object.keys(next).length) pack[pk] = next
+        else delete pack[pk]
+      }
     }
     const saved = await this.upsertPack(tableName, langCode, pack)
     this.invalidatePackCache(tableName, langCode)
-    return { tableName, langCode, id: pk, key, version: saved?.version }
+    return { tableName, langCode, id: pk, key: key || undefined, version: saved?.version }
   }
 
   private async resolveModelCode(model?: string) {

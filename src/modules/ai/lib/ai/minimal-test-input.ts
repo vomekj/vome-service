@@ -1,4 +1,4 @@
-import type { AiCapability } from './types'
+import type { AiCapability } from 'vome-core/ai'
 
 /** 连通性探测用的最小请求体（不依赖本地测试文件） */
 export function minimalTestInput(

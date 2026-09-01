@@ -33,7 +33,7 @@ export class ProjectAiModelService extends BaseService {
   }
 
   /** 列表永不返回明文密钥；解密仅 resolveForCall（且控制器限 dev） */
-  async list(projectId: number) {
+  async listByProject(projectId: number) {
     const pid = Number(projectId)
     if (!(pid > 0)) throw new CommException('项目 ID 无效')
     const rows = await this.modelRepo.find(

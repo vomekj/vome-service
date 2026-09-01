@@ -35,8 +35,16 @@ export class I18nDataPackService extends BaseService {
     return this.packService.listChatModels()
   }
 
-  async listEntries(tableName: string, langCode: string) {
-    return this.dataService.listPackEntries(tableName, langCode)
+  async listEntries(
+    tableName: string,
+    langCode: string,
+    sourceLangCode?: string,
+  ) {
+    return this.dataService.listPackEntries(
+      tableName,
+      langCode,
+      sourceLangCode,
+    )
   }
 
   async updateEntry(

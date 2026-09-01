@@ -7,11 +7,6 @@ import {
 } from '@core/server'
 import { aiCallLog } from '../entity/call-log'
 
-export {
-  buildAiCallLogRequest,
-  buildAiCallLogResult,
-} from 'vome-core/ai'
-
 export type AiCallLogInput = {
   modelCode?: string
   capability: string

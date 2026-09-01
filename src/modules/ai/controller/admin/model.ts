@@ -11,9 +11,9 @@ import {
 import { aiModel } from '../../entity/model'
 import { AiGateway } from '../../service/gateway'
 import { AiModelService } from '../../service/model'
-import type { AiCapability } from '../../lib/ai/types'
+import type { AiCapability } from 'vome-core/ai'
 import { minimalTestInput } from '../../lib/ai/minimal-test-input'
-import { resolveAiCapability } from '../../lib/ai/types'
+import { resolveAiCapability } from 'vome-core/ai'
 
 /** → service.ai.model（含 .call） */
 @Controller({

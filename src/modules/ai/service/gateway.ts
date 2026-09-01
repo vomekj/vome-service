@@ -5,18 +5,10 @@ import {
   Provide,
 } from '@core/server'
 import { randomBytes } from 'node:crypto'
-import { getAiAdapter } from '../lib/ai/adapters'
-import type {
-  AiCallRequest,
-  AiCallResult,
-  AiCapability,
-  AiInvokeInput,
-  AiInvokeResult,
-  AiProtocolAdapter,
-  AiResultMode,
-  AiStreamChunk,
-} from '../lib/ai/types'
 import {
+  getAiAdapter,
+  buildAiCallLogRequest,
+  buildAiCallLogResult,
   AI_TIMEOUT_DEFAULT_MS,
   inferAiMode,
   mergeAbortSignal,
@@ -25,9 +17,17 @@ import {
   resolveAiCapability,
   resolveAiTimeoutMs,
   stripAiDefaultMeta,
-} from '../lib/ai/types'
+  type AiCallRequest,
+  type AiCallResult,
+  type AiCapability,
+  type AiInvokeInput,
+  type AiInvokeResult,
+  type AiProtocolAdapter,
+  type AiResultMode,
+  type AiStreamChunk,
+} from 'vome-core/ai'
 import { aiCallLog } from '../entity/call-log'
-import { AiCallLogService, buildAiCallLogRequest, buildAiCallLogResult } from './call-log'
+import { AiCallLogService } from './call-log'
 import { AiModelService } from './model'
 import { AiProviderService } from './provider'
 
@@ -64,15 +64,17 @@ export class AiGateway {
     if (req.taskId) {
       void this.closeStaleTasks()
       const data = await this.refreshAndGetRecord(req.taskId)
+      const modelCode = data.model ?? req.model
+      if (!modelCode) throw new CommException('model 不能为空')
       return {
         kind: 'json',
         ok: data.status !== 'failed',
         capability: data.capability,
-        model: data.model || req.model,
+        model: modelCode,
         mode: 'async',
         data: {
-          taskId: data.taskId,
-          status: data.status,
+          taskId: data.taskId ?? undefined,
+          status: data.status ?? undefined,
           upstreamId: data.upstreamId,
           ...(data.result && typeof data.result === 'object'
             ? (data.result as Record<string, unknown>)
@@ -310,6 +312,7 @@ export class AiGateway {
   }
 
   private async resolve(req: AiCallRequest) {
+    if (!req.model) throw new CommException('model 不能为空')
     const model = await this.modelService.findEnabledByCode(req.model)
     if (!model) throw new CommException(`模型不存在或未启用: ${req.model}`)
 

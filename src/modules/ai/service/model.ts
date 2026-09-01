@@ -12,7 +12,7 @@ import {
   normalizeAiContentType,
   requireAsyncSpec,
   type AiAsyncSpec,
-} from '../lib/ai/types'
+} from 'vome-core/ai'
 
 function normalizeTenantId(raw: unknown): number {
   const n = Number(raw)

@@ -109,9 +109,9 @@ export class ProjectAiChatService extends BaseService {
     userId: number
   }) {
     const userId = Number(body.userId)
-    let row = null as Awaited<
+    let row: Awaited<
       ReturnType<Repository<typeof projectAiSession>['findOne']>
-    >
+    > | undefined
     const id = Number(body.id)
     if (id > 0) {
       row = await this.sessionRepo.findOne(
