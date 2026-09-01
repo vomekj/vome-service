@@ -6,6 +6,8 @@ import {
   Get,
   Inject,
   Post,
+  Query,
+  sseResponse,
 } from '@core/server'
 import { i18nDataPack } from '../../entity/data-pack'
 import { I18nDataPackService } from '../../service/data-pack'
@@ -35,7 +37,69 @@ export class I18nDataPackController extends BaseController {
     return this.ok(await this.dataPack.listTables())
   }
 
-  @Post('/translateTable', { summary: 'AI 翻译业务表' })
+  @Get('/chatModels', { summary: '可用于业务翻译的对话模型' })
+  async chatModels() {
+    return this.ok(await this.dataPack.listChatModels())
+  }
+
+  @Get('/entries', { summary: '展开业务表某语种翻译条目' })
+  async entries(
+    @Query(
+      t.Object({
+        tableName: t.String(),
+        langCode: t.String(),
+      }),
+    )
+    query: { tableName: string; langCode: string },
+  ) {
+    return this.ok(
+      await this.dataPack.listEntries(query.tableName, query.langCode),
+    )
+  }
+
+  @Post('/updateEntry', { summary: '更新单条业务译文' })
+  async updateEntry(
+    @Body(
+      t.Object({
+        tableName: t.String(),
+        langCode: t.String(),
+        id: t.String(),
+        key: t.String(),
+        value: t.String(),
+      }),
+    )
+    body: {
+      tableName: string
+      langCode: string
+      id: string
+      key: string
+      value: string
+    },
+  ) {
+    return this.ok(await this.dataPack.updateEntry(body))
+  }
+
+  @Post('/deleteEntry', { summary: '删除单条业务译文' })
+  async deleteEntry(
+    @Body(
+      t.Object({
+        tableName: t.String(),
+        langCode: t.String(),
+        id: t.String(),
+        key: t.String(),
+      }),
+    )
+    body: {
+      tableName: string
+      langCode: string
+      id: string
+      key: string
+    },
+  ) {
+    return this.ok(await this.dataPack.deleteEntry(body))
+  }
+
+  @Post('/translateTable', { summary: 'AI 翻译业务表（SSE）' })
   async translateTable(
     @Body(
       t.Object({
@@ -54,6 +118,6 @@ export class I18nDataPackController extends BaseController {
       model?: string
     },
   ) {
-    return this.ok(await this.dataPack.translateTable(body))
+    return sseResponse(this.dataPack.translateTableStream(body))
   }
 }

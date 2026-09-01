@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { and, asc, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNull, ne } from 'drizzle-orm'
 import { getTableName, isTable, type Table } from 'drizzle-orm'
 import {
   applyChineseSegmentMap,
@@ -19,6 +19,8 @@ import {
   registerDataI18nApplier,
   registerDataI18nFieldLoader,
   getDataI18nFieldConfigs,
+  getDataI18nSeeds,
+  resolveDataI18nSeedField,
   listDataI18nTables,
   type DataI18nFieldConfig,
   type DataI18nPackMap,
@@ -48,6 +50,29 @@ function hashPackSource(pack: DataI18nPackMap): string {
     })
     .join('\n')
   return createHash('sha256').update(payload).digest('hex').slice(0, 32)
+}
+
+/** 与 BaseService.page 单页上限一致：每翻 100 行就送 AI，再翻下一批 */
+const DATA_I18N_PAGE_SIZE = 100
+
+/** 该字段是否仍需翻译（缺译文 / 仍等于原文 / 译文里还留着源中文片段） */
+function fieldNeedsTranslate(
+  raw: string,
+  prev: string | undefined,
+  seedValue?: string,
+): boolean {
+  const seed = String(seedValue || '').trim()
+  if (seed) {
+    if (prev === seed) return false
+    if (!prev || !String(prev).trim() || prev === raw) return true
+    return prev !== seed
+  }
+  if (!prev || !String(prev).trim()) return true
+  if (prev === raw) return true
+  for (const seg of extractChineseSegments(raw)) {
+    if (prev.includes(seg)) return true
+  }
+  return false
 }
 
 function buildTableMap(schema: Record<string, unknown>): Map<string, Table> {
@@ -293,18 +318,141 @@ export class I18nDataService extends BaseService {
     return [...set].sort()
   }
 
+  private pkColumn(table: Table, pkField: string) {
+    const col = (table as unknown as Record<string, unknown>)[pkField]
+    if (!col) throw new CommException(`表无主键列 ${pkField}`)
+    return col
+  }
+
+  /** 游标翻页：id > afterId，按 id 升序，每页 size 条 */
+  private async fetchRowsAfterId(opts: {
+    table: Table
+    pkField: string
+    afterId: string | number | null
+    size: number
+  }): Promise<Record<string, unknown>[]> {
+    const repo = this.getRepoForTable(opts.table)
+    const idCol = this.pkColumn(opts.table, opts.pkField)
+    const where =
+      opts.afterId != null && opts.afterId !== ''
+        ? gt(idCol as never, opts.afterId as never)
+        : undefined
+    const { list } = await repo.findPage({
+      page: 1,
+      size: opts.size,
+      where,
+      orderBy: [asc(idCol as never)],
+    })
+    return list as Record<string, unknown>[]
+  }
+
+  private coercePk(raw: unknown): string | number {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+    const s = String(raw ?? '').trim()
+    if (/^\d+$/.test(s)) return Number(s)
+    return s
+  }
+
+  private buildRowChineseBag(
+    row: Record<string, unknown>,
+    fieldNames: string[],
+    pkField: string,
+  ): { pk: string; bag: Record<string, string> } | null {
+    const pk = String(row[pkField] ?? '').trim()
+    if (!pk) return null
+    const bag: Record<string, string> = {}
+    for (const field of fieldNames) {
+      const raw = String(row[field] ?? '').trim()
+      if (!raw || !hasChinese(raw)) continue
+      bag[field] = raw
+    }
+    if (!Object.keys(bag).length) return null
+    return { pk, bag }
+  }
+
+  /**
+   * 增量：按 id 升序找到第一个仍需翻译的行，返回其前一条 id（下一批 from id > cursor）
+   * 已全部译完则返回 { done: true }
+   */
+  private async findIncrementalCursor(opts: {
+    table: Table
+    pkField: string
+    fieldNames: string[]
+    existing: DataI18nPackMap
+    langCode: string
+    seeds: ReturnType<typeof getDataI18nSeeds>
+  }): Promise<{ done: true } | { done: false; afterId: string | number | null }> {
+    let afterId: string | number | null = null
+    for (;;) {
+      const list = await this.fetchRowsAfterId({
+        table: opts.table,
+        pkField: opts.pkField,
+        afterId,
+        size: DATA_I18N_PAGE_SIZE,
+      })
+      if (!list.length) return { done: true }
+      for (const row of list) {
+        const built = this.buildRowChineseBag(
+          row,
+          opts.fieldNames,
+          opts.pkField,
+        )
+        if (!built) {
+          afterId = this.coercePk(row[opts.pkField])
+          continue
+        }
+        let need = false
+        for (const [field, raw] of Object.entries(built.bag)) {
+          const seedFrom = resolveDataI18nSeedField(
+            opts.seeds,
+            field,
+            opts.langCode,
+          )
+          const seedVal = seedFrom
+            ? String(row[seedFrom] ?? '').trim()
+            : ''
+          if (
+            fieldNeedsTranslate(
+              raw,
+              opts.existing[built.pk]?.[field],
+              seedVal || undefined,
+            )
+          ) {
+            need = true
+            break
+          }
+        }
+        if (need) {
+          return { done: false, afterId }
+        }
+        afterId = this.coercePk(row[opts.pkField])
+      }
+      if (list.length < DATA_I18N_PAGE_SIZE) return { done: true }
+    }
+  }
+
   async collectSourceRows(
     tableName: string,
     fieldNames: string[],
   ): Promise<Array<Record<string, unknown>>> {
     const table = this.tableMap().get(tableName)
     if (!table) throw new CommException(`未找到表 ${tableName}`)
-    const repo = this.getRepoForTable(table)
-    const deletedAt = (table as unknown as { deletedAt?: unknown }).deletedAt
-    const rows = deletedAt
-      ? await repo.find(isNull(deletedAt as never))
-      : await repo.find()
-    return (rows as Record<string, unknown>[]).filter((row) =>
+    const pkField = 'id'
+    const all: Record<string, unknown>[] = []
+    let afterId: string | number | null = null
+    for (;;) {
+      const list = await this.fetchRowsAfterId({
+        table,
+        pkField,
+        afterId,
+        size: DATA_I18N_PAGE_SIZE,
+      })
+      if (!list.length) break
+      all.push(...list)
+      afterId = this.coercePk(list[list.length - 1]?.[pkField])
+      if (list.length < DATA_I18N_PAGE_SIZE) break
+    }
+    return all.filter((row) =>
       fieldNames.some((f) => {
         const val = String(row[f] ?? '').trim()
         return val && hasChinese(val)
@@ -312,174 +460,486 @@ export class I18nDataService extends BaseService {
     )
   }
 
-  async translateTableByAi(body: {
+  /**
+   * AI 翻译业务表（SSE）
+   * 每查 100 行 → 筛中文 → 送 AI → 落库，再翻下一批；增量从首个未译完 id 继续。
+   */
+  async *translateTableByAiStream(body: {
     tableName: string
     langCode: string
     langName?: string
     mode?: 'full' | 'incremental'
     model?: string
-  }) {
-    const tableName = String(body.tableName || '').trim()
-    const langCode = String(body.langCode || '').trim()
-    if (!tableName) throw new CommException('tableName 不能为空')
-    if (!langCode || langCode === 'zh-CN') {
-      throw new CommException('目标语种须为非 zh-CN')
-    }
+  }): AsyncGenerator<{
+    type: 'delta' | 'done' | 'error'
+    text?: string
+    data?: Record<string, unknown>
+    error?: { code: string; message: string }
+  }> {
+    try {
+      const tableName = String(body.tableName || '').trim()
+      const langCode = String(body.langCode || '').trim()
+      if (!tableName) throw new CommException('tableName 不能为空')
+      if (!langCode || langCode === 'zh-CN') {
+        throw new CommException('目标语种须为非 zh-CN')
+      }
 
+      const enabled = (await this.listEnabledFields(tableName)).filter(
+        (f) => f.mode === 'direct',
+      )
+      if (!enabled.length) {
+        throw new CommException(
+          `表 ${tableName} 无 direct 翻译字段（请在 Controller 声明 dataI18n 或配置业务字段）`,
+        )
+      }
+
+      const table = this.tableMap().get(tableName)
+      if (!table) throw new CommException(`未找到表 ${tableName}`)
+
+      const fieldNames = enabled.map((c) => c.fieldName)
+      const pkField = enabled[0]?.pkField || 'id'
+      const seeds = getDataI18nSeeds(tableName)
+      const incremental = body.mode !== 'full'
+      let nextPack: DataI18nPackMap = incremental
+        ? {
+            ...((await this.loadPackMap(tableName, langCode)) || {}),
+          }
+        : {}
+
+      const langName =
+        body.langName ||
+        (
+          await this.langRepo.find(
+            and(eq(i18nLang.code, langCode), isNull(i18nLang.deletedAt)),
+          )
+        )[0]?.name ||
+        langCode
+
+      let afterId: string | number | null = null
+      if (incremental) {
+        const cursor = await this.findIncrementalCursor({
+          table,
+          pkField,
+          fieldNames,
+          existing: nextPack,
+          langCode,
+          seeds,
+        })
+        if (cursor.done) {
+          yield {
+            type: 'done',
+            data: {
+              tableName,
+              langCode,
+              skipped: true,
+              message: '译文已完整，跳过增量翻译',
+              rowCount: Object.keys(nextPack).length,
+            },
+          }
+          return
+        }
+        afterId = cursor.afterId
+      }
+
+      let modelCode = ''
+      /** 跨页复用已译片段，避免「是/否」每页重复打 AI */
+      const segmentDict: Record<string, string> = {}
+      const allSourcePack: DataI18nPackMap = {}
+      let translatedRowCount = 0
+      let pageNo = 0
+      let saved: { version?: number } | undefined
+
+      for (;;) {
+        const list = await this.fetchRowsAfterId({
+          table,
+          pkField,
+          afterId,
+          size: DATA_I18N_PAGE_SIZE,
+        })
+        if (!list.length) break
+        pageNo += 1
+
+        const pageBags: Array<{
+          pk: string
+          bag: Record<string, string>
+          row: Record<string, unknown>
+        }> = []
+        for (const row of list) {
+          const built = this.buildRowChineseBag(row, fieldNames, pkField)
+          if (!built) continue
+          allSourcePack[built.pk] = built.bag
+          if (incremental) {
+            let need = false
+            for (const [field, raw] of Object.entries(built.bag)) {
+              const seedFrom = resolveDataI18nSeedField(seeds, field, langCode)
+              const seedVal = seedFrom
+                ? String(row[seedFrom] ?? '').trim()
+                : ''
+              if (
+                fieldNeedsTranslate(
+                  raw,
+                  nextPack[built.pk]?.[field],
+                  seedVal || undefined,
+                )
+              ) {
+                need = true
+                break
+              }
+            }
+            if (!need) continue
+          }
+          pageBags.push({ ...built, row })
+        }
+
+        const pageSegs = new Set<string>()
+        for (const { bag, row } of pageBags) {
+          for (const [field, raw] of Object.entries(bag)) {
+            const seedFrom = resolveDataI18nSeedField(seeds, field, langCode)
+            const seedVal = seedFrom
+              ? String(row[seedFrom] ?? '').trim()
+              : ''
+            if (seedVal) continue
+            for (const seg of extractChineseSegments(raw)) {
+              if (!segmentDict[seg]) pageSegs.add(seg)
+            }
+          }
+        }
+
+        if (pageSegs.size) {
+          if (!modelCode) {
+            modelCode = await this.resolveModelCode(body.model)
+          }
+          const payload: Record<string, string> = {}
+          for (const seg of pageSegs) payload[seg] = seg
+          const out = await this.aiGateway.call(
+            {
+              model: modelCode,
+              capability: 'chat',
+              input: {
+                messages: [
+                  {
+                    role: 'system',
+                    content:
+                      'You are a professional game/item name translator. Translate ONLY the Chinese string values in the JSON object. Keep keys unchanged. Do not translate Latin letters, numbers, or symbols. Output a single JSON object only.',
+                  },
+                  {
+                    role: 'user',
+                    content: `Translate these Chinese fragments from Simplified Chinese (zh-CN) into ${langName} (${langCode}). Return JSON with the same keys.\n\n${JSON.stringify(payload, null, 2)}`,
+                  },
+                ],
+              },
+            },
+            { source: 'i18n' },
+          )
+          let text = ''
+          if (out.kind === 'stream') {
+            for await (const chunk of out.stream) {
+              if (chunk.type === 'error') {
+                yield {
+                  type: 'error',
+                  error: {
+                    code: chunk.error?.code || 'ai',
+                    message: chunk.error?.message || 'AI 翻译失败',
+                  },
+                }
+                return
+              }
+              if (chunk.type === 'delta' && chunk.text) {
+                text += chunk.text
+                yield {
+                  type: 'delta',
+                  text: chunk.text,
+                  data: {
+                    fullText: text,
+                    page: pageNo,
+                    pageSize: DATA_I18N_PAGE_SIZE,
+                    afterId,
+                  },
+                }
+              }
+              if (chunk.type === 'done') {
+                text = String(chunk.text || chunk.data?.text || text)
+                break
+              }
+            }
+          } else {
+            if (!out.ok) {
+              throw new CommException(out.error?.message || 'AI 翻译失败')
+            }
+            text = String(
+              (out.data as { text?: string } | undefined)?.text || '',
+            )
+            if (text) {
+              yield {
+                type: 'delta',
+                text,
+                data: {
+                  fullText: text,
+                  page: pageNo,
+                  pageSize: DATA_I18N_PAGE_SIZE,
+                  afterId,
+                },
+              }
+            }
+          }
+          if (!text.trim()) {
+            throw new CommException(`AI 未返回翻译内容（第 ${pageNo} 批）`)
+          }
+          const parsed = extractJsonObject(text) as Record<string, string>
+          for (const [k, v] of Object.entries(parsed)) {
+            if (pageSegs.has(k) && String(v || '').trim()) {
+              segmentDict[k] = String(v).trim()
+            }
+          }
+        }
+
+        for (const { pk, bag, row } of pageBags) {
+          const translated: Record<string, string> = {}
+          for (const [field, raw] of Object.entries(bag)) {
+            const prev = nextPack[pk]?.[field]
+            const seedFrom = resolveDataI18nSeedField(seeds, field, langCode)
+            const seedVal = seedFrom
+              ? String(row[seedFrom] ?? '').trim()
+              : ''
+            if (
+              incremental &&
+              !fieldNeedsTranslate(raw, prev, seedVal || undefined)
+            ) {
+              translated[field] = String(prev)
+              continue
+            }
+            if (seedVal) {
+              translated[field] = seedVal
+              continue
+            }
+            translated[field] = applyChineseSegmentMap(raw, segmentDict)
+          }
+          nextPack[pk] = { ...(nextPack[pk] || {}), ...translated }
+          translatedRowCount += 1
+        }
+
+        // 每批落库，中断后增量可从断点续
+        saved = await this.upsertPack(tableName, langCode, nextPack)
+        this.invalidatePackCache(tableName, langCode)
+
+        afterId = this.coercePk(list[list.length - 1]?.[pkField])
+        if (list.length < DATA_I18N_PAGE_SIZE) break
+      }
+
+      // 全量：删掉源里已不存在的旧 pk
+      if (!incremental) {
+        for (const pk of Object.keys(nextPack)) {
+          if (!(pk in allSourcePack)) delete nextPack[pk]
+        }
+      }
+
+      // 仅当已无待译行时写最终 sourceHash（增量断点续跑不能用「本趟片段」当全量 hash）
+      let sourceHash: string | undefined
+      const left = await this.findIncrementalCursor({
+        table,
+        pkField,
+        fieldNames,
+        existing: nextPack,
+        langCode,
+        seeds,
+      })
+      if (left.done) {
+        const fullSource: DataI18nPackMap = {}
+        let scanAfter: string | number | null = null
+        for (;;) {
+          const scanList = await this.fetchRowsAfterId({
+            table,
+            pkField,
+            afterId: scanAfter,
+            size: DATA_I18N_PAGE_SIZE,
+          })
+          if (!scanList.length) break
+          for (const row of scanList) {
+            const built = this.buildRowChineseBag(row, fieldNames, pkField)
+            if (built) fullSource[built.pk] = built.bag
+          }
+          scanAfter = this.coercePk(scanList[scanList.length - 1]?.[pkField])
+          if (scanList.length < DATA_I18N_PAGE_SIZE) break
+        }
+        sourceHash = hashPackSource(fullSource)
+      }
+
+      saved = await this.upsertPack(
+        tableName,
+        langCode,
+        nextPack,
+        sourceHash,
+      )
+      this.invalidatePackCache(tableName, langCode)
+
+      yield {
+        type: 'done',
+        data: {
+          tableName,
+          langCode,
+          skipped: false,
+          translatedSegments: Object.keys(segmentDict).length,
+          translatedRowCount,
+          rowCount: Object.keys(nextPack).length,
+          sourceRowCount: Object.keys(allSourcePack).length,
+          pages: pageNo,
+          version: saved?.version,
+          sourceHash,
+        },
+      }
+    } catch (e) {
+      yield {
+        type: 'error',
+        error: {
+          code: 'translateTable',
+          message: e instanceof Error ? e.message : String(e),
+        },
+      }
+    }
+  }
+
+  /** @deprecated 兼容：收齐流后返回结果 */
+  async translateTableByAi(
+    body: Parameters<I18nDataService['translateTableByAiStream']>[0],
+  ) {
+    let result: Record<string, unknown> | undefined
+    for await (const chunk of this.translateTableByAiStream(body)) {
+      if (chunk.type === 'error') {
+        throw new CommException(chunk.error?.message || 'AI 翻译失败')
+      }
+      if (chunk.type === 'done') {
+        result = chunk.data
+      }
+    }
+    if (!result) throw new CommException('AI 未返回翻译内容')
+    return result
+  }
+
+  /** 展开 packJson → 行：id=业务 pk，key=字段，value=译文，source=原中文 */
+  async listPackEntries(tableName: string, langCode: string) {
+    const table = String(tableName || '').trim()
+    const code = String(langCode || '').trim()
+    if (!table) throw new CommException('tableName 不能为空')
+    if (!code || code === 'zh-CN') {
+      throw new CommException('语种须为非 zh-CN')
+    }
+    const pack = (await this.loadPackMap(table, code)) || {}
+    const sourcePack = await this.loadSourceTextMap(table)
+    const rows: Array<{
+      id: string
+      key: string
+      value: string
+      source: string
+    }> = []
+    for (const [pk, bag] of Object.entries(pack)) {
+      if (!bag || typeof bag !== 'object') continue
+      for (const [key, value] of Object.entries(bag)) {
+        rows.push({
+          id: String(pk),
+          key: String(key),
+          value: String(value ?? ''),
+          source: String(sourcePack[pk]?.[key] ?? ''),
+        })
+      }
+    }
+    rows.sort((a, b) => {
+      const byId = a.id.localeCompare(b.id, undefined, { numeric: true })
+      if (byId !== 0) return byId
+      return a.key.localeCompare(b.key)
+    })
+    return rows
+  }
+
+  /** 业务表当前库内原文（中文源），供语言 Tab「原数据」列 */
+  private async loadSourceTextMap(
+    tableName: string,
+  ): Promise<DataI18nPackMap> {
     const enabled = (await this.listEnabledFields(tableName)).filter(
       (f) => f.mode === 'direct',
     )
-    if (!enabled.length) {
-      throw new CommException(
-        `表 ${tableName} 无 direct 翻译字段（请在 Controller 声明 dataI18n 或配置业务字段）`,
-      )
-    }
-
+    if (!enabled.length) return {}
     const fieldNames = enabled.map((c) => c.fieldName)
     const pkField = enabled[0]?.pkField || 'id'
-    const rows = await this.collectSourceRows(tableName, fieldNames)
-
-    const segmentSet = new Set<string>()
-    const sourcePack: DataI18nPackMap = {}
-    for (const row of rows) {
+    const table = this.tableMap().get(tableName)
+    if (!table) return {}
+    const repo = this.getRepoForTable(table)
+    const all: Record<string, unknown>[] = []
+    let page = 1
+    for (;;) {
+      const { list, pagination } = await repo.findPage({
+        page,
+        size: DATA_I18N_PAGE_SIZE,
+      })
+      all.push(...(list as Record<string, unknown>[]))
+      if (!list.length) break
+      if (pagination.total > 0 && all.length >= pagination.total) break
+      if (list.length < DATA_I18N_PAGE_SIZE) break
+      page += 1
+    }
+    const out: DataI18nPackMap = {}
+    for (const row of all) {
       const pk = String(row[pkField] ?? '')
       if (!pk) continue
       const bag: Record<string, string> = {}
       for (const field of fieldNames) {
-        const raw = String(row[field] ?? '').trim()
-        if (!raw || !hasChinese(raw)) continue
-        bag[field] = raw
-        for (const seg of extractChineseSegments(raw)) segmentSet.add(seg)
+        const raw = String(row[field] ?? '')
+        if (raw) bag[field] = raw
       }
-      if (Object.keys(bag).length) sourcePack[pk] = bag
+      if (Object.keys(bag).length) out[pk] = bag
     }
+    return out
+  }
 
-    const incremental = body.mode !== 'full'
-    const existing =
-      (await this.loadPackMap(tableName, langCode)) ||
-      ({} as DataI18nPackMap)
-
-    const newSourceHash = hashPackSource(sourcePack)
-    if (incremental) {
-      const tenantId = normalizeTenantId(Context.get()?.tenantId)
-      const [packRow] = await this.packRepo.find(
-        and(
-          eq(i18nDataPack.tenantId, tenantId),
-          eq(i18nDataPack.tableName, tableName),
-          eq(i18nDataPack.langCode, langCode),
-          isNull(i18nDataPack.deletedAt),
-        ),
-      )
-      if (packRow?.sourceHash === newSourceHash) {
-        return {
-          tableName,
-          langCode,
-          skipped: true,
-          message: '源数据未变化，跳过增量翻译',
-          rowCount: Object.keys(existing).length,
-          version: packRow.version,
-        }
-      }
+  async updatePackEntry(body: {
+    tableName: string
+    langCode: string
+    id: string
+    key: string
+    value: string
+  }) {
+    const tableName = String(body.tableName || '').trim()
+    const langCode = String(body.langCode || '').trim()
+    const pk = String(body.id ?? '').trim()
+    const key = String(body.key || '').trim()
+    if (!tableName || !langCode || langCode === 'zh-CN') {
+      throw new CommException('tableName / langCode 无效')
     }
-
-    const toTranslate = new Set<string>()
-    for (const seg of segmentSet) {
-      if (!incremental) {
-        toTranslate.add(seg)
-        continue
-      }
-      let covered = false
-      outer: for (const bag of Object.values(existing)) {
-        for (const val of Object.values(bag)) {
-          const rebuilt = applyChineseSegmentMap(val, { [seg]: seg })
-          if (rebuilt !== val) {
-            covered = true
-            break outer
-          }
-        }
-      }
-      if (!covered) toTranslate.add(seg)
+    if (!pk || !key) throw new CommException('id / key 不能为空')
+    const pack: DataI18nPackMap = {
+      ...((await this.loadPackMap(tableName, langCode)) || {}),
     }
-
-    const langName =
-      body.langName ||
-      (
-        await this.langRepo.find(
-          and(eq(i18nLang.code, langCode), isNull(i18nLang.deletedAt)),
-        )
-      )[0]?.name ||
-      langCode
-
-    const segmentDict: Record<string, string> = {}
-    if (toTranslate.size) {
-      const modelCode = await this.resolveModelCode(body.model)
-      const payload: Record<string, string> = {}
-      for (const seg of toTranslate) payload[seg] = seg
-      const out = await this.aiGateway.call(
-        {
-          model: modelCode,
-          capability: 'chat',
-          input: {
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You are a professional game/item name translator. Translate ONLY the Chinese string values in the JSON object. Keep keys unchanged. Do not translate Latin letters, numbers, or symbols. Output a single JSON object only.',
-              },
-              {
-                role: 'user',
-                content: `Translate these Chinese fragments from Simplified Chinese (zh-CN) into ${langName} (${langCode}). Return JSON with the same keys.\n\n${JSON.stringify(payload, null, 2)}`,
-              },
-            ],
-          },
-        },
-        { source: 'i18n' },
-      )
-      let text = ''
-      if (out.kind === 'stream') {
-        for await (const chunk of out.stream) {
-          if (chunk.type === 'error') {
-            throw new CommException(chunk.error?.message || 'AI 翻译失败')
-          }
-          if (chunk.type === 'delta' && chunk.text) text += chunk.text
-          if (chunk.type === 'done') {
-            text = String(chunk.text || chunk.data?.text || text)
-          }
-        }
-      } else {
-        if (!out.ok) throw new CommException(out.error?.message || 'AI 翻译失败')
-        text = String((out.data as { text?: string } | undefined)?.text || '')
-      }
-      const parsed = extractJsonObject(text) as Record<string, string>
-      for (const [k, v] of Object.entries(parsed)) {
-        if (toTranslate.has(k) && String(v || '').trim()) {
-          segmentDict[k] = String(v).trim()
-        }
-      }
-    }
-
-    const nextPack: DataI18nPackMap = incremental ? { ...existing } : {}
-    for (const pk of Object.keys(nextPack)) {
-      if (!(pk in sourcePack)) delete nextPack[pk]
-    }
-    for (const [pk, bag] of Object.entries(sourcePack)) {
-      const translated: Record<string, string> = {}
-      for (const [field, raw] of Object.entries(bag)) {
-        translated[field] = applyChineseSegmentMap(raw, segmentDict)
-      }
-      nextPack[pk] = { ...(nextPack[pk] || {}), ...translated }
-    }
-
-    const sourceHash = hashPackSource(sourcePack)
-    const saved = await this.upsertPack(tableName, langCode, nextPack, sourceHash)
+    pack[pk] = { ...(pack[pk] || {}), [key]: String(body.value ?? '') }
+    const saved = await this.upsertPack(tableName, langCode, pack)
     this.invalidatePackCache(tableName, langCode)
-    return {
-      tableName,
-      langCode,
-      translatedSegments: Object.keys(segmentDict).length,
-      rowCount: Object.keys(nextPack).length,
-      version: saved?.version,
+    return { tableName, langCode, id: pk, key, version: saved?.version }
+  }
+
+  async deletePackEntry(body: {
+    tableName: string
+    langCode: string
+    id: string
+    key: string
+  }) {
+    const tableName = String(body.tableName || '').trim()
+    const langCode = String(body.langCode || '').trim()
+    const pk = String(body.id ?? '').trim()
+    const key = String(body.key || '').trim()
+    if (!tableName || !langCode || langCode === 'zh-CN') {
+      throw new CommException('tableName / langCode 无效')
     }
+    if (!pk || !key) throw new CommException('id / key 不能为空')
+    const pack: DataI18nPackMap = {
+      ...((await this.loadPackMap(tableName, langCode)) || {}),
+    }
+    if (pack[pk]) {
+      const next = { ...pack[pk] }
+      delete next[key]
+      if (Object.keys(next).length) pack[pk] = next
+      else delete pack[pk]
+    }
+    const saved = await this.upsertPack(tableName, langCode, pack)
+    this.invalidatePackCache(tableName, langCode)
+    return { tableName, langCode, id: pk, key, version: saved?.version }
   }
 
   private async resolveModelCode(model?: string) {
