@@ -51,7 +51,7 @@ export class ProjectAiChatService extends BaseService {
         eq(projectAiSession.projectId, pid),
         eq(projectAiSession.userId, uid),
         eq(projectAiSession.status, 1),
-        isNull(projectAiSession.deletedAt),
+        isNull(projectAiSession.deletedTime),
       ),
     )
     return rows
@@ -81,7 +81,7 @@ export class ProjectAiChatService extends BaseService {
       and(
         eq(projectAiMessage.sessionId, Number(session.id)),
         eq(projectAiMessage.status, 1),
-        isNull(projectAiMessage.deletedAt),
+        isNull(projectAiMessage.deletedTime),
       ),
       { orderBy: [asc(projectAiMessage.seq)] },
     )
@@ -118,7 +118,7 @@ export class ProjectAiChatService extends BaseService {
         and(
           eq(projectAiSession.id, id),
           eq(projectAiSession.userId, userId),
-          isNull(projectAiSession.deletedAt),
+          isNull(projectAiSession.deletedTime),
         ),
       )
     } else {
@@ -132,7 +132,7 @@ export class ProjectAiChatService extends BaseService {
           eq(projectAiSession.projectId, projectId),
           eq(projectAiSession.clientKey, clientKey),
           eq(projectAiSession.userId, userId),
-          isNull(projectAiSession.deletedAt),
+          isNull(projectAiSession.deletedTime),
         ),
       )
     }
@@ -175,7 +175,7 @@ export class ProjectAiChatService extends BaseService {
       })
       session = Array.isArray(created) ? created[0] : created
     } else {
-      if (session.deletedAt) await this.sessionRepo.restore(Number(session.id))
+      if (session.deletedTime) await this.sessionRepo.restore(Number(session.id))
       await this.sessionRepo.update(eq(projectAiSession.id, Number(session.id)), {
         title,
         status: 1,
@@ -206,7 +206,7 @@ export class ProjectAiChatService extends BaseService {
       keepKeys.add(msgKey)
       const embedding = Array.isArray(m.embedding) ? m.embedding : []
       const prev = byClient.get(msgKey)
-      if (prev && !prev.deletedAt && String(prev.content) === content) {
+      if (prev && !prev.deletedTime && String(prev.content) === content) {
         await this.messageRepo.update(eq(projectAiMessage.id, Number(prev.id)), {
           seq: i,
           role,
@@ -215,7 +215,7 @@ export class ProjectAiChatService extends BaseService {
         continue
       }
       if (prev) {
-        if (prev.deletedAt) await this.messageRepo.restore(Number(prev.id))
+        if (prev.deletedTime) await this.messageRepo.restore(Number(prev.id))
         await this.messageRepo.update(eq(projectAiMessage.id, Number(prev.id)), {
           role,
           content,
@@ -243,7 +243,7 @@ export class ProjectAiChatService extends BaseService {
       }
     }
     for (const m of existing) {
-      if (!keepKeys.has(String(m.clientKey)) && !m.deletedAt) {
+      if (!keepKeys.has(String(m.clientKey)) && !m.deletedTime) {
         await this.messageRepo.softDelete(Number(m.id))
       }
     }
@@ -280,7 +280,7 @@ export class ProjectAiChatService extends BaseService {
           eq(projectAiSession.projectId, projectId),
           eq(projectAiSession.clientKey, ck),
           eq(projectAiSession.userId, userId),
-          isNull(projectAiSession.deletedAt),
+          isNull(projectAiSession.deletedTime),
         ),
       )
       if (s) excludeSql = `AND "sessionId" <> ${Number(s.id)}`
@@ -291,7 +291,7 @@ export class ProjectAiChatService extends BaseService {
       table: 'project_ai_message',
       vector,
       topK,
-      whereSql: `"projectId" = ${projectId} AND "userId" = ${userId} AND status = 1 AND "deletedAt" IS NULL AND role IN ('user','assistant') ${excludeSql}`,
+      whereSql: `"projectId" = ${projectId} AND "userId" = ${userId} AND status = 1 AND "deletedTime" IS NULL AND role IN ('user','assistant') ${excludeSql}`,
       indexName: 'project_ai_message_embedding_vec_idx',
     })
     if (!ids?.length) return []

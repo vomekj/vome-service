@@ -40,7 +40,7 @@ export class ProjectAiModelService extends BaseService {
       and(
         eq(projectAiModel.projectId, pid),
         eq(projectAiModel.status, 1),
-        isNull(projectAiModel.deletedAt),
+        isNull(projectAiModel.deletedTime),
       ),
     )
     return rows.map((r) => ({
@@ -78,7 +78,7 @@ export class ProjectAiModelService extends BaseService {
       and(
         eq(projectAiModel.projectId, projectId),
         eq(projectAiModel.code, code),
-        isNull(projectAiModel.deletedAt),
+        isNull(projectAiModel.deletedTime),
       ),
     )
     if (dup) throw new CommException('模型编码已存在')
@@ -111,7 +111,7 @@ export class ProjectAiModelService extends BaseService {
     const id = Number(body.id)
     if (!(id > 0)) throw new CommException('模型 ID 无效')
     const row = await this.modelRepo.findOne(
-      and(eq(projectAiModel.id, id), isNull(projectAiModel.deletedAt)),
+      and(eq(projectAiModel.id, id), isNull(projectAiModel.deletedTime)),
     )
     if (!row) throw new CommException('模型不存在')
     const patch: Record<string, unknown> = {}
@@ -156,7 +156,7 @@ export class ProjectAiModelService extends BaseService {
         eq(projectAiModel.projectId, pid),
         eq(projectAiModel.code, c),
         eq(projectAiModel.status, 1),
-        isNull(projectAiModel.deletedAt),
+        isNull(projectAiModel.deletedTime),
       ),
     )
     if (!row) throw new CommException('自接模型不存在')

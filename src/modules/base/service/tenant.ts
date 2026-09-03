@@ -28,21 +28,48 @@ export class TenantService extends BaseService {
     return [...out]
   }
 
-  async modifyBefore(data: any, type: 'add' | 'update' | 'delete') {
-    if (type === 'add' || type === 'update') {
-      if (typeof data?.domains === 'string') {
-        data.domains = data.domains.split(/[,，\s]+/).filter(Boolean)
-      }
-      if (data?.domains != null) {
-        data.domains = this.normalizeDomains(data.domains)
-      }
-      if (type === 'add' && data?.code) {
-        data.code = String(data.code).trim().toLowerCase()
-      }
-      if (data?.status != null && data.status !== '') {
-        data.status = Number(data.status)
+  private prepareTenant(data: Record<string, unknown>, type: 'add' | 'update') {
+    if (typeof data.domains === 'string') {
+      data.domains = data.domains.split(/[,，\s]+/).filter(Boolean)
+    }
+    if (data.domains != null) {
+      data.domains = this.normalizeDomains(data.domains)
+    }
+    if (type === 'add' && data.code) {
+      data.code = String(data.code).trim().toLowerCase()
+    }
+    if (data.status != null && data.status !== '') {
+      data.status = Number(data.status)
+    }
+  }
+
+  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw != null && typeof raw === 'object') {
+        this.prepareTenant(raw as Record<string, unknown>, 'add')
       }
     }
+    return super.add(data, options)
+  }
+
+  override async update(
+    whereOrData: Parameters<BaseService['update']>[0],
+    data?: unknown,
+  ) {
+    if (data !== undefined) {
+      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+        this.prepareTenant(data as Record<string, unknown>, 'update')
+      }
+      return super.update(whereOrData as never, data)
+    }
+    const rows = Array.isArray(whereOrData)
+      ? whereOrData
+      : [whereOrData as Record<string, unknown>]
+    for (const row of rows) {
+      this.prepareTenant(row, 'update')
+    }
+    return super.update(whereOrData)
   }
 
   /** 按 Host 解析启用中的租户 */
@@ -51,7 +78,7 @@ export class TenantService extends BaseService {
     if (!h) return undefined
     return noTenant(async () => {
       const rows = await this.tenantRepo.find(
-        and(eq(baseTenant.status, 1), sql`${baseTenant.deletedAt} is null`),
+        and(eq(baseTenant.status, 1), sql`${baseTenant.deletedTime} is null`),
       )
       return rows.find((row) =>
         (row.domains ?? []).some((d) => normalizeHost(d) === h),
@@ -73,7 +100,7 @@ export class TenantService extends BaseService {
   async listEnabled() {
     return noTenant(() =>
       this.tenantRepo.find(
-        and(eq(baseTenant.status, 1), sql`${baseTenant.deletedAt} is null`),
+        and(eq(baseTenant.status, 1), sql`${baseTenant.deletedTime} is null`),
       ),
     )
   }

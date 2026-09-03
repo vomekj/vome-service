@@ -53,7 +53,7 @@ export class JwtService {
 
   readonly web = {
     /** 签发 App access JWT（HS256）；需配合 TokenService.web.store */
-    sign: async (userId: string, claims?: Record<string, unknown>) => {
+    sign: async (userId: number, claims?: Record<string, unknown>) => {
       const cfg = resolveAuthConfig()
       return new SignJWT({ ...claims, aud: JWT_AUD.WEB })
         .setProtectedHeader({ alg: 'HS256' })

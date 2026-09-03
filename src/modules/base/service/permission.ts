@@ -126,7 +126,7 @@ export class PermissionService extends BaseService {
     return noTenant(async () =>
       noDataScope(async () => {
         const [user] = await this.userRepo.find(
-          and(eq(baseUser.id, adminId), isNull(baseUser.deletedAt)),
+          and(eq(baseUser.id, adminId), isNull(baseUser.deletedTime)),
         )
         if (!user || user.status !== 1) {
           return {
@@ -141,7 +141,7 @@ export class PermissionService extends BaseService {
 
         let authz: AdminAuthz
         if (user.isSuper) {
-          const allMenus = await this.menuRepo.find(isNull(baseMenu.deletedAt))
+          const allMenus = await this.menuRepo.find(isNull(baseMenu.deletedTime))
           const perms = [
             ...new Set(allMenus.map((m) => m.perms).filter((p): p is string => !!p)),
           ]
@@ -185,7 +185,7 @@ export class PermissionService extends BaseService {
         and(
           inArray(baseRole.id, roleIds),
           eq(baseRole.status, 1),
-          isNull(baseRole.deletedAt),
+          isNull(baseRole.deletedTime),
         ),
       )
       if (!roles.length) return { dataScope: 'none', dataScopeDeptIds: [] }
@@ -215,7 +215,7 @@ export class PermissionService extends BaseService {
 
       let allDepts: Array<{ id: number; parentId: number | null }> = []
       if (needExpand.size) {
-        const rows = await this.deptRepo.find(isNull(baseDepartment.deletedAt))
+        const rows = await this.deptRepo.find(isNull(baseDepartment.deletedTime))
         allDepts = rows.map((d) => ({
           id: d.id,
           parentId: d.parentId == null ? null : Number(d.parentId),
@@ -257,7 +257,7 @@ export class PermissionService extends BaseService {
       and(
         inArray(baseRole.id, roleIds),
         eq(baseRole.status, 1),
-        isNull(baseRole.deletedAt),
+        isNull(baseRole.deletedTime),
       ),
     )
     if (!roles.length) {
@@ -284,7 +284,7 @@ export class PermissionService extends BaseService {
     }
 
     const menus = await this.menuRepo.find(
-      and(inArray(baseMenu.id, menuIds), isNull(baseMenu.deletedAt)),
+      and(inArray(baseMenu.id, menuIds), isNull(baseMenu.deletedTime)),
     )
     const perms = [...new Set(menus.map((m) => m.perms).filter((p): p is string => !!p))]
     return { isSuper, perms, menus: buildMenuTree(menus) }

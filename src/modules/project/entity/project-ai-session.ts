@@ -1,5 +1,4 @@
 import { index, integer, pgTable, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 export const projectAiSession = columnComments(
@@ -9,8 +8,8 @@ export const projectAiSession = columnComments(
       ...baseColumns,
       projectId: integer('projectId').notNull(),
       userId: integer('userId').notNull(),
-      clientKey: varchar('clientKey', { length: 64 }).notNull(),
-      title: varchar('title', { length: 200 }).notNull().default('新对话'),
+      clientKey: varchar('clientKey').notNull(),
+      title: varchar('title').notNull().default('新对话'),
       status: integer('status').notNull().default(1),
     },
     (table) => [
@@ -33,6 +32,4 @@ export const projectAiSession = columnComments(
   },
 )
 
-export type ProjectAiSession = InferSelectModel<typeof projectAiSession>
-export type NewProjectAiSession = InferInsertModel<typeof projectAiSession>
 export const ProjectAiSessionSchema = entitySchemas(projectAiSession)

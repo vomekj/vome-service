@@ -8,19 +8,11 @@ export class AppProjectAiChatController extends BaseController {
   aiChat: ProjectAiChatService
 
   private requireUserId() {
-    const ctx = Context.get() as {
-      userId?: string | number | null
-      bizUserId?: number | null
-    } | null
-    if (!ctx?.userId) throw new Error('未登录')
-    const biz = Number(ctx.bizUserId)
-    if (Number.isFinite(biz) && biz > 0) return biz
-    const n = Number(ctx.userId)
-    if (Number.isFinite(n) && n > 0) return n
-    // Better Auth UUID：用稳定 hash 落库（单租户本地工程足够）
-    let h = 0
-    for (const c of String(ctx.userId)) h = (h * 31 + c.charCodeAt(0)) >>> 0
-    return (h % 2_000_000_000) + 1
+    const n = Number(
+      (Context.get() as { userId?: number } | undefined)?.userId,
+    )
+    if (!Number.isFinite(n) || n <= 0) throw new Error('未登录')
+    return n
   }
 
   @Post('/session/list', { summary: '会话列表' })

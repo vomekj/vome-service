@@ -25,7 +25,7 @@ const logQueryOp: QueryOp = {
     'a.id',
     'a.createTime',
     'a.updateTime',
-    'a.deletedAt',
+    'a.deletedTime',
     'a.tenantId',
     'a.userId',
     'a.side',

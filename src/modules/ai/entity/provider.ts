@@ -3,10 +3,8 @@ import {
   integer,
   jsonb,
   pgTable,
-  text,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -18,17 +16,17 @@ export const aiProvider = columnComments(
     'ai_provider',
     {
       ...baseColumns,
-      vendor: varchar('vendor', { length: 100 }).notNull(),
-      protocol: varchar('protocol', { length: 50 })
+      vendor: varchar('vendor').notNull(),
+      protocol: varchar('protocol')
         .notNull()
         .default('openai_compatible'),
-      baseUrl: varchar('baseUrl', { length: 500 }).notNull(),
+      baseUrl: varchar('baseUrl').notNull(),
       /** AES 密文，见 encryptSecret */
-      apiKey: text('apiKey').notNull(),
+      apiKey: varchar('apiKey').notNull(),
       extra: jsonb('extra').$type<Record<string, unknown>>(),
       /** 0 停 / 1 启 */
       status: integer('status').notNull().default(1),
-      remark: varchar('remark', { length: 500 }),
+      remark: varchar('remark'),
     },
     (table) => [
       index('ai_provider_tenant_id_idx').on(table.tenantId),
@@ -46,6 +44,4 @@ export const aiProvider = columnComments(
   },
 )
 
-export type AiProvider = InferSelectModel<typeof aiProvider>
-export type NewAiProvider = InferInsertModel<typeof aiProvider>
 export const AiProviderSchema = entitySchemas(aiProvider)

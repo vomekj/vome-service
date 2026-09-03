@@ -6,7 +6,6 @@ import {
   text,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 export const projectAiMessage = columnComments(
@@ -17,12 +16,12 @@ export const projectAiMessage = columnComments(
       sessionId: integer('sessionId').notNull(),
       projectId: integer('projectId').notNull(),
       userId: integer('userId').notNull(),
-      clientKey: varchar('clientKey', { length: 64 }).notNull(),
-      role: varchar('role', { length: 20 }).notNull(),
+      clientKey: varchar('clientKey').notNull(),
+      role: varchar('role').notNull(),
       content: text('content').notNull().default(''),
       seq: integer('seq').notNull().default(0),
       embedding: jsonb('embedding').$type<number[]>().notNull().default([]),
-      embeddingModel: varchar('embeddingModel', { length: 100 }),
+      embeddingModel: varchar('embeddingModel'),
       status: integer('status').notNull().default(1),
     },
     (table) => [
@@ -44,6 +43,4 @@ export const projectAiMessage = columnComments(
   },
 )
 
-export type ProjectAiMessage = InferSelectModel<typeof projectAiMessage>
-export type NewProjectAiMessage = InferInsertModel<typeof projectAiMessage>
 export const ProjectAiMessageSchema = entitySchemas(projectAiMessage)

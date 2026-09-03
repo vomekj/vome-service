@@ -6,7 +6,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -19,8 +18,8 @@ export const baseParam = columnComments(
     'base_param',
     {
       ...baseColumns,
-      name: varchar('name', { length: 100 }).notNull(),
-      keyName: varchar('keyName', { length: 100 }).notNull(),
+      name: varchar('name').notNull(),
+      keyName: varchar('keyName').notNull(),
       /** 0 字符串 / 1 富文本 / 2 文件 / 3 JSON */
       type: integer('type').notNull().default(0),
       data: text('data'),
@@ -28,7 +27,7 @@ export const baseParam = columnComments(
       openToApp: integer('openToApp').notNull().default(0),
       /** JSON 键开放路径，如 ["info","info.name"] */
       appOpenPaths: text('appOpenPaths'),
-      remark: varchar('remark', { length: 500 }),
+      remark: varchar('remark'),
     },
     (table) => [
       uniqueIndex('base_param_key_name_idx').on(table.keyName),
@@ -48,6 +47,4 @@ export const baseParam = columnComments(
   },
 )
 
-export type BaseParam = InferSelectModel<typeof baseParam>
-export type NewBaseParam = InferInsertModel<typeof baseParam>
 export const BaseParamSchema = entitySchemas(baseParam)

@@ -60,32 +60,34 @@ export class AiModelService extends BaseService {
     const conds = [
       eq(aiModel.code, code),
       eq(aiModel.tenantId, tenantId),
-      isNull(aiModel.deletedAt),
+      isNull(aiModel.deletedTime),
     ]
     if (id != null) conds.push(ne(aiModel.id, id))
     const [hit] = await this.modelRepo.find(and(...conds))
     if (hit) throw new CommException(`模型编码「${code}」在当前租户已存在`)
   }
 
-  async modifyBefore(
+  private async prepareModel(
     data: Record<string, unknown>,
-    type: 'add' | 'update' | 'delete',
+    type: 'add' | 'update',
   ) {
-    if (type !== 'add' && type !== 'update') return
     data.tenantId = normalizeTenantId(
       data.tenantId ?? Context.get()?.tenantId,
     )
-    const code = String(data.code ?? '').trim()
-    if (!code) throw new CommException('模型编码不能为空')
-    data.code = code
-    const path = String(data.path ?? '').trim()
-    if (!path) throw new CommException('请求路径不能为空')
-    data.path = path.startsWith('/') ? path : `/${path}`
-    const method = String(data.method ?? 'POST').trim().toUpperCase()
-    const allowed = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
-    if (!allowed.has(method)) throw new CommException('请求方法不合法')
-    data.method = method
-    data.contentType = normalizeAiContentType(data.contentType)
+    if (data.code != null) data.code = String(data.code).trim()
+    if (data.path != null) {
+      const path = String(data.path).trim()
+      data.path = path.startsWith('/') ? path : `/${path}`
+    }
+    if (data.method != null) {
+      const method = String(data.method).trim().toUpperCase()
+      const allowed = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+      if (!allowed.has(method)) throw new CommException('请求方法不合法')
+      data.method = method
+    }
+    if (data.contentType != null) {
+      data.contentType = normalizeAiContentType(data.contentType)
+    }
     if (!Array.isArray(data.capabilities)) data.capabilities = []
     if (
       !Array.isArray(data.resultModes) ||
@@ -95,10 +97,42 @@ export class AiModelService extends BaseService {
     }
     const needAsync = (data.resultModes as string[]).includes('async')
     data.asyncSpec = normalizeAsyncSpec(data.asyncSpec, needAsync)
-    await this.assertCodeUnique(
-      code,
-      type === 'update' && data.id != null ? Number(data.id) : undefined,
-    )
+    const code = String(data.code ?? '').trim()
+    if (code) {
+      await this.assertCodeUnique(
+        code,
+        type === 'update' && data.id != null ? Number(data.id) : undefined,
+      )
+    }
+  }
+
+  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw != null && typeof raw === 'object') {
+        await this.prepareModel(raw as Record<string, unknown>, 'add')
+      }
+    }
+    return super.add(data, options)
+  }
+
+  override async update(
+    whereOrData: Parameters<BaseService['update']>[0],
+    data?: unknown,
+  ) {
+    if (data !== undefined) {
+      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+        await this.prepareModel(data as Record<string, unknown>, 'update')
+      }
+      return super.update(whereOrData as never, data)
+    }
+    const rows = Array.isArray(whereOrData)
+      ? whereOrData
+      : [whereOrData as Record<string, unknown>]
+    for (const row of rows) {
+      await this.prepareModel(row, 'update')
+    }
+    return super.update(whereOrData)
   }
 
   async findEnabledByCode(code: string) {
@@ -108,7 +142,7 @@ export class AiModelService extends BaseService {
         eq(aiModel.code, code),
         eq(aiModel.tenantId, tenantId),
         eq(aiModel.status, 1),
-        isNull(aiModel.deletedAt),
+        isNull(aiModel.deletedTime),
       ),
     )
     return row

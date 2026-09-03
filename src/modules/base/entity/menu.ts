@@ -5,7 +5,6 @@ import {
   pgTable,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -18,21 +17,21 @@ export const baseMenu = columnComments(
     {
       ...baseColumns,
       parentId: integer('parentId'),
-      name: varchar('name', { length: 100 }).notNull(),
-      router: varchar('router', { length: 255 }),
-      perms: varchar('perms', { length: 255 }),
+      name: varchar('name').notNull(),
+      router: varchar('router'),
+      perms: varchar('perms'),
       type: integer('type').notNull().default(0),
-      icon: varchar('icon', { length: 100 }),
+      icon: varchar('icon'),
       orderNum: integer('orderNum').notNull().default(0),
-      viewPath: varchar('viewPath', { length: 255 }),
+      viewPath: varchar('viewPath'),
       /** Module Federation：远程名（如 demo） */
-      remoteName: varchar('remoteName', { length: 100 }),
+      remoteName: varchar('remoteName'),
       /** 远程 remoteEntry.js URL */
-      remoteEntry: varchar('remoteEntry', { length: 500 }),
+      remoteEntry: varchar('remoteEntry'),
       /** 暴露模块（如 ./DemoPage） */
-      remoteModule: varchar('remoteModule', { length: 255 }),
+      remoteModule: varchar('remoteModule'),
       /** 微应用 key（有值则 wujie 加载 /vome/apps/{appKey}/） */
-      appKey: varchar('appKey', { length: 100 }),
+      appKey: varchar('appKey'),
       keepAlive: boolean('keepAlive').notNull().default(true),
       isShow: boolean('isShow').notNull().default(true),
     },
@@ -56,6 +55,4 @@ export const baseMenu = columnComments(
   },
 )
 
-export type BaseMenu = InferSelectModel<typeof baseMenu>
-export type NewBaseMenu = InferInsertModel<typeof baseMenu>
 export const BaseMenuSchema = entitySchemas(baseMenu)

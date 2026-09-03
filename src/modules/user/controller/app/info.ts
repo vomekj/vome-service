@@ -15,8 +15,12 @@ export class AppUserInfoController extends BaseController {
   @Inject()
   person: UserPersonService
 
-  private userId() {
-    return String(Context.get()?.userId || '')
+  private userId(): number {
+    const n = Number(
+      (Context.get() as { userId?: number } | undefined)?.userId,
+    )
+    if (!Number.isFinite(n) || n <= 0) throw new Error('未登录')
+    return n
   }
 
   @Get('/person', { summary: '获取用户信息' })

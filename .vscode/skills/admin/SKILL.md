@@ -82,7 +82,7 @@ bun install
 bun run dev       # 需先启动 service；常见端口 9000
 ```
 
-代理：`src/config/proxy.ts` 只配 `/dev/`、`/api/` → service；微应用 `/vome/` 由 `vome-core/client/vite-micro-proxy` 的 `ensureMicroAppProxy` 在 Vite 侧自动补齐。
+代理：`src/config/proxy.ts` 只配 `/dev/`、`/api/` → service；微应用 `/vome/` 由 `plugins/micro-proxy.ts` 的 `ensureMicroAppProxy` 在 Vite 侧自动补齐（`vome-core/client/vite-micro-proxy` 同逻辑）。
 
 ## 路径别名
 

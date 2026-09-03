@@ -8,7 +8,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -27,13 +26,13 @@ export const baseTenant = columnComments(
         .notNull()
         .defaultNow()
         .$onUpdate(() => new Date()),
-      deletedAt: timestamp('deletedAt', { withTimezone: true }),
-      name: varchar('name', { length: 100 }).notNull(),
-      code: varchar('code', { length: 64 }).notNull(),
+      deletedTime: timestamp('deletedTime', { withTimezone: true }),
+      name: varchar('name').notNull(),
+      code: varchar('code').notNull(),
       /** 绑定域名列表（小写、无端口） */
       domains: jsonb('domains').$type<string[]>().notNull().default([]),
       status: integer('status').notNull().default(1),
-      remark: varchar('remark', { length: 500 }),
+      remark: varchar('remark'),
     },
     (table) => [
       uniqueIndex('base_tenant_code_idx').on(table.code),
@@ -49,6 +48,4 @@ export const baseTenant = columnComments(
   },
 )
 
-export type BaseTenant = InferSelectModel<typeof baseTenant>
-export type NewBaseTenant = InferInsertModel<typeof baseTenant>
 export const BaseTenantSchema = entitySchemas(baseTenant)

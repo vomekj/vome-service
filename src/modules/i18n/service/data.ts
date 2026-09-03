@@ -152,7 +152,7 @@ export class I18nDataService extends BaseService {
         eq(i18nDataField.tenantId, tenantId),
         eq(i18nDataField.tableName, tableName),
         eq(i18nDataField.status, 1),
-        isNull(i18nDataField.deletedAt),
+        isNull(i18nDataField.deletedTime),
       ),
       { orderBy: [asc(i18nDataField.id)] },
     )
@@ -205,7 +205,7 @@ export class I18nDataService extends BaseService {
         eq(i18nDataPack.tenantId, tenantId),
         eq(i18nDataPack.tableName, tableName),
         eq(i18nDataPack.langCode, code),
-        isNull(i18nDataPack.deletedAt),
+        isNull(i18nDataPack.deletedTime),
       ),
     )
     const pack = (row?.packJson as DataI18nPackMap | undefined) || {}
@@ -248,50 +248,7 @@ export class I18nDataService extends BaseService {
     return getRepository(table)
   }
 
-  async modifyFieldBefore(
-    data: Record<string, unknown>,
-    type: 'add' | 'update' | 'delete',
-  ) {
-    if (type === 'delete') {
-      this.invalidateFieldCache(String(data.tableName || ''))
-      return
-    }
-    data.tenantId = normalizeTenantId(data.tenantId ?? Context.get()?.tenantId)
-    const tableName = String(data.tableName ?? '').trim()
-    const fieldName = String(data.fieldName ?? '').trim()
-    if (!tableName) throw new CommException('业务表名不能为空')
-    if (!fieldName) throw new CommException('字段名不能为空')
-    data.tableName = tableName
-    data.fieldName = fieldName
-    data.pkField = String(data.pkField ?? 'id').trim() || 'id'
-    const mode = String(data.mode ?? 'direct').trim() === 'ref' ? 'ref' : 'direct'
-    data.mode = mode
-    if (mode === 'ref') {
-      const sourceTable = String(data.sourceTable ?? '').trim()
-      const joinField = String(data.joinField ?? '').trim()
-      if (!sourceTable) throw new CommException('ref 模式须填写源表')
-      if (!joinField) throw new CommException('ref 模式须填写关联列')
-      data.sourceTable = sourceTable
-      data.joinField = joinField
-      data.sourceJoinField =
-        String(data.sourceJoinField ?? joinField).trim() || joinField
-      data.sourceField =
-        String(data.sourceField ?? fieldName).trim() || fieldName
-      data.sourcePkField = String(data.sourcePkField ?? 'id').trim() || 'id'
-    } else {
-      data.sourceTable = null
-      data.sourcePkField = null
-      data.sourceField = null
-      data.joinField = null
-      data.sourceJoinField = null
-    }
-    if (type === 'add' || type === 'update') {
-      await this.assertFieldUnique(tableName, fieldName, Number(data.id))
-    }
-    this.invalidateFieldCache(tableName)
-  }
-
-  private async assertFieldUnique(
+  async assertFieldUnique(
     tableName: string,
     fieldName: string,
     id?: number,
@@ -301,7 +258,7 @@ export class I18nDataService extends BaseService {
       eq(i18nDataField.tableName, tableName),
       eq(i18nDataField.fieldName, fieldName),
       eq(i18nDataField.tenantId, tenantId),
-      isNull(i18nDataField.deletedAt),
+      isNull(i18nDataField.deletedTime),
     ]
     if (id) conds.push(ne(i18nDataField.id, id))
     const [hit] = await this.fieldRepo.find(and(...conds))
@@ -312,7 +269,7 @@ export class I18nDataService extends BaseService {
   async listDistinctTables(): Promise<string[]> {
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const rows = await this.fieldRepo.find(
-      and(eq(i18nDataField.tenantId, tenantId), isNull(i18nDataField.deletedAt)),
+      and(eq(i18nDataField.tenantId, tenantId), isNull(i18nDataField.deletedTime)),
     )
     const set = new Set(rows.map((r) => r.tableName).filter(Boolean))
     for (const t of listDataI18nTables()) set.add(t)
@@ -524,7 +481,7 @@ export class I18nDataService extends BaseService {
         body.langName ||
         (
           await this.langRepo.find(
-            and(eq(i18nLang.code, langCode), isNull(i18nLang.deletedAt)),
+            and(eq(i18nLang.code, langCode), isNull(i18nLang.deletedTime)),
           )
         )[0]?.name ||
         langCode
@@ -539,7 +496,9 @@ export class I18nDataService extends BaseService {
           langCode,
           seeds,
         })
-        if (cursor.done) {
+        if (cursor.done === false) {
+          afterId = cursor.afterId
+        } else {
           yield {
             type: 'done',
             data: {
@@ -552,7 +511,6 @@ export class I18nDataService extends BaseService {
           }
           return
         }
-        afterId = cursor.afterId
       }
 
       let modelCode = ''
@@ -812,7 +770,6 @@ export class I18nDataService extends BaseService {
     }
   }
 
-  /** @deprecated 兼容：收齐流后返回结果 */
   async translateTableByAi(
     body: Parameters<I18nDataService['translateTableByAiStream']>[0],
   ) {
@@ -1015,7 +972,7 @@ export class I18nDataService extends BaseService {
     const code = String(model || '').trim()
     if (code) return code
     const [row] = await this.modelRepo.find(
-      and(eq(aiModel.status, 1), isNull(aiModel.deletedAt)),
+      and(eq(aiModel.status, 1), isNull(aiModel.deletedTime)),
     )
     if (!row?.code) throw new CommException('未配置可用 AI 模型')
     return row.code
@@ -1037,7 +994,7 @@ export class I18nDataService extends BaseService {
       { withTrashed: true },
     )
     if (existing) {
-      if (existing.deletedAt) {
+      if (existing.deletedTime) {
         await this.packRepo.restore(eq(i18nDataPack.id, existing.id))
       }
       await this.packRepo.update(eq(i18nDataPack.id, existing.id), {

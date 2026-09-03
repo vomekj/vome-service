@@ -6,7 +6,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 业务表翻译包：packJson = { [pk]: { fieldName: translated } } */
@@ -15,15 +14,15 @@ export const i18nDataPack = columnComments(
     'i18n_data_pack',
     {
       ...baseColumns,
-      tableName: varchar('tableName', { length: 100 }).notNull(),
-      langCode: varchar('langCode', { length: 32 }).notNull(),
+      tableName: varchar('tableName').notNull(),
+      langCode: varchar('langCode').notNull(),
       packJson: jsonb('packJson')
         .$type<Record<string, Record<string, string>>>()
         .notNull()
         .default({}),
       version: integer('version').notNull().default(1),
-      sourceHash: varchar('sourceHash', { length: 64 }),
-      remark: varchar('remark', { length: 500 }),
+      sourceHash: varchar('sourceHash'),
+      remark: varchar('remark'),
     },
     (table) => [
       uniqueIndex('i18n_data_pack_tenant_table_lang_uidx').on(
@@ -46,6 +45,4 @@ export const i18nDataPack = columnComments(
   },
 )
 
-export type I18nDataPack = InferSelectModel<typeof i18nDataPack>
-export type NewI18nDataPack = InferInsertModel<typeof i18nDataPack>
 export const I18nDataPackSchema = entitySchemas(i18nDataPack)

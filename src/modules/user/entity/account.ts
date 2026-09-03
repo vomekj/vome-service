@@ -1,33 +1,48 @@
-import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
+import {
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  varchar,
+} from 'drizzle-orm/pg-core'
 import { columnComments, entitySchemas } from '@core/server'
 import { userInfo } from './info'
 
-/** Better Auth 第三方账号关联表 */
+/**
+ * Better Auth 第三方账号关联表。
+ * userId 指向 user_info.id（BA UUID），≠ 业务自增 user_info.userId。
+ */
 export const userAccount = columnComments(
   pgTable(
     'user_account',
     {
-      id: text('id').primaryKey(),
-      userId: text('userId')
+      id: varchar('id').primaryKey(),
+      userId: varchar('userId')
         .notNull()
         .references(() => userInfo.id, { onDelete: 'cascade' }),
-      accountId: text('accountId').notNull(),
-      providerId: text('providerId').notNull(),
+      accountId: varchar('accountId').notNull(),
+      providerId: varchar('providerId').notNull(),
       accessToken: text('accessToken'),
       refreshToken: text('refreshToken'),
-      accessTokenExpiresAt: timestamp('accessTokenExpiresAt', { withTimezone: true }),
-      refreshTokenExpiresAt: timestamp('refreshTokenExpiresAt', { withTimezone: true }),
-      scope: text('scope'),
+      accessTokenExpiresAt: timestamp('accessTokenExpiresAt', {
+        withTimezone: true,
+      }),
+      refreshTokenExpiresAt: timestamp('refreshTokenExpiresAt', {
+        withTimezone: true,
+      }),
+      scope: varchar('scope'),
       idToken: text('idToken'),
-      password: text('password'),
-      createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
-      updatedAt: timestamp('updatedAt', { withTimezone: true })
+      password: varchar('password'),
+      createTime: timestamp('createTime', { withTimezone: true })
+        .notNull()
+        .defaultNow(),
+      updateTime: timestamp('updateTime', { withTimezone: true })
         .notNull()
         .defaultNow()
         .$onUpdate(() => new Date()),
       tenantId: integer('tenantId'),
-      deletedAt: timestamp('deletedAt', { withTimezone: true }),
+      deletedTime: timestamp('deletedTime', { withTimezone: true }),
     },
     (table) => [
       index('user_account_user_id_idx').on(table.userId),
@@ -36,7 +51,7 @@ export const userAccount = columnComments(
   ),
   {
     id: 'ID',
-    userId: '用户',
+    userId: '用户(BA)',
     accountId: '账号ID',
     providerId: '提供商',
     accessToken: 'AccessToken',
@@ -46,13 +61,11 @@ export const userAccount = columnComments(
     scope: 'Scope',
     idToken: 'IdToken',
     password: '密码',
-    createdAt: '创建时间',
-    updatedAt: '更新时间',
+    createTime: '创建时间',
+    updateTime: '更新时间',
     tenantId: '租户',
-    deletedAt: '删除时间',
+    deletedTime: '删除时间',
   },
 )
 
-export type UserAccount = InferSelectModel<typeof userAccount>
-export type NewUserAccount = InferInsertModel<typeof userAccount>
 export const UserAccountSchema = entitySchemas(userAccount)

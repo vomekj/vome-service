@@ -16,6 +16,7 @@
     "pretty": true,
     "declaration": false,
     "noImplicitAny": false,
+    "strictNullChecks": true,
     "strictPropertyInitialization": false,
     "types": ["bun-types"],
     "paths": {

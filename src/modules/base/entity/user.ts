@@ -6,7 +6,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 后台用户 */
@@ -17,17 +16,17 @@ export const baseUser = columnComments(
       ...baseColumns,
       departmentId: integer('departmentId'),
       userId: integer('userId'),
-      name: varchar('name', { length: 255 }),
-      username: varchar('username', { length: 100 }).notNull(),
-      password: varchar('password', { length: 255 }).notNull(),
+      name: varchar('name'),
+      username: varchar('username').notNull(),
+      password: varchar('password').notNull(),
       passwordV: integer('passwordV').notNull().default(1),
-      nickName: varchar('nickName', { length: 255 }),
-      headImg: varchar('headImg', { length: 500 }),
-      phone: varchar('phone', { length: 20 }),
-      email: varchar('email', { length: 255 }),
-      remark: varchar('remark', { length: 500 }),
+      nickName: varchar('nickName'),
+      headImg: varchar('headImg'),
+      phone: varchar('phone'),
+      email: varchar('email'),
+      remark: varchar('remark'),
       status: integer('status').notNull().default(1),
-      socketId: varchar('socketId', { length: 255 }),
+      socketId: varchar('socketId'),
       isSuper: boolean('isSuper').notNull().default(false),
     },
     (table) => [
@@ -55,6 +54,4 @@ export const baseUser = columnComments(
   },
 )
 
-export type BaseUser = InferSelectModel<typeof baseUser>
-export type NewBaseUser = InferInsertModel<typeof baseUser>
 export const BaseUserSchema = entitySchemas(baseUser)

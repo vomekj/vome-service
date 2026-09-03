@@ -1,5 +1,4 @@
 import { index, integer, pgTable, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 微信用户（openid / unionid 绑定） */
@@ -8,16 +7,16 @@ export const userWx = columnComments(
     'user_wx',
     {
       ...baseColumns,
-      unionid: varchar('unionid', { length: 100 }),
-      openid: varchar('openid', { length: 100 }).notNull(),
-      avatarUrl: varchar('avatarUrl', { length: 500 }),
-      nickName: varchar('nickName', { length: 100 }),
+      unionid: varchar('unionid'),
+      openid: varchar('openid').notNull(),
+      avatarUrl: varchar('avatarUrl'),
+      nickName: varchar('nickName'),
       /** 0 未知 / 1 男 / 2 女 */
       gender: integer('gender').notNull().default(0),
-      language: varchar('language', { length: 50 }),
-      city: varchar('city', { length: 50 }),
-      province: varchar('province', { length: 50 }),
-      country: varchar('country', { length: 50 }),
+      language: varchar('language'),
+      city: varchar('city'),
+      province: varchar('province'),
+      country: varchar('country'),
       /** 0 小程序 / 1 公众号 / 2 H5 / 3 APP */
       type: integer('type').notNull().default(0),
     },
@@ -40,6 +39,4 @@ export const userWx = columnComments(
   },
 )
 
-export type UserWx = InferSelectModel<typeof userWx>
-export type NewUserWx = InferInsertModel<typeof userWx>
 export const UserWxSchema = entitySchemas(userWx)

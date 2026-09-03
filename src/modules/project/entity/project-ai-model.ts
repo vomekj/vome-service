@@ -1,5 +1,4 @@
 import { index, integer, jsonb, pgTable, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 用户自接 AI 模型（OpenAI 兼容）；apiKey 加密存储 */
@@ -10,14 +9,14 @@ export const projectAiModel = columnComments(
       ...baseColumns,
       projectId: integer('projectId').notNull(),
       /** 选择列表用，建议 custom:xxx */
-      code: varchar('code', { length: 100 }).notNull(),
-      name: varchar('name', { length: 120 }).notNull(),
-      baseUrl: varchar('baseUrl', { length: 500 }).notNull(),
+      code: varchar('code').notNull(),
+      name: varchar('name').notNull(),
+      baseUrl: varchar('baseUrl').notNull(),
       /** 加密后的密钥 */
-      apiKeyEnc: varchar('apiKeyEnc', { length: 2000 }).notNull().default(''),
+      apiKeyEnc: varchar('apiKeyEnc').notNull().default(''),
       /** chat / embed */
       capabilities: jsonb('capabilities').$type<string[]>().notNull().default(['chat']),
-      remark: varchar('remark', { length: 200 }),
+      remark: varchar('remark'),
       status: integer('status').notNull().default(1),
     },
     (table) => [
@@ -40,6 +39,4 @@ export const projectAiModel = columnComments(
   },
 )
 
-export type ProjectAiModel = InferSelectModel<typeof projectAiModel>
-export type NewProjectAiModel = InferInsertModel<typeof projectAiModel>
 export const ProjectAiModelSchema = entitySchemas(projectAiModel)

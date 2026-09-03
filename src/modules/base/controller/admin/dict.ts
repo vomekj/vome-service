@@ -15,7 +15,7 @@ import { DictInfoService, DictTypeService } from '../../service/dict'
 /** 字典项 CRUD + 取值接口 → /admin/base/dict/info */
 @Controller({
   prefix: '/base/dict/info',
-  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
+  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore', 'dataI18n'],
   entity: baseDictInfo,
   service: DictInfoService,
   listQueryOp: {
@@ -38,6 +38,7 @@ import { DictInfoService, DictTypeService } from '../../service/dict'
     ],
     addOrderBy: { orderNum: 'asc', createTime: 'asc' },
   },
+  dataI18nFields: ['name'],
 })
 export class DictInfoController extends BaseController {
   @Inject()
@@ -135,7 +136,7 @@ export class DictInfoController extends BaseController {
 /** 字典类型 CRUD → /admin/base/dict/type */
 @Controller({
   prefix: '/base/dict/type',
-  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
+  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore', 'dataI18n'],
   entity: baseDictType,
   service: DictTypeService,
   listQueryOp: {
@@ -158,5 +159,7 @@ export class DictInfoController extends BaseController {
     ],
     addOrderBy: { createTime: 'desc' },
   },
+  /** 译类型名称；不译标识 key */
+  dataI18nFields: ['name'],
 })
 export class DictTypeController extends BaseController {}

@@ -35,6 +35,7 @@ const renderExports = async (files: string[], cwd: string) => {
 /**
  * 扫描实体并生成 schema/index.ts。
  * 无源码模板时（纯 dist/binary 部署）跳过，沿用打包进 bundle 的 schema。
+ * 内容不变不写盘，避免 bun --watch 因 mtime 变化死循环重启。
  */
 export async function buildSchemaIndex() {
   const templatePath = join(SCHEMA_DIR, 'template.tpl')
@@ -52,8 +53,16 @@ export async function buildSchemaIndex() {
     renderExports(files, cwd),
   ])
 
+  const next = template.replace('__EXPORTS__', exports.trimEnd())
   await mkdir(dirname(INDEX), { recursive: true })
-  await writeFile(INDEX, template.replace('__EXPORTS__', exports.trimEnd()))
+  if (await exists(INDEX)) {
+    const prev = await readFile(INDEX, 'utf8')
+    if (prev === next) {
+      console.log(`[db] schema index unchanged ← ${files.length} module(s)`)
+      return files.length
+    }
+  }
+  await writeFile(INDEX, next)
   console.log(`[db] schema index ← ${files.length} module(s)`)
   return files.length
 }

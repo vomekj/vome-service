@@ -16,7 +16,7 @@ export class MenuService extends BaseService {
   menuRepo: Repository<typeof baseMenu>
 
   async listAll() {
-    return this.menuRepo.find(isNull(baseMenu.deletedAt))
+    return this.menuRepo.find(isNull(baseMenu.deletedTime))
   }
 
   /** 删除菜单后级联删子孙（parentId 树）；软删/彻底删共用 */
@@ -84,12 +84,13 @@ export class DepartmentService extends BaseService {
     )
   }
 
-  async modifyBefore(data: unknown, type: 'add' | 'update' | 'delete') {
-    if (type !== 'delete') return
-    const ids = (Array.isArray(data) ? data : [data])
+  override async delete(
+    whereOrIds: SQL | number | string | Array<number | string>,
+    options?: CrudDeleteOptions,
+  ) {
+    const ids = (Array.isArray(whereOrIds) ? whereOrIds : [whereOrIds])
       .map((id) => Number(id))
       .filter((id) => !Number.isNaN(id))
-    if (!ids.length) return
 
     // 含回收站：软删/彻底删都走 delete，须看到已软删的子部门与用户
     for (const id of ids) {
@@ -108,6 +109,7 @@ export class DepartmentService extends BaseService {
         throw new CommException('部门下存在用户（含回收站），无法删除')
       }
     }
+    return super.delete(whereOrIds, options)
   }
 }
 
@@ -194,8 +196,8 @@ export class AdminUserService extends BaseService {
 
   /** userId → 角色名（逗号分隔） */
   async buildRoleNameMap() {
-    const links = await this.userRoleRepo.find(isNull(baseUserRole.deletedAt))
-    const roles = await this.roleRepo.find(isNull(baseRole.deletedAt))
+    const links = await this.userRoleRepo.find(isNull(baseUserRole.deletedTime))
+    const roles = await this.roleRepo.find(isNull(baseRole.deletedTime))
     const roleName = new Map(roles.map((r) => [r.id, r.name]))
     const map: Record<string, string> = {}
     for (const link of links) {
@@ -219,7 +221,7 @@ export class AdminUserService extends BaseService {
     }
 
     const [to] = await this.userRepo.find(
-      and(eq(baseUser.id, toUserId), isNull(baseUser.deletedAt)),
+      and(eq(baseUser.id, toUserId), isNull(baseUser.deletedTime)),
     )
     if (!to || to.status !== 1) {
       throw new CommException('目标用户不存在或已禁用')
@@ -235,36 +237,63 @@ export class AdminUserService extends BaseService {
     if (!ids.length) throw new CommException('请选择用户')
 
     const [dept] = await this.deptRepo.find(
-      and(eq(baseDepartment.id, departmentId), isNull(baseDepartment.deletedAt)),
+      and(eq(baseDepartment.id, departmentId), isNull(baseDepartment.deletedTime)),
     )
     if (!dept) throw new CommException('部门不存在')
 
     await this.userRepo.update(ids.map((id) => ({ id, departmentId })))
   }
 
-  async modifyBefore(data: any, type: 'add' | 'update' | 'delete') {
+  private async prepareAdminUser(data: Record<string, unknown>, type: 'add' | 'update') {
     if (type === 'add' && data.password) {
       data.password = await Bun.password.hash(String(data.password))
       data.passwordV = data.passwordV ?? 1
     }
     if (type === 'update' && data.password) {
       data.password = await Bun.password.hash(String(data.password))
-      data.passwordV = (data.passwordV ?? 1) + 1
+      data.passwordV = (Number(data.passwordV) || 1) + 1
     }
     if (type === 'update' && (data.password === '' || data.password == null)) {
       delete data.password
     }
-    if (type === 'add' || type === 'update') {
-      if (data.tenantId === '' || data.tenantId == null) {
-        data.tenantId = null
-      } else {
-        data.tenantId = Number(data.tenantId)
-      }
-      if (data.departmentId === '' || data.departmentId == null) {
-        data.departmentId = null
-      } else {
-        data.departmentId = Number(data.departmentId)
+    if (data.tenantId === '' || data.tenantId == null) {
+      data.tenantId = null
+    } else {
+      data.tenantId = Number(data.tenantId)
+    }
+    if (data.departmentId === '' || data.departmentId == null) {
+      data.departmentId = null
+    } else {
+      data.departmentId = Number(data.departmentId)
+    }
+  }
+
+  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw != null && typeof raw === 'object') {
+        await this.prepareAdminUser(raw as Record<string, unknown>, 'add')
       }
     }
+    return super.add(data, options)
+  }
+
+  override async update(
+    whereOrData: SQL | Record<string, unknown> | Record<string, unknown>[],
+    data?: unknown,
+  ) {
+    if (data !== undefined) {
+      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+        await this.prepareAdminUser(data as Record<string, unknown>, 'update')
+      }
+      return super.update(whereOrData as SQL, data)
+    }
+    const rows = Array.isArray(whereOrData)
+      ? whereOrData
+      : [whereOrData as Record<string, unknown>]
+    for (const row of rows) {
+      await this.prepareAdminUser(row, 'update')
+    }
+    return super.update(whereOrData)
   }
 }

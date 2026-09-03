@@ -20,7 +20,7 @@ export class TaskScheduler extends BaseService {
   /** 启动所有 status=1 的任务 */
   async startAll() {
     const rows = await this.taskRepo.find(
-      and(eq(baseTask.status, 1), isNull(baseTask.deletedAt)),
+      and(eq(baseTask.status, 1), isNull(baseTask.deletedTime)),
     )
     for (const row of rows) {
       try {
@@ -106,7 +106,7 @@ export class TaskScheduler extends BaseService {
 
   private async runTask(id: number) {
     const [row] = await this.taskRepo.find(
-      and(eq(baseTask.id, id), isNull(baseTask.deletedAt)),
+      and(eq(baseTask.id, id), isNull(baseTask.deletedTime)),
     )
     if (!row) {
       this.stop(id)

@@ -1,5 +1,4 @@
 import { index, integer, pgTable, text } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -25,6 +24,4 @@ export const baseTaskLog = columnComments(
   },
 )
 
-export type BaseTaskLog = InferSelectModel<typeof baseTaskLog>
-export type NewBaseTaskLog = InferInsertModel<typeof baseTaskLog>
 export const BaseTaskLogSchema = entitySchemas(baseTaskLog)

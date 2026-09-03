@@ -128,17 +128,17 @@ export class I18nPackService extends BaseService {
   @Inject()
   aiGateway: AiGateway
 
-  async modifyBefore(
+  private async preparePack(
     data: Record<string, unknown>,
-    type: 'add' | 'update' | 'delete',
+    type: 'add' | 'update',
   ) {
-    if (type !== 'add' && type !== 'update') return
     data.tenantId = normalizeTenantId(
       data.tenantId ?? Context.get()?.tenantId,
     )
+    if (data.langCode != null) {
+      data.langCode = String(data.langCode).trim()
+    }
     const langCode = String(data.langCode ?? '').trim()
-    if (!langCode) throw new CommException('语种编码不能为空')
-    data.langCode = langCode
     const scope = normalizeScope(
       String(data.scopeType ?? 'host'),
       String(data.scopeKey ?? ''),
@@ -174,25 +174,16 @@ export class I18nPackService extends BaseService {
 
     if (type === 'add') {
       data.version = Number(data.version) > 0 ? Number(data.version) : 1
-      await this.assertUnique(
-        langCode,
-        scope.scopeType,
-        scope.scopeKey,
-      )
+      await this.assertUnique(langCode, scope.scopeType, scope.scopeKey)
     } else {
       const id = Number(data.id)
       const [old] = await this.packRepo.find(
-        and(eq(i18nPack.id, id), isNull(i18nPack.deletedAt)),
+        and(eq(i18nPack.id, id), isNull(i18nPack.deletedTime)),
       )
       if (old) {
         data.version = Number(old.version || 1) + 1
       }
-      await this.assertUnique(
-        langCode,
-        scope.scopeType,
-        scope.scopeKey,
-        id,
-      )
+      await this.assertUnique(langCode, scope.scopeType, scope.scopeKey, id)
     }
   }
 
@@ -204,7 +195,7 @@ export class I18nPackService extends BaseService {
       data != null && typeof data === 'object'
         ? { ...(data as Record<string, unknown>) }
         : ({} as Record<string, unknown>)
-    await this.modifyBefore(payload, 'add')
+    await this.preparePack(payload, 'add')
 
     const tenantId = normalizeTenantId(
       payload.tenantId ?? Context.get()?.tenantId,
@@ -223,7 +214,7 @@ export class I18nPackService extends BaseService {
       { withTrashed: true },
     )
 
-    if (existing?.deletedAt) {
+    if (existing?.deletedTime) {
       await this.packRepo.restore(eq(i18nPack.id, existing.id))
       await this.packRepo.update(eq(i18nPack.id, existing.id), {
         packJson: payload.packJson,
@@ -247,6 +238,25 @@ export class I18nPackService extends BaseService {
     return result
   }
 
+  override async update(
+    whereOrData: Parameters<BaseService['update']>[0],
+    data?: unknown,
+  ) {
+    if (data !== undefined) {
+      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+        await this.preparePack(data as Record<string, unknown>, 'update')
+      }
+      return super.update(whereOrData as never, data)
+    }
+    const rows = Array.isArray(whereOrData)
+      ? whereOrData
+      : [whereOrData as Record<string, unknown>]
+    for (const row of rows) {
+      await this.preparePack(row, 'update')
+    }
+    return super.update(whereOrData)
+  }
+
   private async assertUnique(
     langCode: string,
     scopeType: string,
@@ -259,7 +269,7 @@ export class I18nPackService extends BaseService {
       eq(i18nPack.langCode, langCode),
       eq(i18nPack.scopeType, scopeType),
       eq(i18nPack.scopeKey, scopeKey),
-      isNull(i18nPack.deletedAt),
+      isNull(i18nPack.deletedTime),
     ]
     if (id != null) conds.push(ne(i18nPack.id, id))
     const [hit] = await this.packRepo.find(and(...conds))
@@ -278,12 +288,12 @@ export class I18nPackService extends BaseService {
     if (!s) return []
     const out = [s]
     const [byKey] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deletedAt)),
+      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deletedTime)),
     )
     const name = String(byKey?.name || '').trim()
     if (name && name !== s) out.push(name)
     const [byName] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deletedAt)),
+      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deletedTime)),
     )
     const key = String(byName?.keyName || '').trim()
     if (key && key !== s) out.push(key)
@@ -295,11 +305,11 @@ export class I18nPackService extends BaseService {
     const s = String(raw || '').trim()
     if (!s) return s
     const [byKey] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deletedAt)),
+      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deletedTime)),
     )
     if (byKey) return s
     const [byName] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deletedAt)),
+      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deletedTime)),
     )
     const key = String(byName?.keyName || '').trim()
     return key || s
@@ -323,7 +333,7 @@ export class I18nPackService extends BaseService {
           eq(i18nPack.langCode, opts.langCode),
           eq(i18nPack.scopeType, scope.scopeType),
           eq(i18nPack.scopeKey, scopeKey),
-          isNull(i18nPack.deletedAt),
+          isNull(i18nPack.deletedTime),
         ),
       )
       if (row) return row
@@ -360,7 +370,7 @@ export class I18nPackService extends BaseService {
       and(
         eq(i18nPack.scopeType, 'host'),
         eq(i18nPack.scopeKey, scope.scopeKey),
-        isNull(i18nPack.deletedAt),
+        isNull(i18nPack.deletedTime),
       ),
     )
     return this.buildLocaleOptions(rows)
@@ -382,7 +392,7 @@ export class I18nPackService extends BaseService {
         eq(i18nPack.tenantId, tenantId),
         eq(i18nPack.scopeType, 'plugin'),
         inArray(i18nPack.scopeKey, scopeKeys),
-        isNull(i18nPack.deletedAt),
+        isNull(i18nPack.deletedTime),
       ),
     )
     return this.buildLocaleOptions(rows)
@@ -399,7 +409,7 @@ export class I18nPackService extends BaseService {
     if (!codeSet.size) {
       return [{ code: 'zh-CN', name: '简体中文', flag: '🇨🇳' }]
     }
-    const langRows = await this.langRepo.find(isNull(i18nLang.deletedAt), {
+    const langRows = await this.langRepo.find(isNull(i18nLang.deletedTime), {
       orderBy: [asc(i18nLang.id)],
     })
     const out: Array<{ code: string; name: string; flag: string }> = []
@@ -423,7 +433,7 @@ export class I18nPackService extends BaseService {
 
   /** 菜单可见节点写入 menu.{id} */
   async collectMenuLabels(): Promise<Record<string, string>> {
-    const rows = await this.menuRepo.find(isNull(baseMenu.deletedAt), {
+    const rows = await this.menuRepo.find(isNull(baseMenu.deletedTime), {
       orderBy: [asc(baseMenu.orderNum), asc(baseMenu.id)],
     })
     const out: Record<string, string> = {}
@@ -650,7 +660,7 @@ export class I18nPackService extends BaseService {
       and(
         eq(aiModel.tenantId, tenantId),
         eq(aiModel.status, 1),
-        isNull(aiModel.deletedAt),
+        isNull(aiModel.deletedTime),
       ),
       { orderBy: [desc(aiModel.id)] },
     )
@@ -752,7 +762,7 @@ export class I18nPackService extends BaseService {
           and(
             eq(i18nLang.tenantId, tenantId),
             eq(i18nLang.code, langCode),
-            isNull(i18nLang.deletedAt),
+            isNull(i18nLang.deletedTime),
           ),
         )
         langName = lang?.name || langCode
@@ -860,6 +870,7 @@ export class I18nPackService extends BaseService {
               },
             ],
           },
+          options: { stream: true },
         },
         { source: 'i18n' },
       )
@@ -979,7 +990,7 @@ export class I18nPackService extends BaseService {
     )
     const sourceHash = hashLocaleJson(packJson)
     if (existing) {
-      if (existing.deletedAt) {
+      if (existing.deletedTime) {
         await this.packRepo.restore(eq(i18nPack.id, existing.id))
       }
       await this.packRepo.update(eq(i18nPack.id, existing.id), {

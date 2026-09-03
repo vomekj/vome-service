@@ -142,7 +142,7 @@ export class ProjectKbService extends BaseService {
         table: 'project_kb_chunk',
         vector,
         topK,
-        whereSql: `"projectId" = ${projectId} AND enabled = 1 AND "deletedAt" IS NULL ${kindSql}`,
+        whereSql: `"projectId" = ${projectId} AND enabled = 1 AND "deletedTime" IS NULL ${kindSql}`,
         indexName: 'project_kb_chunk_embedding_vec_idx',
       })
       if (ids?.length) {
@@ -156,7 +156,7 @@ export class ProjectKbService extends BaseService {
     const where = [
       eq(projectKbChunk.projectId, projectId),
       eq(projectKbChunk.enabled, 1),
-      isNull(projectKbChunk.deletedAt),
+      isNull(projectKbChunk.deletedTime),
       kinds.length ? inArray(projectKbChunk.kind, kinds) : undefined,
     ].filter(Boolean)
     const list = await this.chunkRepo.find(and(...where))

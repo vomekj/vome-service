@@ -1,5 +1,4 @@
 import { index, pgTable, text, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -12,7 +11,7 @@ export const baseConf = columnComments(
     'base_conf',
     {
       ...baseColumns,
-      cKey: varchar('cKey', { length: 255 }).notNull(),
+      cKey: varchar('cKey').notNull(),
       cValue: text('cValue'),
     },
     (table) => [
@@ -26,6 +25,4 @@ export const baseConf = columnComments(
   },
 )
 
-export type BaseConf = InferSelectModel<typeof baseConf>
-export type NewBaseConf = InferInsertModel<typeof baseConf>
 export const BaseConfSchema = entitySchemas(baseConf)

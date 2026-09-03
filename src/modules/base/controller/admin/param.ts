@@ -24,11 +24,12 @@ const paramQueryOp: QueryOp = {
  * 系统参数（后台）
  */
 @Controller({
-  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
+  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore', 'dataI18n'],
   entity: baseParam,
   service: BaseParamService,
   pageQueryOp: paramQueryOp,
   listQueryOp: paramQueryOp,
+  dataI18nFields: ['data'],
 })
 export class BaseParamController extends BaseController {
   @Inject()

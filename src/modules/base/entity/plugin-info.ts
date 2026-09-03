@@ -1,5 +1,4 @@
 import { index, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 插件信息 */
@@ -8,14 +7,14 @@ export const basePluginInfo = columnComments(
     'base_plugin_info',
     {
       ...baseColumns,
-      name: varchar('name', { length: 255 }).notNull(),
-      description: varchar('description', { length: 500 }),
-      keyName: varchar('keyName', { length: 100 }).notNull(),
-      hook: varchar('hook', { length: 100 }),
+      name: varchar('name').notNull(),
+      description: varchar('description'),
+      keyName: varchar('keyName').notNull(),
+      hook: varchar('hook'),
       readme: text('readme'),
-      version: varchar('version', { length: 50 }).notNull(),
+      version: varchar('version').notNull(),
       logo: text('logo'),
-      author: varchar('author', { length: 100 }),
+      author: varchar('author'),
       /** 0 禁用 / 1 启用 */
       status: integer('status').notNull().default(1),
       content: jsonb('content'),
@@ -42,6 +41,4 @@ export const basePluginInfo = columnComments(
   },
 )
 
-export type BasePluginInfo = InferSelectModel<typeof basePluginInfo>
-export type NewBasePluginInfo = InferInsertModel<typeof basePluginInfo>
 export const BasePluginInfoSchema = entitySchemas(basePluginInfo)

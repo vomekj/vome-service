@@ -5,7 +5,7 @@ import {
 import { i18nDataField } from '../../entity/data-field'
 import { I18nDataFieldService } from '../../service/data-field'
 
-/** → service.i18n.dataField */
+/** → service.i18n.dataField；add/update body 由 core 按 entity Schema 自动挂 */
 @Controller({
   api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
   entity: i18nDataField,

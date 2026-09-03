@@ -1,5 +1,4 @@
 import { index, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 export const projectKbChunk = columnComments(
@@ -9,12 +8,12 @@ export const projectKbChunk = columnComments(
       ...baseColumns,
       docId: integer('docId').notNull(),
       projectId: integer('projectId').notNull(),
-      kind: varchar('kind', { length: 20 }).notNull(),
+      kind: varchar('kind').notNull(),
       chunkIndex: integer('chunkIndex').notNull().default(0),
-      summary: varchar('summary', { length: 1000 }),
+      summary: varchar('summary'),
       content: text('content').notNull().default(''),
       embedding: jsonb('embedding').$type<number[]>().notNull().default([]),
-      embeddingModel: varchar('embeddingModel', { length: 100 }),
+      embeddingModel: varchar('embeddingModel'),
       meta: jsonb('meta').$type<Record<string, unknown>>().notNull().default({}),
       enabled: integer('enabled').notNull().default(1),
     },
@@ -37,6 +36,4 @@ export const projectKbChunk = columnComments(
   },
 )
 
-export type ProjectKbChunk = InferSelectModel<typeof projectKbChunk>
-export type NewProjectKbChunk = InferInsertModel<typeof projectKbChunk>
 export const ProjectKbChunkSchema = entitySchemas(projectKbChunk)

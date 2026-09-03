@@ -7,19 +7,12 @@ export class AppProjectKbController extends BaseController {
   @Inject()
   kb: ProjectKbService
 
-  private requireUser() {
-    const ctx = Context.get() as {
-      userId?: string | number | null
-      bizUserId?: number | null
-    } | null
-    if (!ctx?.userId) throw new Error('未登录')
-    const biz = Number(ctx.bizUserId)
-    if (Number.isFinite(biz) && biz > 0) return biz
-    const n = Number(ctx.userId)
-    if (Number.isFinite(n) && n > 0) return n
-    let h = 0
-    for (const c of String(ctx.userId)) h = (h * 31 + c.charCodeAt(0)) >>> 0
-    return (h % 2_000_000_000) + 1
+  private requireUserId() {
+    const n = Number(
+      (Context.get() as { userId?: number } | undefined)?.userId,
+    )
+    if (!Number.isFinite(n) || n <= 0) throw new Error('未登录')
+    return n
   }
 
   @Post('/upsert', { summary: '写入知识文档' })
@@ -47,7 +40,7 @@ export class AppProjectKbController extends BaseController {
       tags?: string[]
     },
   ) {
-    const userId = this.requireUser()
+    const userId = this.requireUserId()
     return this.ok(
       await this.kb.upsertDoc({ ...body, createdBy: userId }),
     )
@@ -70,7 +63,7 @@ export class AppProjectKbController extends BaseController {
       kinds?: string[]
     },
   ) {
-    this.requireUser()
+    this.requireUserId()
     return this.ok(await this.kb.search(body))
   }
 
@@ -100,7 +93,7 @@ export class AppProjectKbController extends BaseController {
     return this.ok(
       await this.kb.adoptionWriteback({
         ...body,
-        userId: this.requireUser(),
+        userId: this.requireUserId(),
       }),
     )
   }

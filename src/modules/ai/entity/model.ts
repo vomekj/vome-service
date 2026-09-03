@@ -6,7 +6,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 import type { AiAsyncSpec } from 'vome-core/ai'
 
@@ -20,13 +19,13 @@ export const aiModel = columnComments(
     {
       ...baseColumns,
       providerId: integer('providerId').notNull(),
-      code: varchar('code', { length: 100 }).notNull(),
+      code: varchar('code').notNull(),
       /** 请求路径，如 /v1/chat/completions（必填，无框架默认） */
-      path: varchar('path', { length: 500 }).notNull(),
+      path: varchar('path').notNull(),
       /** HTTP 方法，字典 base_http_method */
-      method: varchar('method', { length: 16 }).notNull().default('POST'),
+      method: varchar('method').notNull().default('POST'),
       /** 请求体类型：json | multipart，字典 base_ai_content_type */
-      contentType: varchar('contentType', { length: 32 })
+      contentType: varchar('contentType')
         .notNull()
         .default('json'),
       capabilities: jsonb('capabilities')
@@ -41,7 +40,7 @@ export const aiModel = columnComments(
       asyncSpec: jsonb('asyncSpec').$type<AiAsyncSpec | null>(),
       defaults: jsonb('defaults').$type<Record<string, unknown>>(),
       status: integer('status').notNull().default(1),
-      remark: varchar('remark', { length: 500 }),
+      remark: varchar('remark'),
     },
     (table) => [
       uniqueIndex('ai_model_tenant_code_uidx').on(table.tenantId, table.code),
@@ -64,6 +63,4 @@ export const aiModel = columnComments(
   },
 )
 
-export type AiModel = InferSelectModel<typeof aiModel>
-export type NewAiModel = InferInsertModel<typeof aiModel>
 export const AiModelSchema = entitySchemas(aiModel)

@@ -1,5 +1,4 @@
 import { integer, pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -9,21 +8,21 @@ import { baseColumns, columnComments, entitySchemas } from '@core/server'
 export const baseTask = columnComments(
   pgTable('base_task', {
     ...baseColumns,
-    name: varchar('name', { length: 100 }).notNull(),
+    name: varchar('name').notNull(),
     /** IoC 服务类名（业务 @Provide 的类） */
-    service: varchar('service', { length: 100 }).notNull(),
-    method: varchar('method', { length: 100 }).notNull(),
+    service: varchar('service').notNull(),
+    method: varchar('method').notNull(),
     /** JSON 参数，传给 method */
     params: text('params'),
     /** cron | once */
-    taskType: varchar('taskType', { length: 20 }).notNull().default('cron'),
+    taskType: varchar('taskType').notNull().default('cron'),
     /** 循环：cron 表达式（可含秒） */
-    cron: varchar('cron', { length: 100 }),
+    cron: varchar('cron'),
     /** 一次：执行时间 */
     startDate: timestamp('startDate', { withTimezone: true }),
     /** 0 停 / 1 启 */
     status: integer('status').notNull().default(0),
-    remark: varchar('remark', { length: 500 }),
+    remark: varchar('remark'),
     lastRunTime: timestamp('lastRunTime', { withTimezone: true }),
   }),
   {
@@ -40,6 +39,6 @@ export const baseTask = columnComments(
   },
 )
 
-export type BaseTask = InferSelectModel<typeof baseTask>
-export type NewBaseTask = InferInsertModel<typeof baseTask>
 export const BaseTaskSchema = entitySchemas(baseTask)
+
+export type BaseTask = typeof baseTask.$inferSelect

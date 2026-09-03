@@ -5,7 +5,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -17,18 +16,18 @@ export const i18nDataField = columnComments(
     'i18n_data_field',
     {
       ...baseColumns,
-      tableName: varchar('tableName', { length: 100 }).notNull(),
-      fieldName: varchar('fieldName', { length: 100 }).notNull(),
-      pkField: varchar('pkField', { length: 64 }).notNull().default('id'),
+      tableName: varchar('tableName').notNull(),
+      fieldName: varchar('fieldName').notNull(),
+      pkField: varchar('pkField').notNull().default('id'),
       /** direct | ref */
-      mode: varchar('mode', { length: 16 }).notNull().default('direct'),
-      sourceTable: varchar('sourceTable', { length: 100 }),
-      sourcePkField: varchar('sourcePkField', { length: 64 }).default('id'),
-      sourceField: varchar('sourceField', { length: 100 }),
-      joinField: varchar('joinField', { length: 100 }),
-      sourceJoinField: varchar('sourceJoinField', { length: 100 }),
+      mode: varchar('mode').notNull().default('direct'),
+      sourceTable: varchar('sourceTable'),
+      sourcePkField: varchar('sourcePkField').default('id'),
+      sourceField: varchar('sourceField'),
+      joinField: varchar('joinField'),
+      sourceJoinField: varchar('sourceJoinField'),
       status: integer('status').notNull().default(1),
-      remark: varchar('remark', { length: 500 }),
+      remark: varchar('remark'),
     },
     (table) => [
       uniqueIndex('i18n_data_field_tenant_table_field_uidx').on(
@@ -55,6 +54,4 @@ export const i18nDataField = columnComments(
   },
 )
 
-export type I18nDataField = InferSelectModel<typeof i18nDataField>
-export type NewI18nDataField = InferInsertModel<typeof i18nDataField>
 export const I18nDataFieldSchema = entitySchemas(i18nDataField)

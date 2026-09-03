@@ -163,7 +163,7 @@ export class ModuleService extends BaseService {
       and(
         eq(baseMenu.router, router),
         eq(baseMenu.type, 0),
-        isNull(baseMenu.deletedAt),
+        isNull(baseMenu.deletedTime),
       )!,
     )
     const row = {
@@ -205,10 +205,10 @@ export class ModuleService extends BaseService {
 
       const existing = perms
         ? await this.menuService.menuRepo.findOne(
-            and(eq(baseMenu.perms, perms), isNull(baseMenu.deletedAt))!,
+            and(eq(baseMenu.perms, perms), isNull(baseMenu.deletedTime))!,
           )
         : await this.menuService.menuRepo.findOne(
-            and(eq(baseMenu.appKey, appKey), isNull(baseMenu.deletedAt))!,
+            and(eq(baseMenu.appKey, appKey), isNull(baseMenu.deletedTime))!,
           )
 
       const row = {
@@ -235,7 +235,7 @@ export class ModuleService extends BaseService {
 
   private async removeMenusByAppKey(appKey: string) {
     await this.menuService.menuRepo.softDelete(
-      and(eq(baseMenu.appKey, appKey), isNull(baseMenu.deletedAt))!,
+      and(eq(baseMenu.appKey, appKey), isNull(baseMenu.deletedTime))!,
     )
   }
 }

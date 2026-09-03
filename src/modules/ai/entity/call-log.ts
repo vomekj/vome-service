@@ -6,7 +6,6 @@ import {
   text,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -19,23 +18,23 @@ export const aiCallLog = columnComments(
     {
       ...baseColumns,
       /** 异步任务号 ait_*；同步/流式为空 */
-      recordKey: varchar('recordKey', { length: 64 }),
-      modelCode: varchar('modelCode', { length: 100 }),
-      capability: varchar('capability', { length: 50 }).notNull(),
+      recordKey: varchar('recordKey'),
+      modelCode: varchar('modelCode'),
+      capability: varchar('capability').notNull(),
       /** sync | stream | async */
-      mode: varchar('mode', { length: 20 }).notNull(),
+      mode: varchar('mode').notNull(),
       /** 异步：pending | running | succeeded | failed */
-      status: varchar('status', { length: 20 }),
+      status: varchar('status'),
       ok: integer('ok').notNull().default(0),
       latencyMs: integer('latencyMs'),
       inputTokens: integer('inputTokens'),
       outputTokens: integer('outputTokens'),
       totalTokens: integer('totalTokens'),
-      errorCode: varchar('errorCode', { length: 64 }),
+      errorCode: varchar('errorCode'),
       errorMessage: text('errorMessage'),
       /** gateway | proxy | test */
-      source: varchar('source', { length: 32 }).notNull().default('gateway'),
-      upstreamId: varchar('upstreamId', { length: 200 }),
+      source: varchar('source').notNull().default('gateway'),
+      upstreamId: varchar('upstreamId'),
       request: jsonb('request').$type<Record<string, unknown>>(),
       result: jsonb('result').$type<Record<string, unknown>>(),
     },
@@ -67,6 +66,4 @@ export const aiCallLog = columnComments(
   },
 )
 
-export type AiCallLog = InferSelectModel<typeof aiCallLog>
-export type NewAiCallLog = InferInsertModel<typeof aiCallLog>
 export const AiCallLogSchema = entitySchemas(aiCallLog)

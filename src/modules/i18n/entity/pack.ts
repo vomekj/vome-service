@@ -6,7 +6,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -18,19 +17,19 @@ export const i18nPack = columnComments(
     'i18n_pack',
     {
       ...baseColumns,
-      langCode: varchar('langCode', { length: 32 }).notNull(),
+      langCode: varchar('langCode').notNull(),
       /** host | plugin */
-      scopeType: varchar('scopeType', { length: 16 }).notNull().default('host'),
+      scopeType: varchar('scopeType').notNull().default('host'),
       /** host → admin|web|uniapp；plugin → 插件名称（同步时写入） */
-      scopeKey: varchar('scopeKey', { length: 100 }).notNull().default('admin'),
+      scopeKey: varchar('scopeKey').notNull().default('admin'),
       packJson: jsonb('packJson')
         .$type<Record<string, unknown>>()
         .notNull()
         .default({}),
       version: integer('version').notNull().default(1),
       /** 源文案 hash，便于增量判断 */
-      sourceHash: varchar('sourceHash', { length: 64 }),
-      remark: varchar('remark', { length: 500 }),
+      sourceHash: varchar('sourceHash'),
+      remark: varchar('remark'),
     },
     (table) => [
       uniqueIndex('i18n_pack_tenant_scope_lang_uidx').on(
@@ -54,6 +53,4 @@ export const i18nPack = columnComments(
   },
 )
 
-export type I18nPack = InferSelectModel<typeof i18nPack>
-export type NewI18nPack = InferInsertModel<typeof i18nPack>
 export const I18nPackSchema = entitySchemas(i18nPack)

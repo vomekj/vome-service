@@ -1,5 +1,4 @@
 import { index, integer, pgTable, text, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 export const projectKbAdoption = columnComments(
@@ -9,9 +8,9 @@ export const projectKbAdoption = columnComments(
       ...baseColumns,
       projectId: integer('projectId').notNull(),
       userId: integer('userId').notNull(),
-      sceneType: varchar('sceneType', { length: 30 }).notNull().default('page'),
-      title: varchar('title', { length: 200 }),
-      summary: varchar('summary', { length: 1000 }),
+      sceneType: varchar('sceneType').notNull().default('page'),
+      title: varchar('title'),
+      summary: varchar('summary'),
       content: text('content'),
     },
     (table) => [
@@ -28,6 +27,4 @@ export const projectKbAdoption = columnComments(
   },
 )
 
-export type ProjectKbAdoption = InferSelectModel<typeof projectKbAdoption>
-export type NewProjectKbAdoption = InferInsertModel<typeof projectKbAdoption>
 export const ProjectKbAdoptionSchema = entitySchemas(projectKbAdoption)

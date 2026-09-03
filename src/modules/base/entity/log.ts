@@ -1,5 +1,4 @@
 import { integer, pgTable, text, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
@@ -11,15 +10,15 @@ export const baseLog = columnComments(
   pgTable('base_log', {
     ...baseColumns,
     /** 操作者：adminId 或 app userId，未登录为空 */
-    userId: varchar('userId', { length: 64 }),
+    userId: varchar('userId'),
     /** admin | app */
-    side: varchar('side', { length: 16 }).notNull(),
-    ip: varchar('ip', { length: 64 }),
-    method: varchar('method', { length: 16 }).notNull(),
+    side: varchar('side').notNull(),
+    ip: varchar('ip'),
+    method: varchar('method').notNull(),
     /** 路径（不含 query） */
-    action: varchar('action', { length: 500 }).notNull(),
+    action: varchar('action').notNull(),
     /** 日志类型：public/query/add/update/delete/import/export/restore/other/error */
-    logType: varchar('logType', { length: 32 }),
+    logType: varchar('logType'),
     /** 请求参数 JSON（query + body，不截断） */
     params: text('params'),
     /** 响应体全文（不截断） */
@@ -44,6 +43,4 @@ export const baseLog = columnComments(
   },
 )
 
-export type BaseLog = InferSelectModel<typeof baseLog>
-export type NewBaseLog = InferInsertModel<typeof baseLog>
 export const BaseLogSchema = entitySchemas(baseLog)

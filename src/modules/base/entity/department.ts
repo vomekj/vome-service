@@ -1,5 +1,4 @@
 import { index, integer, pgTable, varchar } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 部门（数据权限树） */
@@ -9,7 +8,7 @@ export const baseDepartment = columnComments(
     {
       ...baseColumns,
       parentId: integer('parentId'),
-      name: varchar('name', { length: 100 }).notNull(),
+      name: varchar('name').notNull(),
       orderNum: integer('orderNum').notNull().default(0),
     },
     (table) => [index('base_department_parent_id_idx').on(table.parentId)],
@@ -21,6 +20,4 @@ export const baseDepartment = columnComments(
   },
 )
 
-export type BaseDepartment = InferSelectModel<typeof baseDepartment>
-export type NewBaseDepartment = InferInsertModel<typeof baseDepartment>
 export const BaseDepartmentSchema = entitySchemas(baseDepartment)

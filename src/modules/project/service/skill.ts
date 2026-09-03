@@ -36,7 +36,7 @@ export class ProjectSkillService extends BaseService {
       and(
         eq(projectSkill.projectId, pid),
         eq(projectSkill.status, 1),
-        isNull(projectSkill.deletedAt),
+        isNull(projectSkill.deletedTime),
       ),
     )
     return rows
@@ -86,7 +86,7 @@ export class ProjectSkillService extends BaseService {
     const id = Number(body.id)
     if (!(id > 0)) throw new CommException('Skill ID 无效')
     const row = await this.skillRepo.findOne(
-      and(eq(projectSkill.id, id), isNull(projectSkill.deletedAt)),
+      and(eq(projectSkill.id, id), isNull(projectSkill.deletedTime)),
     )
     if (!row) throw new CommException('Skill 不存在')
     const patch: Record<string, unknown> = {}
@@ -131,7 +131,7 @@ export class ProjectSkillService extends BaseService {
       and(
         eq(projectSkill.projectId, projectId),
         eq(projectSkill.status, 1),
-        isNull(projectSkill.deletedAt),
+        isNull(projectSkill.deletedTime),
       ),
     )
     if (existing.length) return { seeded: 0, list: existing }
@@ -167,7 +167,7 @@ export class ProjectSkillService extends BaseService {
         table: 'project_skill',
         vector,
         topK,
-        whereSql: `"projectId" = ${projectId} AND status = 1 AND "deletedAt" IS NULL`,
+        whereSql: `"projectId" = ${projectId} AND status = 1 AND "deletedTime" IS NULL`,
         indexName: 'project_skill_embedding_vec_idx',
       })
       if (ids?.length) {

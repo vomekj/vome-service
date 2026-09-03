@@ -102,7 +102,7 @@ const config: DefaultConfig = {
     crud: {
       /** save：有 id 则更新；insert：只插入 */
       upsert: "save",
-      /** true：删除进回收站（需 deletedAt 列） */
+      /** true：删除进回收站（需 deletedTime 列） */
       softDelete: true,
     },
   },

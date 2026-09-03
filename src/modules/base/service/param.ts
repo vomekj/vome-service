@@ -67,7 +67,7 @@ export class BaseParamService extends BaseService {
     const key = String(keyName ?? '').trim()
     if (!key) return null
     return this.paramRepo.findOne(
-      and(eq(baseParam.keyName, key), isNull(baseParam.deletedAt)),
+      and(eq(baseParam.keyName, key), isNull(baseParam.deletedTime)),
     )
   }
 
@@ -177,9 +177,7 @@ export class BaseParamService extends BaseService {
     return cur
   }
 
-  async modifyBefore(data: any, type: 'add' | 'update' | 'delete') {
-    if (type === 'delete') return
-
+  private async prepareParam(data: Record<string, unknown>, type: 'add' | 'update') {
     /** 表格内仅切换对 App 开放 */
     if (type === 'update') {
       const keys = Object.keys(data).filter(
@@ -191,25 +189,17 @@ export class BaseParamService extends BaseService {
       }
     }
 
-    if (type !== 'add' && type !== 'update') return
+    if (data.name != null) data.name = String(data.name).trim()
+    if (data.keyName != null) data.keyName = String(data.keyName).trim()
 
-    const name = String(data?.name ?? '').trim()
-    if (!name) throw new CommException('名称不能为空')
-    data.name = name
-
-    const keyName = String(data?.keyName ?? '').trim()
-    if (!keyName) throw new CommException('keyName 不能为空')
-    data.keyName = keyName
-
-    const paramType = Number(data?.type ?? 0)
+    const paramType = Number(data.type ?? 0)
     if (!PARAM_TYPES.has(paramType)) {
       throw new CommException('类型无效')
     }
     data.type = paramType
+    data.openToApp = Number(data.openToApp) === 1 ? 1 : 0
 
-    data.openToApp = Number(data?.openToApp) === 1 ? 1 : 0
-
-    const content = data?.data != null ? String(data.data).trim() : ''
+    const content = data.data != null ? String(data.data).trim() : ''
     if (!content) throw new CommException('数据不能为空')
 
     if (paramType === 3) {
@@ -228,7 +218,7 @@ export class BaseParamService extends BaseService {
       }
       data.data = JSON.stringify(parsed)
 
-      const pathsRaw = data?.appOpenPaths
+      const pathsRaw = data.appOpenPaths
       let paths: string[] = []
       if (Array.isArray(pathsRaw)) {
         paths = pathsRaw.map((v) => String(v ?? '').trim()).filter(Boolean)
@@ -252,15 +242,47 @@ export class BaseParamService extends BaseService {
       data.remark = String(data.remark).trim() || null
     }
 
-    const id = data?.id != null ? Number(data.id) : NaN
+    const keyName = String(data.keyName ?? '').trim()
+    if (!keyName) return
+
+    const id = data.id != null ? Number(data.id) : NaN
     const conds = [
       eq(baseParam.keyName, keyName),
-      isNull(baseParam.deletedAt),
+      isNull(baseParam.deletedTime),
     ]
     if (Number.isInteger(id) && id > 0) {
       conds.push(ne(baseParam.id, id))
     }
     const exists = await this.paramRepo.findOne(and(...conds))
     if (exists) throw new CommException('keyName 已存在')
+  }
+
+  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw != null && typeof raw === 'object') {
+        await this.prepareParam(raw as Record<string, unknown>, 'add')
+      }
+    }
+    return super.add(data, options)
+  }
+
+  override async update(
+    whereOrData: Parameters<BaseService['update']>[0],
+    data?: unknown,
+  ) {
+    if (data !== undefined) {
+      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
+        await this.prepareParam(data as Record<string, unknown>, 'update')
+      }
+      return super.update(whereOrData as never, data)
+    }
+    const rows = Array.isArray(whereOrData)
+      ? whereOrData
+      : [whereOrData as Record<string, unknown>]
+    for (const row of rows) {
+      await this.prepareParam(row, 'update')
+    }
+    return super.update(whereOrData)
   }
 }

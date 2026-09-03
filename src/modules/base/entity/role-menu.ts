@@ -1,5 +1,4 @@
 import { index, integer, pgTable, uniqueIndex } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 后台角色 ↔ 菜单 */
@@ -23,6 +22,4 @@ export const baseRoleMenu = columnComments(
   },
 )
 
-export type BaseRoleMenu = InferSelectModel<typeof baseRoleMenu>
-export type NewBaseRoleMenu = InferInsertModel<typeof baseRoleMenu>
 export const BaseRoleMenuSchema = entitySchemas(baseRoleMenu)

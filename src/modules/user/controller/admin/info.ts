@@ -27,9 +27,9 @@ import { UserInfoService } from '../../service/rbac'
     fieldLike: ['unionid'],
     fieldArray: [],
     fieldRange: [
-      { column: 'createdAt', min: 'startTime', max: 'endTime', type: 'day' },
+      { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
     ],
-    addOrderBy: { createdAt: 'desc' },
+    addOrderBy: { createTime: 'desc' },
   },
   listQueryOp: {
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
@@ -42,9 +42,9 @@ import { UserInfoService } from '../../service/rbac'
     fieldLike: ['unionid'],
     fieldArray: [],
     fieldRange: [
-      { column: 'createdAt', min: 'startTime', max: 'endTime', type: 'day' },
+      { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
     ],
-    addOrderBy: { createdAt: 'desc' },
+    addOrderBy: { createTime: 'desc' },
   },
 })
 export class UserInfoController extends BaseController {
@@ -52,8 +52,10 @@ export class UserInfoController extends BaseController {
   userInfoService: UserInfoService
 
   @Get('/roles', { summary: '用户角色' })
-  async roles(@Query(t.Object({ userId: t.String() })) query: { userId: string }) {
-    const roleIds = await this.userInfoService.getRoleIds(query.userId)
+  async roles(
+    @Query(t.Object({ userId: t.Numeric() })) query: { userId: number },
+  ) {
+    const roleIds = await this.userInfoService.getRoleIds(Number(query.userId))
     return this.ok(roleIds)
   }
 
@@ -66,13 +68,13 @@ export class UserInfoController extends BaseController {
   async setRoles(
     @Body(
       t.Object({
-        userId: t.String({ minLength: 1 }),
+        userId: t.Numeric(),
         roleIds: t.Array(t.Numeric()),
       }),
     )
-    body: { userId: string; roleIds: number[] },
+    body: { userId: number; roleIds: number[] },
   ) {
-    await this.userInfoService.setRoles(body.userId, body.roleIds)
+    await this.userInfoService.setRoles(Number(body.userId), body.roleIds)
     return this.ok(true)
   }
 }

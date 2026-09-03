@@ -62,12 +62,16 @@ function buildPlugins(cfg: ReturnType<typeof resolveAuthConfig>): BetterAuthPlug
         issuer: cfg.baseURL,
         audience: JWT_AUD.WEB,
         expirationTime: AuthExpires.access.jwt(),
-        definePayload: ({ user }) => ({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          tenantId: (user as { tenantId?: number | null }).tenantId ?? null,
-        }),
+        definePayload: ({ user }) => {
+          const u = user as { tenantId?: number | null; userId?: number | null }
+          const n = Number(u.userId)
+          return {
+            email: user.email,
+            name: user.name,
+            tenantId: u.tenantId ?? null,
+            userId: Number.isFinite(n) && n > 0 ? n : null,
+          }
+        },
       },
     }),
     bearer(),
@@ -139,8 +143,18 @@ function createAuthInstance(db: AuthDb, dbType: DbType) {
     }),
     emailAndPassword: { enabled: true },
     user: {
+      fields: {
+        createdAt: 'createTime',
+        updatedAt: 'updateTime',
+      },
       additionalFields: {
         tenantId: {
+          type: 'number',
+          required: false,
+          input: false,
+        },
+        /** 业务自增 ID（≠ BA id）；写入 JWT / Context.userId */
+        userId: {
           type: 'number',
           required: false,
           input: false,
@@ -160,9 +174,19 @@ function createAuthInstance(db: AuthDb, dbType: DbType) {
     },
     socialProviders: buildSocialProviders(cfg),
     account: {
+      fields: {
+        createdAt: 'createTime',
+        updatedAt: 'updateTime',
+      },
       accountLinking: {
         enabled: true,
         trustedProviders: ['github', 'google', 'wechat', 'gitee', 'steam'],
+      },
+    },
+    verification: {
+      fields: {
+        createdAt: 'createTime',
+        updatedAt: 'updateTime',
       },
     },
     plugins: buildPlugins(cfg),
@@ -210,12 +234,21 @@ export class AuthService {
       // JwtService 在 bootstrapIoc 之后才可用，请求时再取
       const payload = await Ioc.get(JwtService).web.verify(token)
       if (!payload?.sub) return null
+      const claimUid = Number(payload.userId)
+      const subNum = Number(payload.sub)
+      const userId =
+        Number.isFinite(claimUid) && claimUid > 0
+          ? claimUid
+          : Number.isFinite(subNum) && subNum > 0
+            ? subNum
+            : undefined
       return {
         kind: 'jwt' as const,
         user: {
           id: String(payload.sub),
           email: typeof payload.email === 'string' ? payload.email : undefined,
           name: typeof payload.name === 'string' ? payload.name : undefined,
+          userId,
         },
         payload,
       }

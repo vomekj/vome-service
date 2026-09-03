@@ -5,7 +5,6 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /** 语种（如简体中文 / 英语）；code 为技术键，name 为显示名，flag 为国旗 emoji */
@@ -14,10 +13,10 @@ export const i18nLang = columnComments(
     'i18n_lang',
     {
       ...baseColumns,
-      code: varchar('code', { length: 32 }).notNull(),
-      name: varchar('name', { length: 100 }).notNull(),
+      code: varchar('code').notNull(),
+      name: varchar('name').notNull(),
       /** 国旗 emoji，顶栏切换展示 */
-      flag: varchar('flag', { length: 16 }).notNull().default('🏳️'),
+      flag: varchar('flag').notNull().default('🏳️'),
       status: integer('status').notNull().default(1),
       orderNum: integer('orderNum').notNull().default(0),
     },
@@ -36,6 +35,4 @@ export const i18nLang = columnComments(
   },
 )
 
-export type I18nLang = InferSelectModel<typeof i18nLang>
-export type NewI18nLang = InferInsertModel<typeof i18nLang>
 export const I18nLangSchema = entitySchemas(i18nLang)
