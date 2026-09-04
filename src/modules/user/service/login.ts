@@ -196,7 +196,7 @@ export class UserLoginService extends BaseService {
   /** 手机号验证码登录 / 自动注册（验证码已核销即视为手机有效，只验一次） */
   async phone(phone: string) {
     let user = await this.infoRepo.findOne(
-      mustWhere(and(eq(userInfo.phone, phone), isNull(userInfo.deletedTime))),
+      mustWhere(and(eq(userInfo.phone, phone), isNull(userInfo.deleteTime))),
     )
     if (!user) {
       const tenantId = isTenantEnabled()
@@ -227,7 +227,7 @@ export class UserLoginService extends BaseService {
   /** 邮箱验证码登录 / 自动注册（验证码已核销即视为邮箱有效，只验一次） */
   async emailLogin(email: string) {
     let user = await this.infoRepo.findOne(
-      mustWhere(and(eq(userInfo.email, email), isNull(userInfo.deletedTime))),
+      mustWhere(and(eq(userInfo.email, email), isNull(userInfo.deleteTime))),
     )
     if (!user) {
       const tenantId = isTenantEnabled()
@@ -350,7 +350,7 @@ export class UserLoginService extends BaseService {
   }) {
     const unionid = wxUser.unionid || wxUser.openid
     let user = await this.infoRepo.findOne(
-      mustWhere(and(eq(userInfo.unionid, unionid), isNull(userInfo.deletedTime))),
+      mustWhere(and(eq(userInfo.unionid, unionid), isNull(userInfo.deleteTime))),
     )
     if (!user) {
       let image = wxUser.avatarUrl || null
@@ -453,13 +453,13 @@ export class UserLoginService extends BaseService {
   private async findByAccount(account: string) {
     if (isPhone(account)) {
       return this.infoRepo.findOne(
-        mustWhere(and(eq(userInfo.phone, account), isNull(userInfo.deletedTime))),
+        mustWhere(and(eq(userInfo.phone, account), isNull(userInfo.deleteTime))),
       )
     }
     if (isEmail(account)) {
       const email = account.toLowerCase()
       return this.infoRepo.findOne(
-        mustWhere(and(eq(userInfo.email, email), isNull(userInfo.deletedTime))),
+        mustWhere(and(eq(userInfo.email, email), isNull(userInfo.deleteTime))),
       )
     }
     throw new CommException('请输入正确的手机号或邮箱')
@@ -476,14 +476,14 @@ export class UserLoginService extends BaseService {
       throw new CommException('刷新token失败，请检查refreshToken是否正确或过期')
     }
     await this.cache.del(this.refreshKey(tokenHash))
-    const bizId = Number(cached.userId)
-    if (!Number.isFinite(bizId) || bizId <= 0) {
+    const { userId } = cached
+    if (!Number.isInteger(userId) || userId <= 0) {
       throw new CommException('刷新token失败，请检查refreshToken是否正确或过期')
     }
     const user = await this.infoRepo.findOne(
-      and(eq(userInfo.userId, bizId), isNull(userInfo.deletedTime)),
+      and(eq(userInfo.userId, userId), isNull(userInfo.deleteTime)),
     )
-    if (!user || user.deletedTime) throw new CommException('用户不存在')
+    if (!user || user.deleteTime) throw new CommException('用户不存在')
     this.assertActive(user)
     return this.issueTokens(user)
   }
@@ -509,9 +509,9 @@ export class UserLoginService extends BaseService {
       throw new CommException('凭证缺少业务用户ID，请重新登录')
     }
     const user = await this.infoRepo.findOne(
-      and(eq(userInfo.userId, bizId), isNull(userInfo.deletedTime)),
+      and(eq(userInfo.userId, bizId), isNull(userInfo.deleteTime)),
     )
-    if (!user || user.deletedTime) throw new CommException('用户不存在')
+    if (!user || user.deleteTime) throw new CommException('用户不存在')
     this.assertActive(user)
     return this.issueTokens(user)
   }
@@ -525,19 +525,19 @@ export class UserLoginService extends BaseService {
     userId: number
     tenantId?: number | null
   }) {
-    const businessUserId = Number(user.userId)
-    if (!Number.isFinite(businessUserId) || businessUserId <= 0) {
+    const { userId } = user
+    if (!Number.isInteger(userId) || userId <= 0) {
       throw new CommException('用户业务ID 无效')
     }
     const tenantId = user.tenantId ?? null
-    const accessToken = await this.jwt.web.sign(businessUserId, {
+    const accessToken = await this.jwt.web.sign(userId, {
       tenantId,
-      userId: businessUserId,
+      userId,
     })
     await this.token.web.store(accessToken, {
-      sub: String(businessUserId),
+      sub: String(userId),
       tenantId,
-      userId: businessUserId,
+      userId,
     })
 
     const refreshToken = this.token.create()
@@ -545,7 +545,7 @@ export class UserLoginService extends BaseService {
     await this.cache.set(
       this.refreshKey(tokenHash),
       JSON.stringify({
-        userId: businessUserId,
+        userId,
         tenantId,
       }),
       AuthExpires.refresh.ms(),

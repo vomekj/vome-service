@@ -94,8 +94,8 @@ async function findDictTypeId(db: Db, table: Table, key: string): Promise<number
   const cols = getTableColumns(table)
   if (!cols.id || !cols.key) return null
   const cond =
-    cols.deletedTime != null
-      ? and(eq(cols.key, key), isNull(cols.deletedTime))
+    cols.deleteTime != null
+      ? and(eq(cols.key, key), isNull(cols.deleteTime))
       : eq(cols.key, key)
   const rows = await db.select({ id: cols.id }).from(table).where(cond).limit(1)
   const id = rows[0]?.id
@@ -110,8 +110,8 @@ async function listDictInfoRows(
   const cols = getTableColumns(table)
   if (!cols.typeId || !cols.id) return []
   const cond =
-    cols.deletedTime != null
-      ? and(eq(cols.typeId, typeId), isNull(cols.deletedTime))
+    cols.deleteTime != null
+      ? and(eq(cols.typeId, typeId), isNull(cols.deleteTime))
       : eq(cols.typeId, typeId)
   const rows = await db
     .select({

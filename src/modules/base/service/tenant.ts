@@ -78,7 +78,7 @@ export class TenantService extends BaseService {
     if (!h) return undefined
     return noTenant(async () => {
       const rows = await this.tenantRepo.find(
-        and(eq(baseTenant.status, 1), sql`${baseTenant.deletedTime} is null`),
+        and(eq(baseTenant.status, 1), sql`${baseTenant.deleteTime} is null`),
       )
       return rows.find((row) =>
         (row.domains ?? []).some((d) => normalizeHost(d) === h),
@@ -100,7 +100,7 @@ export class TenantService extends BaseService {
   async listEnabled() {
     return noTenant(() =>
       this.tenantRepo.find(
-        and(eq(baseTenant.status, 1), sql`${baseTenant.deletedTime} is null`),
+        and(eq(baseTenant.status, 1), sql`${baseTenant.deleteTime} is null`),
       ),
     )
   }

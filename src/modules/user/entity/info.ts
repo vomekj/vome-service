@@ -42,7 +42,7 @@ export const userInfo = columnComments(
         .defaultNow()
         .$onUpdate(() => new Date()),
       /** 软删时间；null = 未删除 */
-      deletedTime: timestamp('deletedTime', { withTimezone: true }),
+      deleteTime: timestamp('deleteTime', { withTimezone: true }),
     },
     (table) => [
       uniqueIndex('user_info_user_id_uidx').on(table.userId),
@@ -68,7 +68,7 @@ export const userInfo = columnComments(
     status: '状态',
     createTime: '创建时间',
     updateTime: '更新时间',
-    deletedTime: '删除时间',
+    deleteTime: '删除时间',
   },
 )
 

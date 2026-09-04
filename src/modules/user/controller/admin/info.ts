@@ -55,7 +55,7 @@ export class UserInfoController extends BaseController {
   async roles(
     @Query(t.Object({ userId: t.Numeric() })) query: { userId: number },
   ) {
-    const roleIds = await this.userInfoService.getRoleIds(Number(query.userId))
+    const roleIds = await this.userInfoService.getRoleIds(query.userId)
     return this.ok(roleIds)
   }
 
@@ -74,7 +74,7 @@ export class UserInfoController extends BaseController {
     )
     body: { userId: number; roleIds: number[] },
   ) {
-    await this.userInfoService.setRoles(Number(body.userId), body.roleIds)
+    await this.userInfoService.setRoles(body.userId, body.roleIds)
     return this.ok(true)
   }
 }

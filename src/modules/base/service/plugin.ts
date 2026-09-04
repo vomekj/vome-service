@@ -54,7 +54,7 @@ function listSelectFields() {
     id: t.id,
     createTime: t.createTime,
     updateTime: t.updateTime,
-    deletedTime: t.deletedTime,
+    deleteTime: t.deleteTime,
     tenantId: t.tenantId,
     name: t.name,
     description: t.description,
@@ -106,8 +106,8 @@ export class PluginInfoService extends BaseService {
   private listWhere(where?: SQL, options?: CrudTrashQueryOptions) {
     let trash: SQL | undefined
     if (this.softDeleteOn(options?.softDelete)) {
-      if (options?.onlyTrashed) trash = isNotNull(basePluginInfo.deletedTime)
-      else if (!options?.withTrashed) trash = isNull(basePluginInfo.deletedTime)
+      if (options?.onlyTrashed) trash = isNotNull(basePluginInfo.deleteTime)
+      else if (!options?.withTrashed) trash = isNull(basePluginInfo.deleteTime)
     }
     const merged = where && trash ? and(trash, where) : (where ?? trash)
     return applyRowScopes(basePluginInfo, merged)

@@ -16,11 +16,11 @@ export class AppUserInfoController extends BaseController {
   person: UserPersonService
 
   private userId(): number {
-    const n = Number(
-      (Context.get() as { userId?: number } | undefined)?.userId,
-    )
-    if (!Number.isFinite(n) || n <= 0) throw new Error('未登录')
-    return n
+    const userId = Context.get()?.userId
+    if (typeof userId !== 'number' || !Number.isInteger(userId) || userId <= 0) {
+      throw new Error('未登录')
+    }
+    return userId
   }
 
   @Get('/person', { summary: '获取用户信息' })

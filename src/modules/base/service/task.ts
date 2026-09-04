@@ -23,7 +23,7 @@ export class TaskService extends BaseService {
     const id = Number(data?.id)
     if (!Number.isFinite(id)) return
     const [row] = await this.taskRepo.find(
-      and(eq(baseTask.id, id), isNull(baseTask.deletedTime)),
+      and(eq(baseTask.id, id), isNull(baseTask.deleteTime)),
     )
     if (!row) return
     if (row.status === 1) this.scheduler.schedule(row)
@@ -64,7 +64,7 @@ export class TaskService extends BaseService {
 
   async start(id: number) {
     const [row] = await this.taskRepo.find(
-      and(eq(baseTask.id, id), isNull(baseTask.deletedTime)),
+      and(eq(baseTask.id, id), isNull(baseTask.deleteTime)),
     )
     if (!row) throw new CommException('任务不存在')
     await this.taskRepo.update(eq(baseTask.id, id), { status: 1 })
@@ -74,7 +74,7 @@ export class TaskService extends BaseService {
 
   async stop(id: number) {
     const [row] = await this.taskRepo.find(
-      and(eq(baseTask.id, id), isNull(baseTask.deletedTime)),
+      and(eq(baseTask.id, id), isNull(baseTask.deleteTime)),
     )
     if (!row) throw new CommException('任务不存在')
     await this.taskRepo.update(eq(baseTask.id, id), { status: 0 })
@@ -84,7 +84,7 @@ export class TaskService extends BaseService {
   /** 立即执行一次（不改 status） */
   async runOnce(id: number) {
     const [row] = await this.taskRepo.find(
-      and(eq(baseTask.id, id), isNull(baseTask.deletedTime)),
+      and(eq(baseTask.id, id), isNull(baseTask.deleteTime)),
     )
     if (!row) throw new CommException('任务不存在')
     await this.scheduler.runOnce(id)
@@ -106,7 +106,7 @@ export class TaskService extends BaseService {
 
     const conds: SQL[] = [
       eq(baseTaskLog.taskId, taskId),
-      isNull(baseTaskLog.deletedTime),
+      isNull(baseTaskLog.deleteTime),
     ]
     if (query.status !== undefined && query.status !== '' && query.status !== null) {
       conds.push(eq(baseTaskLog.status, Number(query.status)))

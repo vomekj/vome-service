@@ -76,7 +76,7 @@ export class AiCallLogService extends BaseService {
 
   async findByRecordKey(recordKey: string) {
     const [row] = await this.logRepo.find(
-      and(eq(aiCallLog.recordKey, recordKey), isNull(aiCallLog.deletedTime)),
+      and(eq(aiCallLog.recordKey, recordKey), isNull(aiCallLog.deleteTime)),
     )
     return row ?? null
   }
@@ -96,7 +96,7 @@ export class AiCallLogService extends BaseService {
       and(
         eq(aiCallLog.mode, 'async'),
         inArray(aiCallLog.status, ['pending', 'running']),
-        isNull(aiCallLog.deletedTime),
+        isNull(aiCallLog.deleteTime),
       ),
     ).then((rows) => {
       const now = Date.now()

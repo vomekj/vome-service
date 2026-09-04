@@ -65,7 +65,7 @@ export class UserPersonService extends BaseService {
   }
 
   async person(userId: number) {
-    const where = and(eq(userInfo.userId, userId), isNull(userInfo.deletedTime))
+    const where = and(eq(userInfo.userId, userId), isNull(userInfo.deleteTime))
     if (!where) throw new CommException('查询条件无效')
     const info = await this.infoRepo.findOne(where)
     if (!info) throw new CommException('用户不存在')
@@ -98,7 +98,7 @@ export class UserPersonService extends BaseService {
 
   async updatePassword(userId: number, password: string, code: string) {
     const user = await this.infoRepo.findOne(
-      and(eq(userInfo.userId, userId), isNull(userInfo.deletedTime)),
+      and(eq(userInfo.userId, userId), isNull(userInfo.deleteTime)),
     )
     if (!user?.phone) throw new CommException('请先绑定手机号')
     const ok = await this.sms.checkCode(user.phone, code)
@@ -123,9 +123,9 @@ export class UserPersonService extends BaseService {
     if (!isPhone(raw)) throw new CommException('手机号格式不正确')
 
     const user = await this.infoRepo.findOne(
-      and(eq(userInfo.userId, userId), isNull(userInfo.deletedTime)),
+      and(eq(userInfo.userId, userId), isNull(userInfo.deleteTime)),
     )
-    if (!user || user.deletedTime) throw new CommException('用户不存在')
+    if (!user || user.deleteTime) throw new CommException('用户不存在')
 
     // 已验证且手机号未变：无需再验
     if (user.phoneVerified && user.phone === raw) {
@@ -135,7 +135,7 @@ export class UserPersonService extends BaseService {
     const ok = await this.sms.checkCode(raw, code)
     if (!ok) throw new CommException('验证码错误')
 
-    const existsWhere = and(eq(userInfo.phone, raw), isNull(userInfo.deletedTime))
+    const existsWhere = and(eq(userInfo.phone, raw), isNull(userInfo.deleteTime))
     if (!existsWhere) throw new CommException('查询条件无效')
     const exists = await this.infoRepo.findOne(existsWhere)
     if (exists && exists.userId !== userId) throw new CommException('手机号已被占用')
@@ -156,9 +156,9 @@ export class UserPersonService extends BaseService {
     if (isPlaceholderEmail(addr)) throw new CommException('请使用真实邮箱')
 
     const user = await this.infoRepo.findOne(
-      and(eq(userInfo.userId, userId), isNull(userInfo.deletedTime)),
+      and(eq(userInfo.userId, userId), isNull(userInfo.deleteTime)),
     )
-    if (!user || user.deletedTime) throw new CommException('用户不存在')
+    if (!user || user.deleteTime) throw new CommException('用户不存在')
 
     if (user.emailVerified && user.email?.toLowerCase() === addr) {
       return
@@ -167,7 +167,7 @@ export class UserPersonService extends BaseService {
     const ok = await this.email.checkCode(addr, code)
     if (!ok) throw new CommException('验证码错误')
 
-    const existsWhere = and(eq(userInfo.email, addr), isNull(userInfo.deletedTime))
+    const existsWhere = and(eq(userInfo.email, addr), isNull(userInfo.deleteTime))
     if (!existsWhere) throw new CommException('查询条件无效')
     const exists = await this.infoRepo.findOne(existsWhere)
     if (exists && exists.userId !== userId) throw new CommException('邮箱已被占用')

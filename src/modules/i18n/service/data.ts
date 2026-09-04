@@ -152,7 +152,7 @@ export class I18nDataService extends BaseService {
         eq(i18nDataField.tenantId, tenantId),
         eq(i18nDataField.tableName, tableName),
         eq(i18nDataField.status, 1),
-        isNull(i18nDataField.deletedTime),
+        isNull(i18nDataField.deleteTime),
       ),
       { orderBy: [asc(i18nDataField.id)] },
     )
@@ -205,7 +205,7 @@ export class I18nDataService extends BaseService {
         eq(i18nDataPack.tenantId, tenantId),
         eq(i18nDataPack.tableName, tableName),
         eq(i18nDataPack.langCode, code),
-        isNull(i18nDataPack.deletedTime),
+        isNull(i18nDataPack.deleteTime),
       ),
     )
     const pack = (row?.packJson as DataI18nPackMap | undefined) || {}
@@ -258,7 +258,7 @@ export class I18nDataService extends BaseService {
       eq(i18nDataField.tableName, tableName),
       eq(i18nDataField.fieldName, fieldName),
       eq(i18nDataField.tenantId, tenantId),
-      isNull(i18nDataField.deletedTime),
+      isNull(i18nDataField.deleteTime),
     ]
     if (id) conds.push(ne(i18nDataField.id, id))
     const [hit] = await this.fieldRepo.find(and(...conds))
@@ -269,7 +269,7 @@ export class I18nDataService extends BaseService {
   async listDistinctTables(): Promise<string[]> {
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const rows = await this.fieldRepo.find(
-      and(eq(i18nDataField.tenantId, tenantId), isNull(i18nDataField.deletedTime)),
+      and(eq(i18nDataField.tenantId, tenantId), isNull(i18nDataField.deleteTime)),
     )
     const set = new Set(rows.map((r) => r.tableName).filter(Boolean))
     for (const t of listDataI18nTables()) set.add(t)
@@ -481,7 +481,7 @@ export class I18nDataService extends BaseService {
         body.langName ||
         (
           await this.langRepo.find(
-            and(eq(i18nLang.code, langCode), isNull(i18nLang.deletedTime)),
+            and(eq(i18nLang.code, langCode), isNull(i18nLang.deleteTime)),
           )
         )[0]?.name ||
         langCode
@@ -972,7 +972,7 @@ export class I18nDataService extends BaseService {
     const code = String(model || '').trim()
     if (code) return code
     const [row] = await this.modelRepo.find(
-      and(eq(aiModel.status, 1), isNull(aiModel.deletedTime)),
+      and(eq(aiModel.status, 1), isNull(aiModel.deleteTime)),
     )
     if (!row?.code) throw new CommException('未配置可用 AI 模型')
     return row.code
@@ -994,7 +994,7 @@ export class I18nDataService extends BaseService {
       { withTrashed: true },
     )
     if (existing) {
-      if (existing.deletedTime) {
+      if (existing.deleteTime) {
         await this.packRepo.restore(eq(i18nDataPack.id, existing.id))
       }
       await this.packRepo.update(eq(i18nDataPack.id, existing.id), {

@@ -26,7 +26,7 @@ export const baseTenant = columnComments(
         .notNull()
         .defaultNow()
         .$onUpdate(() => new Date()),
-      deletedTime: timestamp('deletedTime', { withTimezone: true }),
+      deleteTime: timestamp('deleteTime', { withTimezone: true }),
       name: varchar('name').notNull(),
       code: varchar('code').notNull(),
       /** 绑定域名列表（小写、无端口） */

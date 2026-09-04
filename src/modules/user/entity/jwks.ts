@@ -18,7 +18,7 @@ export const userJwks = columnComments(
     alg: varchar('alg'),
     crv: varchar('crv'),
     tenantId: integer('tenantId'),
-    deletedTime: timestamp('deletedTime', { withTimezone: true }),
+    deleteTime: timestamp('deleteTime', { withTimezone: true }),
   }),
   {
     id: 'ID',
@@ -30,7 +30,7 @@ export const userJwks = columnComments(
     alg: '算法',
     crv: '曲线',
     tenantId: '租户',
-    deletedTime: '删除时间',
+    deleteTime: '删除时间',
   },
 )
 

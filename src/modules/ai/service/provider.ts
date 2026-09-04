@@ -38,7 +38,7 @@ export class AiProviderService extends BaseService {
           const [row] = await this.providerRepo.find(
             and(
               eq(aiProvider.id, Number(data.id)),
-              isNull(aiProvider.deletedTime),
+              isNull(aiProvider.deleteTime),
             ),
           )
           if (!row?.apiKey) throw new CommException('API 密钥不能为空')
@@ -99,7 +99,7 @@ export class AiProviderService extends BaseService {
   /** Gateway 用：解密密钥 */
   async getDecrypted(id: number) {
     const [row] = await this.providerRepo.find(
-      and(eq(aiProvider.id, id), isNull(aiProvider.deletedTime)),
+      and(eq(aiProvider.id, id), isNull(aiProvider.deleteTime)),
     )
     if (!row) throw new CommException('AI 连接不存在')
     return {

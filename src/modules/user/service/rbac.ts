@@ -23,9 +23,8 @@ export class UserPermissionService extends BaseService {
    * @param userId 业务自增 user_info.userId
    */
   async getUserAuthz(userId: number): Promise<UserAuthz> {
-    const uid = Number(userId)
-    if (!Number.isFinite(uid) || uid <= 0) return { perms: [], openAll: true }
-    const links = await this.infoRoleRepo.find(eq(userInfoRole.userId, uid))
+    if (!Number.isInteger(userId) || userId <= 0) return { perms: [], openAll: true }
+    const links = await this.infoRoleRepo.find(eq(userInfoRole.userId, userId))
     if (!links.length) return { perms: [], openAll: true }
 
     const roleIds = links.map((l) => l.roleId)
@@ -33,7 +32,7 @@ export class UserPermissionService extends BaseService {
       and(
         inArray(userRole.id, roleIds),
         eq(userRole.status, 1),
-        isNull(userRole.deletedTime),
+        isNull(userRole.deleteTime),
       ),
     )
     if (!roles.length) return { perms: [], openAll: false }
@@ -198,8 +197,8 @@ export class UserInfoService extends BaseService {
     if (!baIds.length) return
     const users = await this.infoRepo.find(inArray(userInfo.id, baIds))
     const serialIds = users
-      .map((u) => Number(u.userId))
-      .filter((id) => Number.isFinite(id) && id > 0)
+      .map((u) => u.userId)
+      .filter((id): id is number => typeof id === 'number' && Number.isInteger(id) && id > 0)
     if (!serialIds.length) return
     await this.infoRoleRepo.forceDelete(inArray(userInfoRole.userId, serialIds))
   }
@@ -228,8 +227,8 @@ export class UserInfoService extends BaseService {
 
   /** 业务 userId → 角色名（逗号分隔） */
   async buildRoleNameMap() {
-    const links = await this.infoRoleRepo.find(isNull(userInfoRole.deletedTime))
-    const roles = await this.roleRepo.find(isNull(userRole.deletedTime))
+    const links = await this.infoRoleRepo.find(isNull(userInfoRole.deleteTime))
+    const roles = await this.roleRepo.find(isNull(userRole.deleteTime))
     const roleName = new Map(roles.map((r) => [r.id, r.name]))
     const map: Record<string, string> = {}
     for (const link of links) {

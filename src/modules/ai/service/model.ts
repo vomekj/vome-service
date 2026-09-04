@@ -60,7 +60,7 @@ export class AiModelService extends BaseService {
     const conds = [
       eq(aiModel.code, code),
       eq(aiModel.tenantId, tenantId),
-      isNull(aiModel.deletedTime),
+      isNull(aiModel.deleteTime),
     ]
     if (id != null) conds.push(ne(aiModel.id, id))
     const [hit] = await this.modelRepo.find(and(...conds))
@@ -142,7 +142,7 @@ export class AiModelService extends BaseService {
         eq(aiModel.code, code),
         eq(aiModel.tenantId, tenantId),
         eq(aiModel.status, 1),
-        isNull(aiModel.deletedTime),
+        isNull(aiModel.deleteTime),
       ),
     )
     return row

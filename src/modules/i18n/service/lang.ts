@@ -24,7 +24,7 @@ export class I18nLangService extends BaseService {
     const conds = [
       eq(i18nLang.code, code),
       eq(i18nLang.tenantId, tenantId),
-      isNull(i18nLang.deletedTime),
+      isNull(i18nLang.deleteTime),
     ]
     if (id != null) conds.push(ne(i18nLang.id, id))
     const [hit] = await this.langRepo.find(and(...conds))
@@ -95,7 +95,7 @@ export class I18nLangService extends BaseService {
   /** 启用语种；按语种 id 升序 */
   async listEnabled() {
     return this.langRepo.find(
-      and(eq(i18nLang.status, 1), isNull(i18nLang.deletedTime)),
+      and(eq(i18nLang.status, 1), isNull(i18nLang.deleteTime)),
       { orderBy: [asc(i18nLang.id)] },
     )
   }

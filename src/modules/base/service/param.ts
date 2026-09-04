@@ -67,7 +67,7 @@ export class BaseParamService extends BaseService {
     const key = String(keyName ?? '').trim()
     if (!key) return null
     return this.paramRepo.findOne(
-      and(eq(baseParam.keyName, key), isNull(baseParam.deletedTime)),
+      and(eq(baseParam.keyName, key), isNull(baseParam.deleteTime)),
     )
   }
 
@@ -248,7 +248,7 @@ export class BaseParamService extends BaseService {
     const id = data.id != null ? Number(data.id) : NaN
     const conds = [
       eq(baseParam.keyName, keyName),
-      isNull(baseParam.deletedTime),
+      isNull(baseParam.deleteTime),
     ]
     if (Number.isInteger(id) && id > 0) {
       conds.push(ne(baseParam.id, id))

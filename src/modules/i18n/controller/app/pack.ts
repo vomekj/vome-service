@@ -20,10 +20,11 @@ export class AppI18nPackController extends BaseController {
   @Inject()
   i18nPack: I18nPackService
 
-  private requireUserId() {
-    const ctx = Context.get() as { userId?: string | number | null } | null
-    const userId = ctx?.userId != null ? String(ctx.userId) : ''
-    if (!userId) throw new Error('未登录')
+  private requireUserId(): number {
+    const userId = Context.get()?.userId
+    if (typeof userId !== 'number' || !Number.isInteger(userId) || userId <= 0) {
+      throw new Error('未登录')
+    }
     return userId
   }
 

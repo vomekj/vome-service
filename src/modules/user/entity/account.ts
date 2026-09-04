@@ -42,7 +42,7 @@ export const userAccount = columnComments(
         .defaultNow()
         .$onUpdate(() => new Date()),
       tenantId: integer('tenantId'),
-      deletedTime: timestamp('deletedTime', { withTimezone: true }),
+      deleteTime: timestamp('deleteTime', { withTimezone: true }),
     },
     (table) => [
       index('user_account_user_id_idx').on(table.userId),
@@ -64,7 +64,7 @@ export const userAccount = columnComments(
     createTime: '创建时间',
     updateTime: '更新时间',
     tenantId: '租户',
-    deletedTime: '删除时间',
+    deleteTime: '删除时间',
   },
 )
 

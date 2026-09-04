@@ -178,7 +178,7 @@ export class I18nPackService extends BaseService {
     } else {
       const id = Number(data.id)
       const [old] = await this.packRepo.find(
-        and(eq(i18nPack.id, id), isNull(i18nPack.deletedTime)),
+        and(eq(i18nPack.id, id), isNull(i18nPack.deleteTime)),
       )
       if (old) {
         data.version = Number(old.version || 1) + 1
@@ -214,7 +214,7 @@ export class I18nPackService extends BaseService {
       { withTrashed: true },
     )
 
-    if (existing?.deletedTime) {
+    if (existing?.deleteTime) {
       await this.packRepo.restore(eq(i18nPack.id, existing.id))
       await this.packRepo.update(eq(i18nPack.id, existing.id), {
         packJson: payload.packJson,
@@ -269,7 +269,7 @@ export class I18nPackService extends BaseService {
       eq(i18nPack.langCode, langCode),
       eq(i18nPack.scopeType, scopeType),
       eq(i18nPack.scopeKey, scopeKey),
-      isNull(i18nPack.deletedTime),
+      isNull(i18nPack.deleteTime),
     ]
     if (id != null) conds.push(ne(i18nPack.id, id))
     const [hit] = await this.packRepo.find(and(...conds))
@@ -288,12 +288,12 @@ export class I18nPackService extends BaseService {
     if (!s) return []
     const out = [s]
     const [byKey] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deletedTime)),
+      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deleteTime)),
     )
     const name = String(byKey?.name || '').trim()
     if (name && name !== s) out.push(name)
     const [byName] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deletedTime)),
+      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deleteTime)),
     )
     const key = String(byName?.keyName || '').trim()
     if (key && key !== s) out.push(key)
@@ -305,11 +305,11 @@ export class I18nPackService extends BaseService {
     const s = String(raw || '').trim()
     if (!s) return s
     const [byKey] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deletedTime)),
+      and(eq(basePluginInfo.keyName, s), isNull(basePluginInfo.deleteTime)),
     )
     if (byKey) return s
     const [byName] = await this.pluginRepo.find(
-      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deletedTime)),
+      and(eq(basePluginInfo.name, s), isNull(basePluginInfo.deleteTime)),
     )
     const key = String(byName?.keyName || '').trim()
     return key || s
@@ -333,7 +333,7 @@ export class I18nPackService extends BaseService {
           eq(i18nPack.langCode, opts.langCode),
           eq(i18nPack.scopeType, scope.scopeType),
           eq(i18nPack.scopeKey, scopeKey),
-          isNull(i18nPack.deletedTime),
+          isNull(i18nPack.deleteTime),
         ),
       )
       if (row) return row
@@ -370,7 +370,7 @@ export class I18nPackService extends BaseService {
       and(
         eq(i18nPack.scopeType, 'host'),
         eq(i18nPack.scopeKey, scope.scopeKey),
-        isNull(i18nPack.deletedTime),
+        isNull(i18nPack.deleteTime),
       ),
     )
     return this.buildLocaleOptions(rows)
@@ -392,7 +392,7 @@ export class I18nPackService extends BaseService {
         eq(i18nPack.tenantId, tenantId),
         eq(i18nPack.scopeType, 'plugin'),
         inArray(i18nPack.scopeKey, scopeKeys),
-        isNull(i18nPack.deletedTime),
+        isNull(i18nPack.deleteTime),
       ),
     )
     return this.buildLocaleOptions(rows)
@@ -409,7 +409,7 @@ export class I18nPackService extends BaseService {
     if (!codeSet.size) {
       return [{ code: 'zh-CN', name: '简体中文', flag: '🇨🇳' }]
     }
-    const langRows = await this.langRepo.find(isNull(i18nLang.deletedTime), {
+    const langRows = await this.langRepo.find(isNull(i18nLang.deleteTime), {
       orderBy: [asc(i18nLang.id)],
     })
     const out: Array<{ code: string; name: string; flag: string }> = []
@@ -433,7 +433,7 @@ export class I18nPackService extends BaseService {
 
   /** 菜单可见节点写入 menu.{id} */
   async collectMenuLabels(): Promise<Record<string, string>> {
-    const rows = await this.menuRepo.find(isNull(baseMenu.deletedTime), {
+    const rows = await this.menuRepo.find(isNull(baseMenu.deleteTime), {
       orderBy: [asc(baseMenu.orderNum), asc(baseMenu.id)],
     })
     const out: Record<string, string> = {}
@@ -660,7 +660,7 @@ export class I18nPackService extends BaseService {
       and(
         eq(aiModel.tenantId, tenantId),
         eq(aiModel.status, 1),
-        isNull(aiModel.deletedTime),
+        isNull(aiModel.deleteTime),
       ),
       { orderBy: [desc(aiModel.id)] },
     )
@@ -762,7 +762,7 @@ export class I18nPackService extends BaseService {
           and(
             eq(i18nLang.tenantId, tenantId),
             eq(i18nLang.code, langCode),
-            isNull(i18nLang.deletedTime),
+            isNull(i18nLang.deleteTime),
           ),
         )
         langName = lang?.name || langCode
@@ -990,7 +990,7 @@ export class I18nPackService extends BaseService {
     )
     const sourceHash = hashLocaleJson(packJson)
     if (existing) {
-      if (existing.deletedTime) {
+      if (existing.deleteTime) {
         await this.packRepo.restore(eq(i18nPack.id, existing.id))
       }
       await this.packRepo.update(eq(i18nPack.id, existing.id), {

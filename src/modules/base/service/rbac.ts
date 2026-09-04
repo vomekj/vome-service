@@ -16,7 +16,7 @@ export class MenuService extends BaseService {
   menuRepo: Repository<typeof baseMenu>
 
   async listAll() {
-    return this.menuRepo.find(isNull(baseMenu.deletedTime))
+    return this.menuRepo.find(isNull(baseMenu.deleteTime))
   }
 
   /** 删除菜单后级联删子孙（parentId 树）；软删/彻底删共用 */
@@ -196,8 +196,8 @@ export class AdminUserService extends BaseService {
 
   /** userId → 角色名（逗号分隔） */
   async buildRoleNameMap() {
-    const links = await this.userRoleRepo.find(isNull(baseUserRole.deletedTime))
-    const roles = await this.roleRepo.find(isNull(baseRole.deletedTime))
+    const links = await this.userRoleRepo.find(isNull(baseUserRole.deleteTime))
+    const roles = await this.roleRepo.find(isNull(baseRole.deleteTime))
     const roleName = new Map(roles.map((r) => [r.id, r.name]))
     const map: Record<string, string> = {}
     for (const link of links) {
@@ -221,7 +221,7 @@ export class AdminUserService extends BaseService {
     }
 
     const [to] = await this.userRepo.find(
-      and(eq(baseUser.id, toUserId), isNull(baseUser.deletedTime)),
+      and(eq(baseUser.id, toUserId), isNull(baseUser.deleteTime)),
     )
     if (!to || to.status !== 1) {
       throw new CommException('目标用户不存在或已禁用')
@@ -237,7 +237,7 @@ export class AdminUserService extends BaseService {
     if (!ids.length) throw new CommException('请选择用户')
 
     const [dept] = await this.deptRepo.find(
-      and(eq(baseDepartment.id, departmentId), isNull(baseDepartment.deletedTime)),
+      and(eq(baseDepartment.id, departmentId), isNull(baseDepartment.deleteTime)),
     )
     if (!dept) throw new CommException('部门不存在')
 
