@@ -155,8 +155,8 @@
       }
     },
     {
-      "name": "是否",
-      "key": "yes_no",
+      "name": "是否(布尔)",
+      "key": "yes_no_boolean",
       "@childDatas": {
         "base_dict_info": [
           {
@@ -198,7 +198,7 @@
     },
     {
       "name": "是否(0/1)",
-      "key": "base_yes_no",
+      "key": "yes_no_number",
       "@childDatas": {
         "base_dict_info": [
           {

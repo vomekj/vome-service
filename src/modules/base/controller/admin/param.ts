@@ -11,7 +11,7 @@ const paramQueryOp: QueryOp = {
   keyWordLikeFields: ['name', 'keyName'],
   fieldEq: [
     { column: 'type', dict: 'base_param_type' },
-    { column: 'openToApp', dict: 'base_yes_no' },
+    { column: 'openToApp', dict: 'yes_no_number' },
   ],
   fieldLike: ['remark'],
   fieldArray: [],

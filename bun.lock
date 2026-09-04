@@ -1668,6 +1668,16 @@
       },
       "sha512-IDw48K2/2kRkg9LdJxurvq3lV3aBgq0REY89duEqFRthjlPdXHKMj7EnQOXVckxzgisinf3nHfrcE2FufFLXMw=="
     ],
+    "browser-image-compression": [
+      "browser-image-compression@2.0.2",
+      "",
+      {
+        "dependencies": {
+          "uzip": "0.20201231.0"
+        }
+      },
+      "sha512-pBLlQyUf6yB8SmmngrcOw3EoS4RpQ1BcylI3T9Yqn7+4nrQTXJD4sJDe5ODnJdrvNMaio5OicFo75rDyJD2Ucw=="
+    ],
     "buffer-from": [
       "buffer-from@1.1.2",
       "https://registry.npmmirror.com/buffer-from/-/buffer-from-1.1.2.tgz",
@@ -3922,6 +3932,12 @@
         }
       },
       "sha512-kZf/K6hEIrWHI6XqOFUiiMa+79wE/D8Q+NCNAWclkyg3b4d2k7s0QGepNjiABc+aR3N1PAyHL7p6UcLY6LmrnA=="
+    ],
+    "uzip": [
+      "uzip@0.20201231.0",
+      "",
+      {},
+      "sha512-OZeJfZP+R0z9D6TmBgLq2LHzSSptGMGDGigGiEe0pr8UBe/7fdflgHlHBNDASTXB5jnFuxHpNaJywSg8YFeGng=="
     ],
     "validator": [
       "validator@13.15.35",

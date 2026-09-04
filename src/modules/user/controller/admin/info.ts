@@ -20,8 +20,8 @@ import { UserInfoService } from '../../service/rbac'
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'user_status' },
-      { column: 'emailVerified', dict: 'yes_no' },
-      { column: 'phoneVerified', dict: 'yes_no' },
+      { column: 'emailVerified', dict: 'yes_no_boolean' },
+      { column: 'phoneVerified', dict: 'yes_no_boolean' },
       'tenantId',
     ],
     fieldLike: ['unionid'],
@@ -35,8 +35,8 @@ import { UserInfoService } from '../../service/rbac'
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'user_status' },
-      { column: 'emailVerified', dict: 'yes_no' },
-      { column: 'phoneVerified', dict: 'yes_no' },
+      { column: 'emailVerified', dict: 'yes_no_boolean' },
+      { column: 'phoneVerified', dict: 'yes_no_boolean' },
       'tenantId',
     ],
     fieldLike: ['unionid'],
