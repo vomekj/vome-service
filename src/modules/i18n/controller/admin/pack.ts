@@ -23,12 +23,12 @@ import {
   pageQueryOp: {
     keyWordLikeFields: ['langCode', 'scopeKey', 'remark'],
     fieldEq: ['langCode', 'scopeKey'],
-    addOrderBy: { id: 'desc' },
+    addOrderBy: { scopeKey: 'asc', langCode: 'asc' },
   },
   listQueryOp: {
     keyWordLikeFields: ['langCode', 'scopeKey'],
     fieldEq: ['langCode', 'scopeKey'],
-    addOrderBy: { id: 'desc' },
+    addOrderBy: { scopeKey: 'asc', langCode: 'asc' },
   },
 })
 export class I18nPackController extends BaseController {
@@ -70,7 +70,7 @@ export class I18nPackController extends BaseController {
     return this.ok(await this.i18nPack.buildHostSource(key))
   }
 
-  @Post('/ensureHostZh', { summary: '同步语言包（宿主+全部插件原始包）' })
+  @Post('/ensureHostZh', { summary: '同步语言包（宿主+全部插件源语言包，system.lang）' })
   async ensureHostZh() {
     return this.ok(await this.i18nPack.syncAllZhSources())
   }

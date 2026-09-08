@@ -1,23 +1,51 @@
+import type { CrudModifyType } from '@core/server'
 import { and, asc, eq, isNull, ne } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
   Context,
+  Inject,
   InjectRepository,
   Provide,
   type Repository,
 } from '@core/server'
+import { PluginInfoService } from '../../base/service/plugin'
+import {
+  transferRemoteImage,
+  type UploadDownPlugin,
+} from '../../../utils/transfer-remote-image'
 import { i18nLang } from '../entity/lang'
+
+const FLAG_PREFIX = 'app/public/i18n/lang-flag'
+
+type UploadPlugin = UploadDownPlugin
 
 function normalizeTenantId(raw: unknown): number {
   const n = Number(raw)
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+function trimStr(raw: unknown) {
+  return String(raw ?? '').trim()
+}
+
 @Provide()
 export class I18nLangService extends BaseService {
   @InjectRepository(i18nLang)
   langRepo: Repository<typeof i18nLang>
+
+  @Inject()
+  plugin: PluginInfoService
+
+  /** 外链图片转存到本桶；非 http 原样返回 */
+  private async transferFlagImage(raw: string): Promise<string> {
+    return transferRemoteImage({
+      getPlugin: async () =>
+        (await this.plugin.getInstance('upload')) as UploadPlugin,
+      raw,
+      prefixPath: FLAG_PREFIX,
+    })
+  }
 
   private async assertCodeUnique(code: string, id?: number) {
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
@@ -31,7 +59,10 @@ export class I18nLangService extends BaseService {
     if (hit) throw new CommException(`语种编码「${code}」已存在`)
   }
 
-  private async prepareLang(data: Record<string, unknown>, type: 'add' | 'update') {
+  private async prepareLang(
+    data: Record<string, unknown>,
+    type: 'add' | 'update',
+  ) {
     data.tenantId = normalizeTenantId(
       data.tenantId ?? Context.get()?.tenantId,
     )
@@ -44,59 +75,50 @@ export class I18nLangService extends BaseService {
       if (!hasCode && !hasName && !hasFlag) return
 
       if (hasCode) {
-        const code = String(data.code ?? '').trim()
+        const code = trimStr(data.code)
         data.code = code
         await this.assertCodeUnique(code, Number(data.id))
       }
       if (hasName) {
-        data.name = String(data.name ?? '').trim()
+        data.name = trimStr(data.name)
       }
       if (hasFlag) {
-        data.flag = String(data.flag ?? '').trim() || '🏳️'
+        let flag = trimStr(data.flag)
+        if (flag) flag = await this.transferFlagImage(flag)
+        data.flag = flag
       }
       return
     }
 
-    if (data.code != null) data.code = String(data.code).trim()
-    if (data.name != null) data.name = String(data.name).trim()
-    data.flag = String(data.flag ?? '').trim() || '🏳️'
+    if (data.code != null) data.code = trimStr(data.code)
+    if (data.name != null) data.name = trimStr(data.name)
+    if (data.flag != null) {
+      let flag = trimStr(data.flag)
+      if (flag) flag = await this.transferFlagImage(flag)
+      data.flag = flag
+    } else {
+      data.flag = ''
+    }
     await this.assertCodeUnique(String(data.code ?? ''))
   }
 
-  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
-      if (raw != null && typeof raw === 'object') {
-        await this.prepareLang(raw as Record<string, unknown>, 'add')
-      }
+      if (raw == null || typeof raw !== 'object') continue
+      await this.prepareLang(
+        raw as Record<string, unknown>,
+        type as 'add' | 'update',
+      )
     }
-    return super.add(data, options)
   }
 
-  override async update(
-    whereOrData: Parameters<BaseService['update']>[0],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        await this.prepareLang(data as Record<string, unknown>, 'update')
-      }
-      return super.update(whereOrData as never, data)
-    }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      await this.prepareLang(row, 'update')
-    }
-    return super.update(whereOrData)
-  }
-
-  /** 启用语种；按语种 id 升序 */
+  /** C 端：启用中语种（按语种编码排序） */
   async listEnabled() {
     return this.langRepo.find(
       and(eq(i18nLang.status, 1), isNull(i18nLang.deleteTime)),
-      { orderBy: [asc(i18nLang.id)] },
+      { orderBy: [asc(i18nLang.code)] },
     )
   }
 }

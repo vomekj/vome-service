@@ -10,15 +10,13 @@ const config: DefaultConfig = {
   system: {
     /** HTTP 端口；占用时自动换端口 */
     port: availablePort(3000),
+    /** 源语言（业务原文 / 语言包源语种） */
+    lang: "zh-CN",
     /**
-     * C 端语言包 origin
-     * 源包在各自 src/locales/；HTTP：web → /locales/…；uniapp → /static/locales/…
-     * 是否同步由 vome.eps 控制
+     * dataI18n 混合文本抽词规则（RegExp 或 `/pattern/flags` / 裸 pattern）
+     * 不配则无法抽词翻译；中文源例 /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/g
      */
-    localeOrigins: {
-      web: "http://127.0.0.1:9900",
-      uniapp: "http://127.0.0.1:6600",
-    },
+    langReplace: "/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/g",
   },
   openapi: {
     enable: true,

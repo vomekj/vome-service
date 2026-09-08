@@ -6,6 +6,7 @@ import {
   InjectRepository,
   Provide,
   type CrudDeleteOptions,
+  type CrudDeleteWhere,
   type Repository,
 } from '@core/server'
 import type { DictDataResult, DictInfoItem } from '../../../../typings/base/dict'
@@ -71,7 +72,7 @@ export class DictTypeService extends BaseService {
 
   /** CRUD 传入 id[]；删前查关联条目 */
   private resolveIdWhere(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     idCol: typeof baseDictType.id | typeof baseDictInfo.id,
   ): SQL | undefined {
     if (
@@ -104,7 +105,7 @@ export class DictTypeService extends BaseService {
 
   /** 有条目时禁止删字典名；先清空条目再删（软删 / 硬删共用） */
   async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     options?: CrudDeleteOptions,
   ) {
     const where = this.resolveIdWhere(whereOrIds, baseDictType.id)
@@ -263,7 +264,7 @@ export class DictInfoService extends BaseService {
 
   /** 删除条目后级联删子节点（parentId 树）；软删/彻底删共用本方法 */
   async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     options?: CrudDeleteOptions,
   ) {
     const where = this.resolveInfoIdWhere(whereOrIds)
@@ -278,7 +279,7 @@ export class DictInfoService extends BaseService {
   }
 
   private resolveInfoIdWhere(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
   ): SQL | undefined {
     if (
       whereOrIds &&

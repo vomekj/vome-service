@@ -1,3 +1,4 @@
+import type { CrudModifyType } from '@core/server'
 import { and, eq, isNull, ne } from 'drizzle-orm'
 import {
   BaseService,
@@ -106,33 +107,13 @@ export class AiModelService extends BaseService {
     }
   }
 
-  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
-      if (raw != null && typeof raw === 'object') {
-        await this.prepareModel(raw as Record<string, unknown>, 'add')
-      }
+      if (raw == null || typeof raw !== 'object') continue
+      await this.prepareModel(raw as Record<string, unknown>, type as 'add' | 'update')
     }
-    return super.add(data, options)
-  }
-
-  override async update(
-    whereOrData: Parameters<BaseService['update']>[0],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        await this.prepareModel(data as Record<string, unknown>, 'update')
-      }
-      return super.update(whereOrData as never, data)
-    }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      await this.prepareModel(row, 'update')
-    }
-    return super.update(whereOrData)
   }
 
   async findEnabledByCode(code: string) {

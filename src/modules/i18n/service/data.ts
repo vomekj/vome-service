@@ -12,10 +12,12 @@ import {
   extractJsonObject,
   getColumnComments,
   getRepository,
+  getSourceLang,
   hasChinese,
   Inject,
   InjectRepository,
   Ioc,
+  isSourceLang,
   Provide,
   registerDataI18nApplier,
   registerDataI18nFieldLoader,
@@ -28,6 +30,10 @@ import {
   type Repository,
 } from '@core/server'
 import { AiGateway } from '../../ai/service/gateway'
+import {
+  I18N_DATA_TRANSLATE_SYSTEM,
+  i18nDataTranslateUserContent,
+} from '../lib/ai-translate-prompt'
 import { aiModel } from '../../ai/entity/model'
 import { i18nLang } from '../entity/lang'
 import { i18nDataField } from '../entity/data-field'
@@ -441,6 +447,13 @@ export class I18nDataService extends BaseService {
       if (!langCode) {
         throw new CommException('目标语种不能为空')
       }
+      const srcLang = getSourceLang()
+      if (!srcLang) {
+        throw new CommException('未配置 system.lang（源语言）')
+      }
+      if (isSourceLang(langCode)) {
+        throw new CommException(`${srcLang} 为源语言，无需 AI 翻译`)
+      }
 
       const enabled = (await this.listEnabledFields(tableName)).filter(
         (f) => f.mode === 'direct',
@@ -591,12 +604,16 @@ export class I18nDataService extends BaseService {
                 messages: [
                   {
                     role: 'system',
-                    content:
-                      'You are a professional game/item name translator. Translate ONLY the Chinese string values in the JSON object. Keep keys unchanged. Do not translate Latin letters, numbers, or symbols. Output a single JSON object only.',
+                    content: I18N_DATA_TRANSLATE_SYSTEM,
                   },
                   {
                     role: 'user',
-                    content: `Translate these Chinese fragments from Simplified Chinese (zh-CN) into ${langName} (${langCode}). Return JSON with the same keys.\n\n${JSON.stringify(payload, null, 2)}`,
+                    content: i18nDataTranslateUserContent({
+                      sourceLangCode: srcLang,
+                      langName,
+                      langCode,
+                      payloadJson: JSON.stringify(payload, null, 2),
+                    }),
                   },
                 ],
               },
@@ -807,9 +824,13 @@ export class I18nDataService extends BaseService {
     const pgTable = this.tableMap().get(table)
     const comments = pgTable ? getColumnComments(pgTable) : {}
     const pack = (await this.loadPackMap(table, code)) || {}
-    const refCode = String(sourceLangCode || 'zh-CN').trim() || 'zh-CN'
+    const srcLang = getSourceLang()
+    if (!srcLang) {
+      throw new CommException('未配置 system.lang（源语言）')
+    }
+    const refCode = String(sourceLangCode || srcLang).trim() || srcLang
     const sourcePack =
-      !refCode || refCode === 'zh-CN'
+      refCode === srcLang
         ? await this.loadSourceTextMap(table)
         : refCode === code
           ? pack
@@ -850,7 +871,7 @@ export class I18nDataService extends BaseService {
     return { fields, list }
   }
 
-  /** 业务表当前库内原文（中文源），供语言 Tab「原数据」列 */
+  /** 业务表当前库内原文（system.lang 源），供语言 Tab「原数据」列 */
   private async loadSourceTextMap(
     tableName: string,
   ): Promise<DataI18nPackMap> {

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { and, asc, desc, eq, getTableName, inArray, isNull, ne } from 'drizzle-orm'
+import type { CrudAddData, CrudModifyType, CrudWriteOptions } from '@core/server'
 import {
   BaseService,
   CommException,
@@ -13,6 +14,8 @@ import {
   pModulesPath,
   listColumnCommentTables,
   getColumnComments,
+  getSourceLang,
+  isSourceLang,
   type Repository,
 } from '@core/server'
 import { AiGateway } from '../../ai/service/gateway'
@@ -21,6 +24,10 @@ import { baseMenu } from '../../base/entity/menu'
 import { basePluginInfo } from '../../base/entity/plugin-info'
 import { i18nLang } from '../entity/lang'
 import { i18nPack } from '../entity/pack'
+import {
+  I18N_UI_TRANSLATE_SYSTEM,
+  i18nUiTranslateUserContent,
+} from '../lib/ai-translate-prompt'
 import {
   extractJsonObject,
   flattenLocale,
@@ -36,16 +43,27 @@ export type HostScopeKey = (typeof HOST_SCOPE_KEYS)[number]
 const FRONT_SCOPE_KEYS = ['web', 'uniapp'] as const
 type FrontScopeKey = (typeof FRONT_SCOPE_KEYS)[number]
 
-/** web / uniapp：HTTP 路径（源文件均在各自 src/locales/，由 Vite 挂出） */
-const FRONT_LOCALE_PATH: Record<FrontScopeKey, string> = {
-  web: '/locales/zh-CN.json',
-  uniapp: '/static/locales/zh-CN.json',
+function requireSourceLang(): string {
+  const lang = getSourceLang()
+  if (!lang) {
+    throw new CommException('未配置 system.lang（源语言）')
+  }
+  return lang
+}
+
+function sourceLocaleFile(): string {
+  return `${requireSourceLang()}.json`
+}
+
+function frontLocalePath(scopeKey: FrontScopeKey): string {
+  const file = sourceLocaleFile()
+  return scopeKey === 'web' ? `/locales/${file}` : `/static/locales/${file}`
 }
 
 function frontLocaleUrl(scopeKey: FrontScopeKey): string | null {
   const origin = localeOriginOf(scopeKey)
   if (!origin) return null
-  return `${origin}${FRONT_LOCALE_PATH[scopeKey]}`
+  return `${origin}${frontLocalePath(scopeKey)}`
 }
 
 export function isHostScopeKey(key: string): key is HostScopeKey {
@@ -73,12 +91,13 @@ function localeOriginOf(scopeKey: FrontScopeKey): string {
 }
 
 /** admin 磁盘源包候选（cwd=service → ../admin） */
-function adminZhCandidates(): string[] {
+function adminSourceCandidates(): string[] {
   const cwd = process.cwd()
+  const file = sourceLocaleFile()
   return [
-    join(cwd, '..', 'admin', 'locales', 'zh-CN.json'),
-    join(cwd, 'admin', 'locales', 'zh-CN.json'),
-    join(cwd, 'locales', 'zh-CN.json'),
+    join(cwd, '..', 'admin', 'locales', file),
+    join(cwd, 'admin', 'locales', file),
+    join(cwd, 'locales', file),
   ]
 }
 
@@ -159,7 +178,7 @@ export class I18nPackService extends BaseService {
     }
     data.packJson = packJson
     const explicitSourceHash = String(data.sourceHash ?? '').trim()
-    if (langCode === 'zh-CN') {
+    if (isSourceLang(langCode)) {
       data.sourceHash = hashLocaleJson(packJson as Record<string, unknown>)
     } else if (explicitSourceHash) {
       data.sourceHash = explicitSourceHash
@@ -190,7 +209,7 @@ export class I18nPackService extends BaseService {
   /**
    * 新增：若同唯一键存在软删行，则恢复并更新（唯一索引含软删行）
    */
-  async add(data: unknown) {
+  async add(data: CrudAddData, _options?: CrudWriteOptions) {
     const payload =
       data != null && typeof data === 'object'
         ? { ...(data as Record<string, unknown>) }
@@ -238,23 +257,13 @@ export class I18nPackService extends BaseService {
     return result
   }
 
-  override async update(
-    whereOrData: Parameters<BaseService['update']>[0],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        await this.preparePack(data as Record<string, unknown>, 'update')
-      }
-      return super.update(whereOrData as never, data)
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw == null || typeof raw !== 'object') continue
+      await this.preparePack(raw as Record<string, unknown>, type as 'add' | 'update')
     }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      await this.preparePack(row, 'update')
-    }
-    return super.update(whereOrData)
   }
 
   private async assertUnique(
@@ -362,7 +371,7 @@ export class I18nPackService extends BaseService {
 
   /**
    * 顶栏可切换语种：仅返回指定宿主端已生成的语言包
-   * name/flag 取语种配置；排序按语种表 id 升序
+   * name/flag 取语种配置；排序按语种编码升序
    */
   async listHostLocales(scopeKey: string = 'admin') {
     const scope = normalizeScope('host', scopeKey)
@@ -385,7 +394,7 @@ export class I18nPackService extends BaseService {
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const scopeKeys = await this.pluginScopeKeyCandidates(scope.scopeKey)
     if (!scopeKeys.length) {
-      return [{ code: 'zh-CN', name: '简体中文', flag: '🇨🇳' }]
+      return []
     }
     const rows = await this.packRepo.find(
       and(
@@ -407,10 +416,10 @@ export class I18nPackService extends BaseService {
       if (code) codeSet.add(code)
     }
     if (!codeSet.size) {
-      return [{ code: 'zh-CN', name: '简体中文', flag: '🇨🇳' }]
+      return []
     }
     const langRows = await this.langRepo.find(isNull(i18nLang.deleteTime), {
-      orderBy: [asc(i18nLang.id)],
+      orderBy: [asc(i18nLang.code)],
     })
     const out: Array<{ code: string; name: string; flag: string }> = []
     const used = new Set<string>()
@@ -421,12 +430,15 @@ export class I18nPackService extends BaseService {
       out.push({
         code,
         name: String(l.name || code),
-        flag: String(l.flag || '🏳️'),
+        flag: (() => {
+          const s = String(l.flag || '').trim()
+          return /^https?:\/\//i.test(s) || s.startsWith('/') ? s : ''
+        })(),
       })
     }
     for (const code of codeSet) {
       if (used.has(code)) continue
-      out.push({ code, name: code, flag: '🏳️' })
+      out.push({ code, name: code, flag: '' })
     }
     return out
   }
@@ -478,8 +490,8 @@ export class I18nPackService extends BaseService {
 
   /**
    * 读宿主原始语言包
-   * - admin：磁盘 admin/locales/zh-CN.json
-   * - web / uniapp：HTTP GET {localeOrigins[scope]} + 路径（web=/locales/…，uni=/static/locales/…；需 vome.eps）
+   * - admin：磁盘 admin/locales/{system.lang}.json
+   * - web / uniapp：HTTP GET {localeOrigins[scope]} + 路径（需 vome.eps）
    *   源文件均在各自 src/locales/（Vite 挂出）
    */
   async readHostSource(scopeKey: HostScopeKey = 'admin'): Promise<{
@@ -489,7 +501,7 @@ export class I18nPackService extends BaseService {
     if (isFrontScopeKey(scopeKey)) {
       return this.readFrontHostSource(scopeKey)
     }
-    for (const file of adminZhCandidates()) {
+    for (const file of adminSourceCandidates()) {
       if (!existsSync(file)) continue
       try {
         const raw = readFileSync(file, 'utf8')
@@ -548,14 +560,15 @@ export class I18nPackService extends BaseService {
   }
 
   /**
-   * 宿主中文源模板
+   * 宿主源语言模板（system.lang）
    * - admin：磁盘壳层 + 菜单 + EPS 字段注释
    * - web / uniapp：HTTP 源包
    */
   async buildHostSource(scopeKey: HostScopeKey = 'admin'): Promise<Record<string, unknown>> {
     const disk = await this.readHostSource(scopeKey)
+    const srcLang = requireSourceLang()
     const existing = await this.findPack({
-      langCode: 'zh-CN',
+      langCode: srcLang,
       scopeType: 'host',
       scopeKey,
     })
@@ -582,7 +595,7 @@ export class I18nPackService extends BaseService {
   }
 
   /**
-   * 读已安装插件原始语言包（磁盘 locales/zh-CN.json）
+   * 读已安装插件原始语言包（磁盘 locales/{system.lang}.json）
    * 兼容 front/full：根目录、web/、web-src/
    * @param pluginRef module.key 或插件名称
    */
@@ -596,7 +609,7 @@ export class I18nPackService extends BaseService {
   }
 
   /**
-   * 读已安装插件原始语言包（磁盘 locales/zh-CN.json）
+   * 读已安装插件原始语言包（磁盘 locales/{system.lang}.json）
    * 兼容 front/full：根目录、web/、web-src/
    */
   readPluginSource(pluginKey: string): {
@@ -607,10 +620,11 @@ export class I18nPackService extends BaseService {
     const key = String(pluginKey || '').trim()
     if (!key) throw new CommException('pluginKey 不能为空')
     const root = pModulePath(key)
+    const file = sourceLocaleFile()
     const candidates = [
-      join(root, 'locales', 'zh-CN.json'),
-      join(root, 'web', 'locales', 'zh-CN.json'),
-      join(root, 'web-src', 'locales', 'zh-CN.json'),
+      join(root, 'locales', file),
+      join(root, 'web', 'locales', file),
+      join(root, 'web-src', 'locales', file),
     ]
     for (const file of candidates) {
       if (!existsSync(file)) continue
@@ -647,7 +661,7 @@ export class I18nPackService extends BaseService {
     const src = this.readPluginSource(diskKey)
     if (!src.packJson) {
       throw new CommException(
-        `插件「${scope.scopeKey}」未找到 locales/zh-CN.json`,
+        `插件「${scope.scopeKey}」未找到 locales/${sourceLocaleFile()}`,
       )
     }
     return src.packJson
@@ -735,8 +749,9 @@ export class I18nPackService extends BaseService {
     try {
       const langCode = String(body.langCode || '').trim()
       if (!langCode) throw new CommException('目标语种不能为空')
-      if (langCode === 'zh-CN') {
-        throw new CommException('zh-CN 为源语言，无需 AI 翻译')
+      const srcLang = requireSourceLang()
+      if (isSourceLang(langCode)) {
+        throw new CommException(`${srcLang} 为源语言，无需 AI 翻译`)
       }
 
       const scope = normalizeScope(body.scopeType, body.scopeKey)
@@ -808,19 +823,19 @@ export class I18nPackService extends BaseService {
         return
       }
 
-      const zhCnPack = await this.findPack({
-        langCode: 'zh-CN',
+      const sourceLangPack = await this.findPack({
+        langCode: srcLang,
         scopeType: scope.scopeType,
         scopeKey: scope.scopeKey,
       })
-      const zhCnFlat = zhCnPack?.packJson
-        ? (flattenLocale(zhCnPack.packJson) as Record<string, string>)
+      const sourceLangFlat = sourceLangPack?.packJson
+        ? (flattenLocale(sourceLangPack.packJson) as Record<string, string>)
         : {}
 
       const toTranslate = this.collectLocaleKeysToTranslate(
         sourceFlat,
         existingFlat,
-        zhCnFlat,
+        sourceLangFlat,
         incremental,
       )
 
@@ -861,12 +876,17 @@ export class I18nPackService extends BaseService {
             messages: [
               {
                 role: 'system',
-                content:
-                  'You are a professional UI i18n translator. Translate JSON string values only. Keep all keys unchanged. Keep placeholders like {name}, {{count}} intact. Output a single JSON object only, no markdown.',
+                content: I18N_UI_TRANSLATE_SYSTEM,
               },
               {
                 role: 'user',
-                content: `Translate the following UI locale JSON from Simplified Chinese (zh-CN) into ${langName} (${langCode}). ${aiHint}\n\n${JSON.stringify(aiPayload, null, 2)}`,
+                content: i18nUiTranslateUserContent({
+                  sourceLangCode: srcLang,
+                  langName,
+                  langCode,
+                  hint: aiHint,
+                  payloadJson: JSON.stringify(aiPayload, null, 2),
+                }),
               },
             ],
           },
@@ -972,17 +992,18 @@ export class I18nPackService extends BaseService {
     return { langCode, scopeType, scopeKey, packJson }
   }
 
-  /** 写入/更新某一条 zh-CN 源语言包（含软删行：恢复后更新，避免唯一索引冲突） */
+  /** 写入/更新某一条源语言包（含软删行：恢复后更新，避免唯一索引冲突） */
   private async upsertZhPack(
     scopeType: 'host' | 'plugin',
     scopeKey: string,
     packJson: Record<string, unknown>,
   ) {
+    const srcLang = requireSourceLang()
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const [existing] = await this.packRepo.find(
       and(
         eq(i18nPack.tenantId, tenantId),
-        eq(i18nPack.langCode, 'zh-CN'),
+        eq(i18nPack.langCode, srcLang),
         eq(i18nPack.scopeType, scopeType),
         eq(i18nPack.scopeKey, scopeKey),
       ),
@@ -998,21 +1019,21 @@ export class I18nPackService extends BaseService {
         version: Number(existing.version || 1) + 1,
         sourceHash,
       })
-      return this.findPack({ langCode: 'zh-CN', scopeType, scopeKey })
+      return this.findPack({ langCode: srcLang, scopeType, scopeKey })
     }
     await this.packRepo.create({
       tenantId,
-      langCode: 'zh-CN',
+      langCode: srcLang,
       scopeType,
       scopeKey,
       packJson,
       version: 1,
       sourceHash,
     })
-    return this.findPack({ langCode: 'zh-CN', scopeType, scopeKey })
+    return this.findPack({ langCode: srcLang, scopeType, scopeKey })
   }
 
-  /** 确保指定宿主端 zh-CN 源包存在 */
+  /** 确保指定宿主端源语言包存在 */
   async ensureHostZhPack(scopeKey: HostScopeKey = 'admin') {
     const disk = await this.readHostSource(scopeKey)
     if (!disk.packJson) {
@@ -1033,7 +1054,7 @@ export class I18nPackService extends BaseService {
         )
       }
       throw new CommException(
-        `未找到宿主原始语言包 admin/locales/zh-CN.json`,
+        `未找到宿主原始语言包 admin/locales/${sourceLocaleFile()}`,
       )
     }
     const packJson = await this.buildHostSource(scopeKey)
@@ -1106,7 +1127,7 @@ export class I18nPackService extends BaseService {
             scopeKey: key,
             reason: isFrontScopeKey(key)
               ? `未拉取到语言包（${frontLocaleUrl(key) || localeOriginOf(key)}）`
-              : '未找到 admin/locales/zh-CN.json',
+              : `未找到 admin/locales/${sourceLocaleFile()}`,
           })
           continue
         }
@@ -1141,7 +1162,10 @@ export class I18nPackService extends BaseService {
       try {
         const src = this.readPluginSource(key)
         if (!src.packJson || !src.path) {
-          skipped.push({ pluginKey: key, reason: '未找到 locales/zh-CN.json' })
+          skipped.push({
+            pluginKey: key,
+            reason: `未找到 locales/${sourceLocaleFile()}`,
+          })
           continue
         }
         await this.upsertZhPack('plugin', label, src.packJson)
@@ -1150,7 +1174,7 @@ export class I18nPackService extends BaseService {
           const [legacy] = await this.packRepo.find(
             and(
               eq(i18nPack.tenantId, normalizeTenantId(Context.get()?.tenantId)),
-              eq(i18nPack.langCode, 'zh-CN'),
+              eq(i18nPack.langCode, requireSourceLang()),
               eq(i18nPack.scopeType, 'plugin'),
               eq(i18nPack.scopeKey, key),
             ),

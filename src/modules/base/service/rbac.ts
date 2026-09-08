@@ -1,7 +1,11 @@
 import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm'
 import { CommException, Provide } from '@core/server'
 import { InjectRepository, type Repository } from '@core/server'
-import { BaseService, type CrudDeleteOptions } from '@core/server'
+import {
+  BaseService,
+  type CrudDeleteOptions,
+  type CrudDeleteWhere,
+} from '@core/server'
 import { baseMenu } from '../entity/menu'
 import { baseDepartment } from '../entity/department'
 import { baseRole } from '../entity/role'
@@ -9,6 +13,7 @@ import { baseRoleDepartment } from '../entity/role-department'
 import { baseRoleMenu } from '../entity/role-menu'
 import { baseUser } from '../entity/user'
 import { baseUserRole } from '../entity/user-role'
+import type { CrudModifyType } from '@core/server'
 
 @Provide()
 export class MenuService extends BaseService {
@@ -21,7 +26,7 @@ export class MenuService extends BaseService {
 
   /** 删除菜单后级联删子孙（parentId 树）；软删/彻底删共用 */
   async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     options?: CrudDeleteOptions,
   ) {
     const where = this.resolveMenuIdWhere(whereOrIds)
@@ -36,7 +41,7 @@ export class MenuService extends BaseService {
   }
 
   private resolveMenuIdWhere(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
   ): SQL | undefined {
     if (
       whereOrIds &&
@@ -85,7 +90,7 @@ export class DepartmentService extends BaseService {
   }
 
   override async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     options?: CrudDeleteOptions,
   ) {
     const ids = (Array.isArray(whereOrIds) ? whereOrIds : [whereOrIds])
@@ -268,32 +273,12 @@ export class AdminUserService extends BaseService {
     }
   }
 
-  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
-      if (raw != null && typeof raw === 'object') {
-        await this.prepareAdminUser(raw as Record<string, unknown>, 'add')
-      }
+      if (raw == null || typeof raw !== 'object') continue
+      await this.prepareAdminUser(raw as Record<string, unknown>, type as 'add' | 'update')
     }
-    return super.add(data, options)
-  }
-
-  override async update(
-    whereOrData: SQL | Record<string, unknown> | Record<string, unknown>[],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        await this.prepareAdminUser(data as Record<string, unknown>, 'update')
-      }
-      return super.update(whereOrData as SQL, data)
-    }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      await this.prepareAdminUser(row, 'update')
-    }
-    return super.update(whereOrData)
   }
 }

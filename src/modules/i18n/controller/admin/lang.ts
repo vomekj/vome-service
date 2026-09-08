@@ -9,18 +9,17 @@ import { I18nLangService } from '../../service/lang'
 
 /** → service.i18n.lang */
 @Controller({
-  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
+  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore', 'dataI18n'],
   entity: i18nLang,
   service: I18nLangService,
+  dataI18nFields: ['name'],
   pageQueryOp: {
     keyWordLikeFields: ['code', 'name'],
     fieldEq: [{ column: 'status', dict: 'status' }],
-    addOrderBy: { id: 'asc' },
   },
   listQueryOp: {
     keyWordLikeFields: ['code', 'name'],
     fieldEq: [{ column: 'status', dict: 'status' }],
-    addOrderBy: { id: 'asc' },
   },
 })
 export class I18nLangController extends BaseController {

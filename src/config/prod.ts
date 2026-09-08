@@ -7,6 +7,17 @@
 import type { EnvConfig } from '../../typings/config/env'
 
 const config: EnvConfig = {
+  system: {
+    /**
+     * C 端语言包 origin（生产）
+     * 须为线上可访问的静态源包基址；是否同步由 vome.eps 控制
+     */
+    localeOrigins: {
+      web: 'http://127.0.0.1:9900',
+      uniapp: 'http://127.0.0.1:6600',
+    },
+  },
+
   /** Drizzle 数据库连接 */
   db: {
     type: 'postgresql',

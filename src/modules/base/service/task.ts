@@ -5,6 +5,11 @@ import { BaseService } from '@core/server'
 import { baseTask } from '../entity/task'
 import { baseTaskLog } from '../entity/task-log'
 import { TaskScheduler } from './task-scheduler'
+import type {
+  CrudDeleteOptions,
+  CrudDeleteWhere,
+  CrudModifyType,
+} from '@core/server'
 
 /** 执行日志保留天数 */
 const TASK_LOG_KEEP_DAYS = 20
@@ -18,9 +23,9 @@ export class TaskService extends BaseService {
   @Inject()
   scheduler: TaskScheduler
 
-  async modifyAfter(data: any, type: 'add' | 'update' | 'delete') {
+  async modifyAfter(data: unknown, type: CrudModifyType) {
     if (type !== 'add' && type !== 'update') return
-    const id = Number(data?.id)
+    const id = Number((data as { id?: unknown } | null | undefined)?.id)
     if (!Number.isFinite(id)) return
     const [row] = await this.taskRepo.find(
       and(eq(baseTask.id, id), isNull(baseTask.deleteTime)),
@@ -31,8 +36,8 @@ export class TaskService extends BaseService {
   }
 
   async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
-    options?: { softDelete?: boolean; force?: boolean },
+    whereOrIds: CrudDeleteWhere,
+    options?: CrudDeleteOptions,
   ) {
     const where = this.resolveIdWhere(whereOrIds)
     if (!where) return
@@ -45,7 +50,7 @@ export class TaskService extends BaseService {
   }
 
   private resolveIdWhere(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
   ): SQL | undefined {
     if (
       whereOrIds &&

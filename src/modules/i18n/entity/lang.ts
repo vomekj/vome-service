@@ -7,7 +7,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
-/** 语种（如简体中文 / 英语）；code 为技术键，name 为显示名，flag 为国旗 emoji */
+/** 语种（如简体中文 / 英语）；code 为技术键，name 为显示名，flag 为国旗图片 URL */
 export const i18nLang = columnComments(
   pgTable(
     'i18n_lang',
@@ -15,10 +15,9 @@ export const i18nLang = columnComments(
       ...baseColumns,
       code: varchar('code').notNull(),
       name: varchar('name').notNull(),
-      /** 国旗 emoji，顶栏切换展示 */
-      flag: varchar('flag').notNull().default('🏳️'),
+      /** 国旗图片 URL（顶栏切换展示） */
+      flag: varchar('flag').notNull().default(''),
       status: integer('status').notNull().default(1),
-      orderNum: integer('orderNum').notNull().default(0),
     },
     (table) => [
       uniqueIndex('i18n_lang_tenant_code_uidx').on(table.tenantId, table.code),
@@ -31,7 +30,6 @@ export const i18nLang = columnComments(
     name: '语言名称',
     flag: '国旗',
     status: '状态',
-    orderNum: '排序',
   },
 )
 

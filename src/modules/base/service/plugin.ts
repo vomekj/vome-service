@@ -1,5 +1,6 @@
 import { unlinkSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import type { CrudModifyType, CrudUpdateWhere, CrudUpdatePatch, CrudDeleteWhere, CrudInfoWhere } from '@core/server'
 import {
   and,
   eq,
@@ -215,17 +216,18 @@ export class PluginInfoService extends BaseService {
   }
 
   async info(
-    idOrWhere: number | string | SQL,
+    idOrWhere: CrudInfoWhere,
     options?: CrudTrashQueryOptions,
   ): Promise<Record<string, unknown> | undefined> {
     const row = await super.info(idOrWhere, options)
     return this.redactInfoRow(row as Record<string, unknown> | null | undefined)
   }
 
-  async modifyAfter(data: any, type: 'add' | 'update' | 'delete') {
+  async modifyAfter(data: unknown, type: CrudModifyType) {
     if (type !== 'add' && type !== 'update') return
-    const id = data?.id ?? data?.[0]?.id
-    if (id == null) return
+    const row = data as { id?: unknown } | Array<{ id?: unknown }> | null | undefined
+    const id = Array.isArray(row) ? row[0]?.id : row?.id
+    if (id == null || (typeof id !== 'string' && typeof id !== 'number')) return
     const info = await this.pluginRepo.findById(id)
     if (!info) return
     // 钩子按 hook 名注册；禁用/卸掉后槽位清空，不再回落空壳
@@ -235,8 +237,8 @@ export class PluginInfoService extends BaseService {
   }
 
   async update(
-    whereOrData: SQL | Record<string, unknown> | Record<string, unknown>[],
-    data?: unknown,
+    whereOrData: CrudUpdateWhere,
+    data?: CrudUpdatePatch,
   ) {
     if (Array.isArray(whereOrData)) {
       const payloads: Record<string, unknown>[] = []
@@ -302,7 +304,7 @@ export class PluginInfoService extends BaseService {
    * Controller 未声明 restore，插件不做回收站。
    */
   async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     options?: CrudDeleteOptions,
   ) {
     const where = this.resolveDeleteWhere(whereOrIds)
@@ -321,7 +323,7 @@ export class PluginInfoService extends BaseService {
   }
 
   private resolveDeleteWhere(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
   ): SQL | undefined {
     if (
       whereOrIds &&

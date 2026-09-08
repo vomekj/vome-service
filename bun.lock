@@ -1958,6 +1958,12 @@
       },
       "sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ=="
     ],
+    "decimal.js": [
+      "decimal.js@10.6.0",
+      "",
+      {},
+      "sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg=="
+    ],
     "deep-is": [
       "deep-is@0.1.4",
       "https://registry.npmmirror.com/deep-is/-/deep-is-0.1.4.tgz",

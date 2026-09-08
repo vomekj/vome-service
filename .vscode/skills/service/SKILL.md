@@ -63,11 +63,11 @@ Snippets / Tasks 在 `service/.vscode/`，需**手动移到项目根**才生效�
 |-----|------|
 | `baseColumns` / `BASE_COLUMN_COMMENTS` | 标准列（id、时间、软删等）与中文注释 |
 | `columnComments(table, map)` / `getColumnComments` / `syncColumnCommentsToPg` | 列注释 → EPS / PG |
-| `entitySchemas(table)` | Zod 校验（Repository 写入会走） |
+| `entitySchemas(table)` | Zod 校验（Repository 写入会走；`numeric` 写路径自动 `number|string`→`toFixed(scale)`） |
 | `DbStore` | 注入后拿 drizzle 客户端 |
 | `@InjectRepository(table)` / `getRepository(table)` | 表级 Repository 单例 |
 | `Repository` | `find` `findOne` `findById` `count` `findPage` `create` `save` `update` `softDelete` `restore` `forceDelete` `supportsSoftDelete` |
-| `BaseService` | CRUD 业务基类：`add` `update` `delete` `info` `list` `page` `restore`；可覆写 `modifyBefore` / `modifyAfter` |
+| `BaseService` | CRUD 业务基类：`add` `update` `delete` `info` `list` `page` `restore`；通用钩子 `modifyBefore` / `modifyAfter`（含读路径；自定义方法自行调用） |
 | `q` | QueryOp 辅助（高级） |
 | `attachCrudRoutes` | 手动挂 CRUD 路由（少用；一般靠 `@Controller`） |
 
@@ -397,12 +397,14 @@ Better Auth：宿主 `src/lib/auth`，默认 `basePath: '/api/auth'`；配置在
 
 | 方法 | 说明 |
 |------|------|
-| `add(data)` | 新增；可走 `modifyBefore/After('add')` |
-| `update(data)` / 按条件更新 | 更新 |
-| `delete(idsOrWhere, { force? })` | 默认软删；`force: true` 物理删 |
-| `restore(ids)` | 恢复软删 |
-| `info(id)` / `list` / `page` | 详情 / 列表 / 分页（吃 QueryOp） |
-| `modifyBefore` / `modifyAfter` | 覆写钩子，改写入前后逻辑 |
+| `add(data: CrudAddData, options?: CrudWriteOptions)` | 新增；经 `modifyBefore/After('add')` |
+| `update(where: CrudUpdateWhere, data?: CrudUpdatePatch)` | 更新；经钩子 `'update'` |
+| `delete(where: CrudDeleteWhere, options?: CrudDeleteOptions)` | 删除；经钩子 `'delete'` |
+| `restore(where: CrudDeleteWhere)` | 恢复；经钩子 `'restore'` |
+| `list` / `info` / `page` | 读路径亦经钩子；类型 `CrudList*` / `CrudInfoWhere` / `CrudPageQuery` |
+| `modifyBefore` / `modifyAfter` | `(data: unknown, type: CrudModifyType)`；自定义方法自行调用 |
+
+覆写时从 `vome-core/server` 导入具名 `Crud*` 类型，**不要**写 `Parameters<BaseService['add']>[0]`。
 
 ## 配置要点（`src/config`）
 

@@ -23,10 +23,6 @@ function isPhone(addr: string) {
   return /^1\d{10}$/.test(addr)
 }
 
-function isPlaceholderEmail(addr: string) {
-  return /@.+\.invalid$/i.test(addr)
-}
-
 type UploadPlugin = {
   downAndUpload?: (url: string, fileName?: string) => Promise<string>
 }
@@ -153,7 +149,6 @@ export class UserPersonService extends BaseService {
   async bindEmail(userId: number, email: string, code: string) {
     const addr = email.trim().toLowerCase()
     if (!isEmail(addr)) throw new CommException('邮箱格式不正确')
-    if (isPlaceholderEmail(addr)) throw new CommException('请使用真实邮箱')
 
     const user = await this.infoRepo.findOne(
       and(eq(userInfo.userId, userId), isNull(userInfo.deleteTime)),

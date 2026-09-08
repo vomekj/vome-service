@@ -19,8 +19,15 @@ export interface DefaultConfig {
 
   system: Loose<{
     port: number
+    /** 源语言 BCP-47（如 zh-CN / ko-KR） */
+    lang?: string
     /**
-     * 宿主 C 端语言包 origin（scopeKey → 基址）
+     * dataI18n 混合文本抽词规则；RegExp，或 `/pattern/g` / 裸 pattern 字符串
+     * provideHostConfig 时注入 core；不配则无法抽词翻译（模版 default 已给中文 RE）
+     */
+    langReplace?: RegExp | string
+    /**
+     * 宿主 C 端语言包 origin（scopeKey → 基址；建议写在 dev/prod）
      * GET {origin}/locales/zh-CN.json；是否同步由 vome.eps 控制
      */
     localeOrigins?: Loose<{

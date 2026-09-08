@@ -1,11 +1,14 @@
 import { inArray } from 'drizzle-orm'
+import type {
+  CrudDeleteOptions,
+  CrudDeleteWhere,
+  CrudModifyType,
+} from '@core/server'
 import {
   BaseService,
   Inject,
   Provide,
-  type CrudDeleteOptions,
 } from '@core/server'
-import type { SQL } from 'drizzle-orm'
 import { i18nDataField } from '../entity/data-field'
 import { I18nDataService } from './data'
 
@@ -14,45 +17,32 @@ export class I18nDataFieldService extends BaseService {
   @Inject()
   dataService: I18nDataService
 
-  override async add(data: unknown) {
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
-      const row = raw as { tableName: string; fieldName: string }
-      await this.dataService.assertFieldUnique(row.tableName, row.fieldName)
-    }
-    const result = await super.add(data)
-    for (const raw of rows) {
-      this.dataService.invalidateFieldCache(
-        String((raw as { tableName?: string }).tableName || ''),
+      if (raw == null || typeof raw !== 'object') continue
+      const row = raw as Record<string, unknown>
+      await this.dataService.assertFieldUnique(
+        String(row.tableName ?? ''),
+        String(row.fieldName ?? ''),
+        type === 'update' && row.id != null ? Number(row.id) : undefined,
       )
     }
-    return result
   }
 
-  override async update(
-    whereOrData: SQL | Record<string, unknown> | Record<string, unknown>[],
-    data?: unknown,
-  ) {
-    if (data !== undefined) return super.update(whereOrData as SQL, data)
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      await this.dataService.assertFieldUnique(
-        String(row.tableName),
-        String(row.fieldName),
-        Number(row.id),
-      )
+  async modifyAfter(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw == null || typeof raw !== 'object') continue
+      const table = String((raw as { tableName?: string }).tableName || '')
+      if (table) this.dataService.invalidateFieldCache(table)
     }
-    const result = await super.update(whereOrData)
-    for (const row of rows) {
-      this.dataService.invalidateFieldCache(String(row.tableName || ''))
-    }
-    return result
   }
 
   override async delete(
-    whereOrIds: SQL | number | string | Array<number | string>,
+    whereOrIds: CrudDeleteWhere,
     options?: CrudDeleteOptions,
   ) {
     const ids = Array.isArray(whereOrIds)

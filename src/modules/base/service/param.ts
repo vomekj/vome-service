@@ -7,6 +7,7 @@ import {
   type Repository,
 } from '@core/server'
 import { baseParam } from '../entity/param'
+import type { CrudModifyType } from '@core/server'
 
 const PARAM_TYPES = new Set([0, 1, 2, 3])
 
@@ -257,32 +258,12 @@ export class BaseParamService extends BaseService {
     if (exists) throw new CommException('keyName 已存在')
   }
 
-  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
-      if (raw != null && typeof raw === 'object') {
-        await this.prepareParam(raw as Record<string, unknown>, 'add')
-      }
+      if (raw == null || typeof raw !== 'object') continue
+      await this.prepareParam(raw as Record<string, unknown>, type as 'add' | 'update')
     }
-    return super.add(data, options)
-  }
-
-  override async update(
-    whereOrData: Parameters<BaseService['update']>[0],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        await this.prepareParam(data as Record<string, unknown>, 'update')
-      }
-      return super.update(whereOrData as never, data)
-    }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      await this.prepareParam(row, 'update')
-    }
-    return super.update(whereOrData)
   }
 }

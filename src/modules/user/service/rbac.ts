@@ -8,6 +8,11 @@ import { userAccount } from '../entity/account'
 import { userInfo } from '../entity/info'
 import { parseUserRolePerms, userRole } from '../entity/role'
 import { userInfoRole } from '../entity/info-role'
+import type {
+  CrudDeleteOptions,
+  CrudDeleteWhere,
+  CrudModifyType,
+} from '@core/server'
 
 @Provide()
 export class UserPermissionService extends BaseService {
@@ -57,33 +62,13 @@ export class UserRoleService extends BaseService {
     }
   }
 
-  override async add(data: unknown, options?: Parameters<BaseService['add']>[1]) {
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
-      if (raw != null && typeof raw === 'object') {
-        this.normalizePerms(raw as Record<string, unknown>)
-      }
+      if (raw == null || typeof raw !== 'object') continue
+      this.normalizePerms(raw as Record<string, unknown>)
     }
-    return super.add(data, options)
-  }
-
-  override async update(
-    whereOrData: Parameters<BaseService['update']>[0],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        this.normalizePerms(data as Record<string, unknown>)
-      }
-      return super.update(whereOrData as never, data)
-    }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      this.normalizePerms(row)
-    }
-    return super.update(whereOrData)
   }
 }
 
@@ -163,28 +148,18 @@ export class UserInfoService extends BaseService {
     }
   }
 
-  override async update(
-    whereOrData: Parameters<BaseService['update']>[0],
-    data?: unknown,
-  ) {
-    if (data !== undefined) {
-      if (data != null && typeof data === 'object' && !Array.isArray(data)) {
-        this.prepareUserUpdate(data as Record<string, unknown>)
-      }
-      return super.update(whereOrData as never, data)
+  async modifyBefore(data: unknown, type: CrudModifyType) {
+    if (type !== 'update') return
+    const rows = Array.isArray(data) ? data : [data]
+    for (const raw of rows) {
+      if (raw == null || typeof raw !== 'object') continue
+      this.prepareUserUpdate(raw as Record<string, unknown>)
     }
-    const rows = Array.isArray(whereOrData)
-      ? whereOrData
-      : [whereOrData as Record<string, unknown>]
-    for (const row of rows) {
-      this.prepareUserUpdate(row)
-    }
-    return super.update(whereOrData)
   }
 
   async delete(
-    whereOrIds: Parameters<BaseService['delete']>[0],
-    options?: Parameters<BaseService['delete']>[1],
+    whereOrIds: CrudDeleteWhere,
+    options?: CrudDeleteOptions,
   ) {
     if (options?.force) {
       await this.cleanupUserRelations(whereOrIds)
@@ -240,10 +215,13 @@ export class UserInfoService extends BaseService {
     return map
   }
 
-  async modifyAfter(data: any, type: 'add' | 'update' | 'delete') {
-    if (type !== 'update' || !this.pendingPassword || !data?.id) return
+  async modifyAfter(data: unknown, type: CrudModifyType) {
+    if (type !== 'update' || !this.pendingPassword) return
+    const row = data as { id?: unknown; email?: unknown } | null | undefined
+    const id = row?.id
+    if (id == null) return
 
-    const baUserId = String(data.id)
+    const baUserId = String(id)
     const hashed = await hashPassword(this.pendingPassword)
     this.pendingPassword = null
 
@@ -263,7 +241,7 @@ export class UserInfoService extends BaseService {
     await this.accountRepo.create({
       id: crypto.randomUUID(),
       userId: baUserId,
-      accountId: String(data.email ?? baUserId),
+      accountId: String(row?.email ?? baUserId),
       providerId: 'credential',
       password: hashed,
     })
