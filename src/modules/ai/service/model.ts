@@ -1,5 +1,5 @@
 import type { CrudModifyType } from '@core/server'
-import { and, eq, isNull, ne } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
@@ -56,18 +56,6 @@ export class AiModelService extends BaseService {
   @InjectRepository(aiModel)
   modelRepo: Repository<typeof aiModel>
 
-  private async assertCodeUnique(code: string, id?: number) {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const conds = [
-      eq(aiModel.code, code),
-      eq(aiModel.tenantId, tenantId),
-      isNull(aiModel.deleteTime),
-    ]
-    if (id != null) conds.push(ne(aiModel.id, id))
-    const [hit] = await this.modelRepo.find(and(...conds))
-    if (hit) throw new CommException(`模型编码「${code}」在当前租户已存在`)
-  }
-
   private async prepareModel(
     data: Record<string, unknown>,
     type: 'add' | 'update',
@@ -89,22 +77,29 @@ export class AiModelService extends BaseService {
     if (data.contentType != null) {
       data.contentType = normalizeAiContentType(data.contentType)
     }
-    if (!Array.isArray(data.capabilities)) data.capabilities = []
+    // 局部更新（如表格开关）勿默认覆盖 capabilities / resultModes
+    if (type === 'add' || data.capabilities !== undefined) {
+      if (!Array.isArray(data.capabilities)) data.capabilities = []
+    }
+    if (type === 'add' || data.resultModes !== undefined) {
+      if (
+        !Array.isArray(data.resultModes) ||
+        !(data.resultModes as unknown[]).length
+      ) {
+        data.resultModes = ['sync']
+      }
+    }
     if (
-      !Array.isArray(data.resultModes) ||
-      !(data.resultModes as unknown[]).length
+      type === 'add' ||
+      data.asyncSpec !== undefined ||
+      data.resultModes !== undefined
     ) {
-      data.resultModes = ['sync']
+      const modes = data.resultModes
+      const needAsync =
+        Array.isArray(modes) && (modes as string[]).includes('async')
+      data.asyncSpec = normalizeAsyncSpec(data.asyncSpec, needAsync)
     }
-    const needAsync = (data.resultModes as string[]).includes('async')
-    data.asyncSpec = normalizeAsyncSpec(data.asyncSpec, needAsync)
-    const code = String(data.code ?? '').trim()
-    if (code) {
-      await this.assertCodeUnique(
-        code,
-        type === 'update' && data.id != null ? Number(data.id) : undefined,
-      )
-    }
+    // code 唯一靠 uniqueIndex；软删 add 撞键由 Repository upsert
   }
 
   async modifyBefore(data: unknown, type: CrudModifyType) {
@@ -112,7 +107,10 @@ export class AiModelService extends BaseService {
     const rows = Array.isArray(data) ? data : [data]
     for (const raw of rows) {
       if (raw == null || typeof raw !== 'object') continue
-      await this.prepareModel(raw as Record<string, unknown>, type as 'add' | 'update')
+      await this.prepareModel(
+        raw as Record<string, unknown>,
+        type as 'add' | 'update',
+      )
     }
   }
 

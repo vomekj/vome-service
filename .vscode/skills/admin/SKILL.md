@@ -376,14 +376,14 @@ registerViews(viewModules)
 | `limit` | `9` | 最多个数 |
 | `limitSize` | `100` | MB |
 | `drag` | `false` | 拖拽区 |
-| `prefixPath` | `app/public` | 对象存储 Key 前缀 |
+| `prefixPath` | `app/public` | 业务须显式 `app/public/{模块}/{板块}` |
 
 | 用途 | prefixPath | 说明 |
 |------|------------|------|
-| 公开资源 | `app/public` 或 `app/public/avatar` 等 | 桶策略 Allow `app/public/*` |
+| 公开资源 | `app/public/{模块}/{板块}`（与 `modules/{module}/views/{plate}` 对应） | 桶策略 Allow `app/public/*`；禁止只到模块层或语义别名 |
 | 插件包 | **必须** `app/plugin` | 私有 + 一次性代传；勿当公开前缀 |
 
-`modelValue`：单文件 `string`，多文件 `string[]`。禁止再用 `app/base`、`app/user`、`app/avatar` 等散落公开前缀。
+`modelValue`：单文件 `string`，多文件 `string[]`。禁止再用平行公开根前缀或语义别名。
 
 ## 字典 / 权限 / 微应用
 

@@ -191,6 +191,7 @@ export class ModuleService extends BaseService {
   /** 按 appKey / perms 幂等写入菜单；微应用页挂到「无界渲染」、无 icon */
   private async syncMenus(moduleKey: string, menus: ModuleMenuDef[]) {
     let wujieParentId: number | null = null
+    const toSave: Record<string, unknown>[] = []
 
     for (const item of menus) {
       const appKey = item.appKey || moduleKey
@@ -225,11 +226,11 @@ export class ModuleService extends BaseService {
         keepAlive: true,
       }
 
-      if (existing) {
-        await this.menuService.menuRepo.save({ ...existing, ...row })
-      } else {
-        await this.menuService.menuRepo.save(row)
-      }
+      toSave.push(existing ? { ...existing, ...row } : row)
+    }
+
+    if (toSave.length) {
+      await this.menuService.menuRepo.save(toSave)
     }
   }
 

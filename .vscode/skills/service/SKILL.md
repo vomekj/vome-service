@@ -137,7 +137,7 @@ Snippets / Tasks 在 `service/.vscode/`，需**手动移到项目根**才生效�
 | `IMPORT_SKIP_FIELDS` / `isImportSkipField` | 导入跳过 id/时间/tenant 等 |
 | `this.excel(buf, 'x.xlsx')` | Controller 返回文件 |
 
-自动导入：模板列不含 `id`/`createTime`/`updateTime`/`deleteTime`/`tenantId`；有 `id` 或唯一键则更新，否则新增；`importUniqueKeys` 可指定唯一键组。
+自动导入：模板列不含 `id`/`createTime`/`updateTime`/`deleteTime`/`tenantId`；清洗后整批 `svc.add`（开 softDelete → 批量 upsert：先查再分类写；`upsert:insert` 则批量插入，撞实体 unique 略过）；`importUniqueKeys` 仅 softDelete→upsert 时覆盖表 unique。
 
 ### 类型（常用）
 

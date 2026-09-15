@@ -289,11 +289,13 @@ export class PluginInfoService extends BaseService {
           ne(basePluginInfo.id, old.id),
         ),
       )
-      for (const row of others) {
-        await this.pluginRepo.update(eq(basePluginInfo.id, row.id), {
-          status: 0,
-        })
-        await this.center.remove(row.hook || row.keyName, true)
+      if (others.length) {
+        await this.pluginRepo.update(
+          others.map((row) => ({ id: row.id, status: 0 })),
+        )
+        for (const row of others) {
+          await this.center.remove(row.hook || row.keyName, true)
+        }
       }
     }
     return payload

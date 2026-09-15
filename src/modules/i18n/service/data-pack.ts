@@ -25,12 +25,6 @@ export class I18nDataPackService extends BaseService {
     return this.dataService.translateTableByAiStream(body)
   }
 
-  async translateTable(
-    body: Parameters<I18nDataService['translateTableByAi']>[0],
-  ) {
-    return this.dataService.translateTableByAi(body)
-  }
-
   async listChatModels() {
     return this.packService.listChatModels()
   }

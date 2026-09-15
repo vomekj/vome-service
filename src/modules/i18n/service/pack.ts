@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { and, asc, desc, eq, getTableName, inArray, isNull, ne } from 'drizzle-orm'
-import type { CrudAddData, CrudModifyType, CrudWriteOptions } from '@core/server'
+import type { CrudModifyType } from '@core/server'
 import {
   BaseService,
   CommException,
@@ -14,6 +14,7 @@ import {
   pModulesPath,
   listColumnCommentTables,
   getColumnComments,
+  applyDataI18n,
   getSourceLang,
   isSourceLang,
   type Repository,
@@ -206,57 +207,6 @@ export class I18nPackService extends BaseService {
     }
   }
 
-  /**
-   * 新增：若同唯一键存在软删行，则恢复并更新（唯一索引含软删行）
-   */
-  async add(data: CrudAddData, _options?: CrudWriteOptions) {
-    const payload =
-      data != null && typeof data === 'object'
-        ? { ...(data as Record<string, unknown>) }
-        : ({} as Record<string, unknown>)
-    await this.preparePack(payload, 'add')
-
-    const tenantId = normalizeTenantId(
-      payload.tenantId ?? Context.get()?.tenantId,
-    )
-    const langCode = String(payload.langCode || '')
-    const scopeType = String(payload.scopeType || 'host')
-    const scopeKey = String(payload.scopeKey || 'admin')
-
-    const [existing] = await this.packRepo.find(
-      and(
-        eq(i18nPack.tenantId, tenantId),
-        eq(i18nPack.langCode, langCode),
-        eq(i18nPack.scopeType, scopeType),
-        eq(i18nPack.scopeKey, scopeKey),
-      ),
-      { withTrashed: true },
-    )
-
-    if (existing?.deleteTime) {
-      await this.packRepo.restore(eq(i18nPack.id, existing.id))
-      await this.packRepo.update(eq(i18nPack.id, existing.id), {
-        packJson: payload.packJson,
-        version: Number(existing.version || 1) + 1,
-        sourceHash: payload.sourceHash,
-        ...(payload.remark !== undefined ? { remark: payload.remark } : {}),
-      })
-      const [fresh] = await this.packRepo.find(eq(i18nPack.id, existing.id))
-      await this.modifyAfter(fresh ?? existing, 'add')
-      return fresh
-    }
-
-    if (existing) {
-      throw new CommException(
-        `语言包已存在：${scopeType}/${scopeKey}/${langCode}`,
-      )
-    }
-
-    const result = await this.packRepo.create(payload)
-    await this.modifyAfter(result ?? payload, 'add')
-    return result
-  }
-
   async modifyBefore(data: unknown, type: CrudModifyType) {
     if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]
@@ -371,7 +321,7 @@ export class I18nPackService extends BaseService {
 
   /**
    * 顶栏可切换语种：仅返回指定宿主端已生成的语言包
-   * name/flag 取语种配置；排序按语种编码升序
+   * name/flag 取语种配置（name 走 dataI18n，随 X-Lang）；排序按语种编码升序
    */
   async listHostLocales(scopeKey: string = 'admin') {
     const scope = normalizeScope('host', scopeKey)
@@ -418,9 +368,13 @@ export class I18nPackService extends BaseService {
     if (!codeSet.size) {
       return []
     }
-    const langRows = await this.langRepo.find(isNull(i18nLang.deleteTime), {
+    const rawLangRows = await this.langRepo.find(isNull(i18nLang.deleteTime), {
       orderBy: [asc(i18nLang.code)],
     })
+    const langRows = (await applyDataI18n(
+      rawLangRows ?? [],
+      getTableName(i18nLang),
+    )) as Array<{ code?: string | null; name?: string | null; flag?: string | null }>
     const out: Array<{ code: string; name: string; flag: string }> = []
     const used = new Set<string>()
     for (const l of langRows ?? []) {
@@ -992,7 +946,7 @@ export class I18nPackService extends BaseService {
     return { langCode, scopeType, scopeKey, packJson }
   }
 
-  /** 写入/更新某一条源语言包（含软删行：恢复后更新，避免唯一索引冲突） */
+  /** 同步写入源语言包（Repository 层；与 add 在 softDelete 开启时同走 upsert） */
   private async upsertZhPack(
     scopeType: 'host' | 'plugin',
     scopeKey: string,
@@ -1000,35 +954,25 @@ export class I18nPackService extends BaseService {
   ) {
     const srcLang = requireSourceLang()
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const [existing] = await this.packRepo.find(
+    const sourceHash = hashLocaleJson(packJson)
+    const existing = await this.packRepo.findOne(
       and(
         eq(i18nPack.tenantId, tenantId),
         eq(i18nPack.langCode, srcLang),
         eq(i18nPack.scopeType, scopeType),
         eq(i18nPack.scopeKey, scopeKey),
       ),
-      { withTrashed: true },
+      { withTrashed: true, softDelete: true },
     )
-    const sourceHash = hashLocaleJson(packJson)
-    if (existing) {
-      if (existing.deleteTime) {
-        await this.packRepo.restore(eq(i18nPack.id, existing.id))
-      }
-      await this.packRepo.update(eq(i18nPack.id, existing.id), {
-        packJson,
-        version: Number(existing.version || 1) + 1,
-        sourceHash,
-      })
-      return this.findPack({ langCode: srcLang, scopeType, scopeKey })
-    }
-    await this.packRepo.create({
+    // 不用 this.add：modifyBefore.assertUnique 会拦「已存活」行，同步需覆盖更新
+    await this.packRepo.upsert({
       tenantId,
       langCode: srcLang,
       scopeType,
       scopeKey,
       packJson,
-      version: 1,
       sourceHash,
+      version: existing ? Number(existing.version || 1) + 1 : 1,
     })
     return this.findPack({ langCode: srcLang, scopeType, scopeKey })
   }

@@ -42,9 +42,10 @@ export class TaskService extends BaseService {
     const where = this.resolveIdWhere(whereOrIds)
     if (!where) return
     const rows = await this.taskRepo.find(where, { withTrashed: true })
-    for (const row of rows) {
-      this.scheduler.stop(row.id)
-      await this.taskLogRepo.forceDelete(eq(baseTaskLog.taskId, row.id))
+    const taskIds = rows.map((row) => row.id)
+    for (const id of taskIds) this.scheduler.stop(id)
+    if (taskIds.length) {
+      await this.taskLogRepo.forceDelete(inArray(baseTaskLog.taskId, taskIds))
     }
     return super.delete(whereOrIds, options)
   }

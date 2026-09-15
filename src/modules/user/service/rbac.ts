@@ -195,8 +195,10 @@ export class UserInfoService extends BaseService {
         ),
       )
     }
-    for (const roleId of roleIds) {
-      await this.infoRoleRepo.create({ userId, roleId })
+    if (roleIds.length) {
+      await this.infoRoleRepo.create(
+        roleIds.map((roleId) => ({ userId, roleId })),
+      )
     }
   }
 

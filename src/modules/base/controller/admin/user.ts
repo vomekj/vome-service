@@ -31,8 +31,8 @@ function userDeptFilter(qb: { andWhere: (c: unknown) => void }, body: Record<str
   api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
   entity: baseUser,
   service: AdminUserService,
-  infoIgnoreProperty: ['password'],
   listQueryOp: {
+    ignoreFields: ['password'],
     keyWordLikeFields: ['username', 'name', 'nickName', 'phone', 'email'],
     fieldEq: [
       { column: 'status', dict: 'status' },
@@ -48,6 +48,7 @@ function userDeptFilter(qb: { andWhere: (c: unknown) => void }, body: Record<str
     extend: (qb, ctx) => userDeptFilter(qb, ctx.body),
   },
   pageQueryOp: {
+    ignoreFields: ['password'],
     keyWordLikeFields: ['username', 'name', 'nickName', 'phone', 'email'],
     fieldEq: [
       { column: 'status', dict: 'status' },

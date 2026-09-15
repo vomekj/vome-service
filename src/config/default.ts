@@ -98,7 +98,7 @@ const config: DefaultConfig = {
     tenant: false,
     /** 均可省略：upsert 默认 insert，softDelete 默认 false */
     crud: {
-      /** save：有 id 则更新；insert：只插入 */
+      /** save：有 id 则更新；insert：只插。表开 softDelete 时 add 固定走 upsert（与本配置无关，两者语义均覆盖） */
       upsert: "save",
       /** true：删除进回收站（需 deleteTime 列） */
       softDelete: true,

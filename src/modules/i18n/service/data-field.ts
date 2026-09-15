@@ -17,20 +17,6 @@ export class I18nDataFieldService extends BaseService {
   @Inject()
   dataService: I18nDataService
 
-  async modifyBefore(data: unknown, type: CrudModifyType) {
-    if (type !== 'add' && type !== 'update') return
-    const rows = Array.isArray(data) ? data : [data]
-    for (const raw of rows) {
-      if (raw == null || typeof raw !== 'object') continue
-      const row = raw as Record<string, unknown>
-      await this.dataService.assertFieldUnique(
-        String(row.tableName ?? ''),
-        String(row.fieldName ?? ''),
-        type === 'update' && row.id != null ? Number(row.id) : undefined,
-      )
-    }
-  }
-
   async modifyAfter(data: unknown, type: CrudModifyType) {
     if (type !== 'add' && type !== 'update') return
     const rows = Array.isArray(data) ? data : [data]

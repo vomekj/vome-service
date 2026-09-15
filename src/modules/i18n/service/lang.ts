@@ -1,5 +1,5 @@
 import type { CrudModifyType } from '@core/server'
-import { and, asc, eq, isNull, ne } from 'drizzle-orm'
+import { and, asc, eq, getTableName, isNull, ne } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
@@ -7,6 +7,8 @@ import {
   Inject,
   InjectRepository,
   Provide,
+  applyDataI18n,
+  getSourceLang,
   type Repository,
 } from '@core/server'
 import { PluginInfoService } from '../../base/service/plugin'
@@ -16,7 +18,7 @@ import {
 } from '../../../utils/transfer-remote-image'
 import { i18nLang } from '../entity/lang'
 
-const FLAG_PREFIX = 'app/public/i18n/lang-flag'
+const FLAG_PREFIX = 'app/public/i18n/lang'
 
 type UploadPlugin = UploadDownPlugin
 
@@ -114,11 +116,19 @@ export class I18nLangService extends BaseService {
     }
   }
 
-  /** C 端：启用中语种（按语种编码排序） */
-  async listEnabled() {
-    return this.langRepo.find(
+  /** 启用中语种（按语种编码排序；可排除 system.lang 源语言；name 走 dataI18n） */
+  async listEnabled(opts?: { excludeSource?: boolean }) {
+    const rows = await this.langRepo.find(
       and(eq(i18nLang.status, 1), isNull(i18nLang.deleteTime)),
       { orderBy: [asc(i18nLang.code)] },
     )
+    let list = rows
+    if (opts?.excludeSource) {
+      const src = getSourceLang()
+      if (src) {
+        list = rows.filter((r) => String(r.code || '').trim() !== src)
+      }
+    }
+    return (await applyDataI18n(list, getTableName(i18nLang))) as typeof rows
   }
 }

@@ -29,7 +29,8 @@ const config: EnvConfig = {
     pool: {
       max: 20,
       idleTimeout: 60,
-      maxLifetime: 1800,
+      /** 0 = 不限制存活，避免长跑被池强制掐连 */
+      maxLifetime: 0,
       connectionTimeout: 10,
       heartbeatInterval: 30,
     },

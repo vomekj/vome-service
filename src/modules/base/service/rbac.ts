@@ -142,8 +142,10 @@ export class RoleService extends BaseService {
         ),
       )
     }
-    for (const menuId of menuIds) {
-      await this.roleMenuRepo.create({ roleId, menuId })
+    if (menuIds.length) {
+      await this.roleMenuRepo.create(
+        menuIds.map((menuId) => ({ roleId, menuId })),
+      )
     }
   }
 
@@ -162,8 +164,10 @@ export class RoleService extends BaseService {
         ),
       )
     }
-    for (const departmentId of departmentIds) {
-      await this.roleDeptRepo.create({ roleId, departmentId })
+    if (departmentIds.length) {
+      await this.roleDeptRepo.create(
+        departmentIds.map((departmentId) => ({ roleId, departmentId })),
+      )
     }
   }
 }
@@ -194,8 +198,10 @@ export class AdminUserService extends BaseService {
         ),
       )
     }
-    for (const roleId of roleIds) {
-      await this.userRoleRepo.create({ userId, roleId })
+    if (roleIds.length) {
+      await this.userRoleRepo.create(
+        roleIds.map((roleId) => ({ userId, roleId })),
+      )
     }
   }
 

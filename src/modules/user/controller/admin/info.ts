@@ -15,8 +15,8 @@ import { UserInfoService } from '../../service/rbac'
   api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
   entity: userInfo,
   service: UserInfoService,
-  infoIgnoreProperty: ['password'],
   pageQueryOp: {
+    ignoreFields: ['password'],
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'user_status' },
@@ -32,6 +32,7 @@ import { UserInfoService } from '../../service/rbac'
     addOrderBy: { createTime: 'desc' },
   },
   listQueryOp: {
+    ignoreFields: ['password'],
     keyWordLikeFields: ['name', 'email', 'phone', 'remark'],
     fieldEq: [
       { column: 'status', dict: 'user_status' },

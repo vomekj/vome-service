@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { and, asc, eq, gt, inArray, isNull, ne } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNull } from 'drizzle-orm'
 import { getTableName, isTable, type Table } from 'drizzle-orm'
 import {
   applyChineseSegmentMap,
@@ -25,6 +25,7 @@ import {
   getDataI18nSeeds,
   resolveDataI18nSeedField,
   listDataI18nTables,
+  registerOnForceDelete,
   type DataI18nFieldConfig,
   type DataI18nPackMap,
   type Repository,
@@ -252,23 +253,6 @@ export class I18nDataService extends BaseService {
 
   private getRepoForTable(table: Table) {
     return getRepository(table)
-  }
-
-  async assertFieldUnique(
-    tableName: string,
-    fieldName: string,
-    id?: number,
-  ) {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const conds = [
-      eq(i18nDataField.tableName, tableName),
-      eq(i18nDataField.fieldName, fieldName),
-      eq(i18nDataField.tenantId, tenantId),
-      isNull(i18nDataField.deleteTime),
-    ]
-    if (id) conds.push(ne(i18nDataField.id, id))
-    const [hit] = await this.fieldRepo.find(and(...conds))
-    if (hit) throw new CommException(`字段「${tableName}.${fieldName}」已配置`)
   }
 
   /** 列出已配置翻译字段的业务表 */
@@ -617,6 +601,7 @@ export class I18nDataService extends BaseService {
                   },
                 ],
               },
+              options: { stream: true },
             },
             { source: 'i18n' },
           )
@@ -785,22 +770,6 @@ export class I18nDataService extends BaseService {
         },
       }
     }
-  }
-
-  async translateTableByAi(
-    body: Parameters<I18nDataService['translateTableByAiStream']>[0],
-  ) {
-    let result: Record<string, unknown> | undefined
-    for await (const chunk of this.translateTableByAiStream(body)) {
-      if (chunk.type === 'error') {
-        throw new CommException(chunk.error?.message || 'AI 翻译失败')
-      }
-      if (chunk.type === 'done') {
-        result = chunk.data
-      }
-    }
-    if (!result) throw new CommException('AI 未返回翻译内容')
-    return result
   }
 
   /**
@@ -989,6 +958,48 @@ export class I18nDataService extends BaseService {
     return { tableName, langCode, id: pk, key: key || undefined, version: saved?.version }
   }
 
+  /**
+   * 业务行硬删后：从该表所有语种 packJson 去掉对应 id（软删不调用）。
+   * 由 Repository.forceDelete → registerOnForceDelete 统一触发。
+   */
+  async removeDeletedIdsFromPacks(
+    tableName: string,
+    ids: Array<string | number>,
+  ) {
+    const table = String(tableName || '').trim()
+    if (!table || table === 'i18n_data_pack') return
+    const idSet = new Set(
+      ids.map((id) => String(id ?? '').trim()).filter(Boolean),
+    )
+    if (!idSet.size) return
+
+    const tenantId = normalizeTenantId(Context.get()?.tenantId)
+    const rows = await this.packRepo.find(
+      and(
+        eq(i18nDataPack.tenantId, tenantId),
+        eq(i18nDataPack.tableName, table),
+        isNull(i18nDataPack.deleteTime),
+      ),
+    )
+    for (const row of rows) {
+      const langCode = String(row.langCode || '').trim()
+      if (!langCode) continue
+      const pack: DataI18nPackMap = {
+        ...((row.packJson as DataI18nPackMap | undefined) || {}),
+      }
+      let changed = false
+      for (const pk of idSet) {
+        if (pk in pack) {
+          delete pack[pk]
+          changed = true
+        }
+      }
+      if (!changed) continue
+      await this.upsertPack(table, langCode, pack)
+      this.invalidatePackCache(table, langCode)
+    }
+  }
+
   private async resolveModelCode(model?: string) {
     const code = String(model || '').trim()
     if (code) return code
@@ -1006,41 +1017,34 @@ export class I18nDataService extends BaseService {
     sourceHash?: string,
   ) {
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const [existing] = await this.packRepo.find(
+    const existing = await this.packRepo.findOne(
       and(
         eq(i18nDataPack.tenantId, tenantId),
         eq(i18nDataPack.tableName, tableName),
         eq(i18nDataPack.langCode, langCode),
       ),
-      { withTrashed: true },
+      { withTrashed: true, softDelete: true },
     )
-    if (existing) {
-      if (existing.deleteTime) {
-        await this.packRepo.restore(eq(i18nDataPack.id, existing.id))
-      }
-      await this.packRepo.update(eq(i18nDataPack.id, existing.id), {
-        packJson,
-        version: Number(existing.version || 1) + 1,
-        sourceHash: sourceHash || existing.sourceHash,
-      })
-      const [row] = await this.packRepo.find(eq(i18nDataPack.id, existing.id))
-      return row
-    }
-    await this.packRepo.create({
+    // 主实体是 dataField，不能 this.add；与 softDelete 下 BaseService.add 同走 Repository.upsert
+    return this.packRepo.upsert({
       tenantId,
       tableName,
       langCode,
       packJson,
-      version: 1,
-      sourceHash,
+      sourceHash: sourceHash || existing?.sourceHash,
+      version: existing ? Number(existing.version || 1) + 1 : 1,
     })
-    const [row] = await this.packRepo.find(
-      and(
-        eq(i18nDataPack.tenantId, tenantId),
-        eq(i18nDataPack.tableName, tableName),
-        eq(i18nDataPack.langCode, langCode),
-      ),
+  }
+}
+
+/** 模块加载即挂上：硬删业务行 → 清 pack（不依赖 Service 是否已首次构造） */
+{
+  const flag = Symbol.for('vome.i18n.onForceDeleteRegistered')
+  const g = globalThis as typeof globalThis & { [flag]?: boolean }
+  if (!g[flag]) {
+    g[flag] = true
+    registerOnForceDelete(({ tableName, ids }) =>
+      Ioc.get(I18nDataService).removeDeletedIdsFromPacks(tableName, ids),
     )
-    return row
   }
 }

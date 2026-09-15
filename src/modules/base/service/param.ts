@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
@@ -179,7 +179,7 @@ export class BaseParamService extends BaseService {
   }
 
   private async prepareParam(data: Record<string, unknown>, type: 'add' | 'update') {
-    /** 表格内仅切换对 App 开放 */
+    /** 表格内仅切换开关类字段 */
     if (type === 'update') {
       const keys = Object.keys(data).filter(
         (k) => k !== 'id' && data[k] !== undefined,
@@ -188,10 +188,24 @@ export class BaseParamService extends BaseService {
         data.openToApp = Number(data.openToApp) === 1 ? 1 : 0
         return
       }
+      if (keys.length === 1 && keys[0] === 'status') {
+        data.status = Number(data.status) === 1 ? 1 : 0
+        return
+      }
     }
 
     if (data.name != null) data.name = String(data.name).trim()
     if (data.keyName != null) data.keyName = String(data.keyName).trim()
+
+    // 局部更新未带 type/data 时勿强校验（Zod 管 add 必填）
+    if (type === 'update' && data.type === undefined && data.data === undefined) {
+      if (data.openToApp != null) data.openToApp = Number(data.openToApp) === 1 ? 1 : 0
+      if (data.status != null) data.status = Number(data.status) === 1 ? 1 : 0
+      if (data.remark != null) {
+        data.remark = String(data.remark).trim() || null
+      }
+      return
+    }
 
     const paramType = Number(data.type ?? 0)
     if (!PARAM_TYPES.has(paramType)) {
@@ -242,20 +256,7 @@ export class BaseParamService extends BaseService {
     if (data.remark != null) {
       data.remark = String(data.remark).trim() || null
     }
-
-    const keyName = String(data.keyName ?? '').trim()
-    if (!keyName) return
-
-    const id = data.id != null ? Number(data.id) : NaN
-    const conds = [
-      eq(baseParam.keyName, keyName),
-      isNull(baseParam.deleteTime),
-    ]
-    if (Number.isInteger(id) && id > 0) {
-      conds.push(ne(baseParam.id, id))
-    }
-    const exists = await this.paramRepo.findOne(and(...conds))
-    if (exists) throw new CommException('keyName 已存在')
+    // keyName 唯一靠 uniqueIndex；软删 add 撞键由 Repository upsert
   }
 
   async modifyBefore(data: unknown, type: CrudModifyType) {
