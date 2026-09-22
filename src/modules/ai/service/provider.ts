@@ -3,7 +3,6 @@ import { and, eq, isNull, type SQL } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
-  Context,
   InjectRepository,
   Provide,
   type CrudTrashQueryOptions,
@@ -25,9 +24,6 @@ export class AiProviderService extends BaseService {
     data: Record<string, unknown>,
     type: 'add' | 'update',
   ) {
-    if (data.tenantId == null) {
-      data.tenantId = Context.get()?.tenantId ?? 0
-    }
     if (data.baseUrl != null) {
       data.baseUrl = String(data.baseUrl).trim().replace(/\/+$/, '')
     }

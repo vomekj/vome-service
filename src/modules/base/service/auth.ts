@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { Inject, Provide, noTenant } from '@core/server'
+import { Inject, Provide } from '@core/server'
 import type {
   AdminAuthResult,
   AdminRefreshCache,
@@ -97,10 +97,7 @@ export class AdminAuthService extends BaseService {
       return { error: 'invalid_captcha' }
     }
 
-    const user = await noTenant(async () => {
-      const [row] = await this.baseUserEntity.find(eq(baseUser.username, username))
-      return row
-    })
+    const [user] = await this.baseUserEntity.find(eq(baseUser.username, username))
 
     if (!user || user.status !== 1) {
       return { error: 'invalid_credentials' }
@@ -133,10 +130,7 @@ export class AdminAuthService extends BaseService {
       return { error: 'invalid_refresh_token' }
     }
 
-    const user = await noTenant(async () => {
-      const [row] = await this.baseUserEntity.find(eq(baseUser.id, session.userId))
-      return row
-    })
+    const [user] = await this.baseUserEntity.find(eq(baseUser.id, session.userId))
 
     if (!user || user.status !== 1) {
       await this.cache.del(key)
@@ -165,7 +159,6 @@ export class AdminAuthService extends BaseService {
     if (!token) return null
 
     try {
-      if (!(await this.token.admin.has(token))) return null
       const payload = await this.jwt.admin.verify(token)
       if (!payload?.sub) return null
       const adminId = Number(payload.sub)

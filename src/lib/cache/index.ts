@@ -28,6 +28,35 @@ export class CacheStore {
     await this.client.del(key)
   }
 
+  async exists(key: string): Promise<boolean> {
+    return this.client.exists(key)
+  }
+
+  /** Hash 字段（业务自用；实体行缓存已改进程 Map，不经此处） */
+  async hget(key: string, field: string): Promise<string | null> {
+    return this.client.hget(key, field)
+  }
+
+  async hmget(key: string, fields: string[]): Promise<Array<string | null>> {
+    if (!fields.length) return []
+    return this.client.hmget(key, fields)
+  }
+
+  async hgetall(key: string): Promise<Record<string, string>> {
+    return this.client.hgetall(key)
+  }
+
+  async hset(key: string, fields: Record<string, string>): Promise<void> {
+    if (!Object.keys(fields).length) return
+    await this.client.hset(key, fields)
+  }
+
+  async hdel(key: string, fields: string[]): Promise<void> {
+    const [field, ...rest] = fields
+    if (!field) return
+    await this.client.hdel(key, field, ...rest)
+  }
+
   close() {
     this.client.close()
   }

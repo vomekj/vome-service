@@ -54,10 +54,11 @@ export const webAuth = new Elysia({ name: 'better-auth' })
           auth.kind === 'jwt' && auth.payload
             ? (auth.payload as Record<string, unknown>)
             : null
-        const tenantId =
-          (auth.user as { tenantId?: number | null }).tenantId ??
-          (payload?.tenantId as number | null | undefined) ??
-          null
+        const fromToken = asPositiveInt(payload?.tenantId)
+        const fromUser = asPositiveInt(
+          (auth.user as { tenantId?: number | null }).tenantId,
+        )
+        const tenantId = fromToken ?? fromUser ?? null
 
         const hint =
           asPositiveInt(payload?.userId) ??

@@ -3,7 +3,6 @@ import { and, eq, isNull } from 'drizzle-orm'
 import {
   BaseService,
   CommException,
-  Context,
   InjectRepository,
   Provide,
   type Repository,
@@ -14,11 +13,6 @@ import {
   requireAsyncSpec,
   type AiAsyncSpec,
 } from 'vome-core/ai'
-
-function normalizeTenantId(raw: unknown): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
 
 function normalizeAsyncSpec(
   raw: unknown,
@@ -60,9 +54,6 @@ export class AiModelService extends BaseService {
     data: Record<string, unknown>,
     type: 'add' | 'update',
   ) {
-    data.tenantId = normalizeTenantId(
-      data.tenantId ?? Context.get()?.tenantId,
-    )
     if (data.code != null) data.code = String(data.code).trim()
     if (data.path != null) {
       const path = String(data.path).trim()
@@ -115,11 +106,9 @@ export class AiModelService extends BaseService {
   }
 
   async findEnabledByCode(code: string) {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const [row] = await this.modelRepo.find(
       and(
         eq(aiModel.code, code),
-        eq(aiModel.tenantId, tenantId),
         eq(aiModel.status, 1),
         isNull(aiModel.deleteTime),
       ),

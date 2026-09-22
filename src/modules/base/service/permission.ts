@@ -1,8 +1,6 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { isNull } from 'drizzle-orm'
 import {
   isTenantEnabled,
-  noDataScope,
-  noTenant,
   Provide,
   InjectRepository,
   BaseService,
@@ -121,50 +119,128 @@ export class PermissionService extends BaseService {
   @InjectRepository(baseDepartment)
   deptRepo: Repository<typeof baseDepartment>
 
-  /** 后台用户鉴权信息（含数据范围） */
+  /** 启动灌角色 / 菜单 / 部门缓存 */
+  override async init() {
+    const [links, roles, roleMenus, roleDepts, menus, depts] = await Promise.all([
+      this.userRoleRepo.find(isNull(baseUserRole.deleteTime)),
+      this.roleRepo.find(isNull(baseRole.deleteTime)),
+      this.roleMenuRepo.find(isNull(baseRoleMenu.deleteTime)),
+      this.roleDeptRepo.find(isNull(baseRoleDepartment.deleteTime)),
+      this.menuRepo.find(isNull(baseMenu.deleteTime)),
+      this.deptRepo.find(isNull(baseDepartment.deleteTime)),
+    ])
+    await Promise.all([
+      this.cacheSet('base_user_role', links ?? []),
+      this.cacheSet('base_role', roles ?? []),
+      this.cacheSet('base_role_menu', roleMenus ?? []),
+      this.cacheSet('base_role_department', roleDepts ?? []),
+      this.cacheSet('base_menu', menus ?? []),
+      this.cacheSet('base_department', depts ?? []),
+    ])
+  }
+
+  private async rbacSnap() {
+    const [links, roles, roleMenus, roleDepts, menus, depts] = await Promise.all([
+      this.cacheGet('base_user_role', () =>
+        this.userRoleRepo.find(isNull(baseUserRole.deleteTime)),
+      ),
+      this.cacheGet('base_role', () => this.roleRepo.find(isNull(baseRole.deleteTime))),
+      this.cacheGet('base_role_menu', () =>
+        this.roleMenuRepo.find(isNull(baseRoleMenu.deleteTime)),
+      ),
+      this.cacheGet('base_role_department', () =>
+        this.roleDeptRepo.find(isNull(baseRoleDepartment.deleteTime)),
+      ),
+      this.cacheGet('base_menu', () => this.menuRepo.find(isNull(baseMenu.deleteTime))),
+      this.cacheGet('base_department', () =>
+        this.deptRepo.find(isNull(baseDepartment.deleteTime)),
+      ),
+    ])
+
+    const userRoleIds = new Map<number, number[]>()
+    for (const row of links) {
+      const list = userRoleIds.get(row.userId) ?? []
+      list.push(row.roleId)
+      userRoleIds.set(row.userId, list)
+    }
+
+    const roleMap = new Map<number, { status: number; dataScope: number; relevance: boolean }>()
+    for (const row of roles) {
+      roleMap.set(row.id, {
+        status: row.status,
+        dataScope: Number(row.dataScope),
+        relevance: Boolean(row.relevance),
+      })
+    }
+
+    const roleMenuIds = new Map<number, number[]>()
+    for (const row of roleMenus) {
+      const list = roleMenuIds.get(row.roleId) ?? []
+      list.push(row.menuId)
+      roleMenuIds.set(row.roleId, list)
+    }
+
+    const roleDeptIds = new Map<number, number[]>()
+    for (const row of roleDepts) {
+      const list = roleDeptIds.get(row.roleId) ?? []
+      list.push(row.departmentId)
+      roleDeptIds.set(row.roleId, list)
+    }
+
+    const menuById = new Map(menus.map((row) => [row.id, row]))
+    return {
+      userRoleIds,
+      roles: roleMap,
+      roleMenuIds,
+      roleDeptIds,
+      menus,
+      menuById,
+      departments: depts.map((d) => ({
+        id: d.id,
+        parentId: d.parentId == null ? null : Number(d.parentId),
+      })),
+    }
+  }
+
+  /** 后台用户鉴权。角色和菜单走本地缓存；用户行只按 id 查库，不进缓存 */
   async getAdminAuthz(adminId: number): Promise<AdminAuthz> {
-    return noTenant(async () =>
-      noDataScope(async () => {
-        const [user] = await this.userRepo.find(
-          and(eq(baseUser.id, adminId), isNull(baseUser.deleteTime)),
-        )
-        if (!user || user.status !== 1) {
-          return {
-            isSuper: false,
-            perms: [],
-            menus: [],
-            tenantEnabled: isTenantEnabled(),
-            dataScope: 'none',
-            dataScopeDeptIds: [],
-          }
-        }
+    const [snap, row] = await Promise.all([
+      this.rbacSnap(),
+      this.userRepo.findById(adminId),
+    ])
+    if (!row || row.status !== 1) {
+      return {
+        isSuper: false,
+        perms: [],
+        menus: [],
+        tenantEnabled: isTenantEnabled(),
+        dataScope: 'none',
+        dataScopeDeptIds: [],
+      }
+    }
 
-        let authz: AdminAuthz
-        if (user.isSuper) {
-          const allMenus = await this.menuRepo.find(isNull(baseMenu.deleteTime))
-          const perms = [
-            ...new Set(allMenus.map((m) => m.perms).filter((p): p is string => !!p)),
-          ]
-          authz = {
-            isSuper: true,
-            perms,
-            menus: buildMenuTree(allMenus),
-            dataScope: 'all',
-            dataScopeDeptIds: [],
-          }
-        } else {
-          authz = await this.resolveAuthzByUserRoles(adminId, false)
-          const scope = await this.resolveAdminDataScope(adminId, authz.isSuper)
-          authz = { ...authz, ...scope }
-        }
+    let authz: AdminAuthz
+    if (row.isSuper) {
+      const perms = [
+        ...new Set(snap.menus.map((m) => m.perms).filter((p): p is string => !!p)),
+      ]
+      authz = {
+        isSuper: true,
+        perms,
+        menus: buildMenuTree(snap.menus),
+        dataScope: 'all',
+        dataScopeDeptIds: [],
+      }
+    } else {
+      authz = this.resolveAuthzByUserRoles(adminId, false, snap)
+      authz = { ...authz, ...this.resolveDataScope(adminId, authz.isSuper, snap) }
+    }
 
-        return {
-          ...authz,
-          menus: filterTenantMenus(authz.menus),
-          tenantEnabled: isTenantEnabled(),
-        }
-      }),
-    )
+    return {
+      ...authz,
+      menus: filterTenantMenus(authz.menus),
+      tenantEnabled: isTenantEnabled(),
+    }
   }
 
   /**
@@ -174,75 +250,50 @@ export class PermissionService extends BaseService {
     adminId: number,
     isSuper = false,
   ): Promise<Pick<AdminAuthz, 'dataScope' | 'dataScopeDeptIds'>> {
-    if (isSuper) return { dataScope: 'all', dataScopeDeptIds: [] }
-
-    return noDataScope(async () => {
-      const links = await this.userRoleRepo.find(eq(baseUserRole.userId, adminId))
-      if (!links.length) return { dataScope: 'none', dataScopeDeptIds: [] }
-
-      const roleIds = links.map((l) => l.roleId)
-      const roles = await this.roleRepo.find(
-        and(
-          inArray(baseRole.id, roleIds),
-          eq(baseRole.status, 1),
-          isNull(baseRole.deleteTime),
-        ),
-      )
-      if (!roles.length) return { dataScope: 'none', dataScopeDeptIds: [] }
-
-      if (roles.some((r) => Number(r.dataScope) === 0)) {
-        return { dataScope: 'all', dataScopeDeptIds: [] }
-      }
-
-      const customRoles = roles.filter((r) => Number(r.dataScope) === 1)
-      if (!customRoles.length) return { dataScope: 'none', dataScopeDeptIds: [] }
-
-      const customRoleIds = customRoles.map((r) => r.id)
-      const linksDept = await this.roleDeptRepo.find(
-        inArray(baseRoleDepartment.roleId, customRoleIds),
-      )
-      if (!linksDept.length) return { dataScope: 'none', dataScopeDeptIds: [] }
-
-      const needExpand = new Set(
-        customRoles.filter((r) => Boolean(r.relevance)).map((r) => r.id),
-      )
-      const byRole = new Map<number, number[]>()
-      for (const row of linksDept) {
-        const list = byRole.get(row.roleId) || []
-        list.push(row.departmentId)
-        byRole.set(row.roleId, list)
-      }
-
-      let allDepts: Array<{ id: number; parentId: number | null }> = []
-      if (needExpand.size) {
-        const rows = await this.deptRepo.find(isNull(baseDepartment.deleteTime))
-        allDepts = rows.map((d) => ({
-          id: d.id,
-          parentId: d.parentId == null ? null : Number(d.parentId),
-        }))
-      }
-
-      const merged = new Set<number>()
-      for (const role of customRoles) {
-        const raw = byRole.get(role.id) || []
-        const ids = needExpand.has(role.id) ? expandDeptIds(allDepts, raw) : raw
-        for (const id of ids) merged.add(id)
-      }
-
-      const dataScopeDeptIds = [...merged]
-      if (!dataScopeDeptIds.length) {
-        return { dataScope: 'none', dataScopeDeptIds: [] }
-      }
-      return { dataScope: 'custom', dataScopeDeptIds }
-    })
+    const snap = await this.rbacSnap()
+    return this.resolveDataScope(adminId, isSuper, snap)
   }
 
-  private async resolveAuthzByUserRoles(
+  private resolveDataScope(
+    adminId: number,
+    isSuper = false,
+    snap: Awaited<ReturnType<PermissionService['rbacSnap']>>,
+  ): Pick<AdminAuthz, 'dataScope' | 'dataScopeDeptIds'> {
+    if (isSuper) return { dataScope: 'all', dataScopeDeptIds: [] }
+
+    const bound = (snap.userRoleIds.get(adminId) ?? [])
+      .map((id) => ({ id, role: snap.roles.get(id) }))
+      .filter((item): item is { id: number; role: NonNullable<(typeof item)['role']> } =>
+        !!item.role && item.role.status === 1,
+      )
+    if (!bound.length) return { dataScope: 'none', dataScopeDeptIds: [] }
+
+    if (bound.some((item) => item.role.dataScope === 0)) {
+      return { dataScope: 'all', dataScopeDeptIds: [] }
+    }
+
+    const custom = bound.filter((item) => item.role.dataScope === 1)
+    if (!custom.length) return { dataScope: 'none', dataScopeDeptIds: [] }
+
+    const merged = new Set<number>()
+    for (const item of custom) {
+      const raw = snap.roleDeptIds.get(item.id) ?? []
+      const ids = item.role.relevance ? expandDeptIds(snap.departments, raw) : raw
+      for (const id of ids) merged.add(id)
+    }
+    const dataScopeDeptIds = [...merged]
+    if (!dataScopeDeptIds.length) return { dataScope: 'none', dataScopeDeptIds: [] }
+    return { dataScope: 'custom', dataScopeDeptIds }
+  }
+
+  private resolveAuthzByUserRoles(
     userId: number,
     isSuper: boolean,
-  ): Promise<AdminAuthz> {
-    const links = await this.userRoleRepo.find(eq(baseUserRole.userId, userId))
-    if (!links.length) {
+    snap: Awaited<ReturnType<PermissionService['rbacSnap']>>,
+  ): AdminAuthz {
+    const roleIds = snap.userRoleIds.get(userId) ?? []
+    const activeRoleIds = roleIds.filter((id) => snap.roles.get(id)?.status === 1)
+    if (!activeRoleIds.length) {
       return {
         isSuper,
         perms: [],
@@ -252,40 +303,12 @@ export class PermissionService extends BaseService {
       }
     }
 
-    const roleIds = links.map((l) => l.roleId)
-    const roles = await this.roleRepo.find(
-      and(
-        inArray(baseRole.id, roleIds),
-        eq(baseRole.status, 1),
-        isNull(baseRole.deleteTime),
-      ),
-    )
-    if (!roles.length) {
-      return {
-        isSuper,
-        perms: [],
-        menus: [],
-        dataScope: 'none',
-        dataScopeDeptIds: [],
-      }
-    }
-
-    const activeRoleIds = roles.map((r) => r.id)
-    const roleMenus = await this.roleMenuRepo.find(inArray(baseRoleMenu.roleId, activeRoleIds))
-    const menuIds = [...new Set(roleMenus.map((rm) => rm.menuId))]
-    if (!menuIds.length) {
-      return {
-        isSuper,
-        perms: [],
-        menus: [],
-        dataScope: 'none',
-        dataScopeDeptIds: [],
-      }
-    }
-
-    const menus = await this.menuRepo.find(
-      and(inArray(baseMenu.id, menuIds), isNull(baseMenu.deleteTime)),
-    )
+    const menuIds = [
+      ...new Set(activeRoleIds.flatMap((id) => snap.roleMenuIds.get(id) ?? [])),
+    ]
+    const menus = menuIds
+      .map((id) => snap.menuById.get(id))
+      .filter((m): m is typeof baseMenu.$inferSelect => !!m)
     const perms = [...new Set(menus.map((m) => m.perms).filter((p): p is string => !!p))]
     return { isSuper, perms, menus: buildMenuTree(menus) }
   }

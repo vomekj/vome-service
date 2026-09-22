@@ -98,11 +98,9 @@ Snippets / Tasks 在 `service/.vscode/`，需**手动移到项目根**才生效�
 | API | 用法 |
 |-----|------|
 | `isTenantEnabled()` | 是否开多租户 |
-| `noTenant(fn)` | 临时关闭租户过滤执行 `fn` |
-| `normalizeHost` / `resolveTenantScope` | 按 Host 解析租户 |
+| `normalizeHost` / `resolveTenantScope` | 按 Host 解析租户；超管 `isSuper` 看全量 |
 | `tableHasDepartmentId` | 表是否有部门字段 |
 | `resolveDataScope` / `applyDataScopeWhere` / `applyRowScopes` | 数据权限解析与应用到查询 |
-| `noDataScope(fn)` | 临时关闭数据权限 |
 
 ### EPS
 
@@ -384,10 +382,8 @@ Better Auth：宿主 `src/lib/auth`，默认 `basePath: '/api/auth'`；配置在
 | 场景 | 做法 |
 |------|------|
 | 开多租户 | 配置 `vome.tenant: true`；表含 `tenantId`；鉴权写入 `Context.tenantId`；Repository 自动按租户过滤 |
-| 某段查询忽略租户 | `await noTenant(async () => { … })` |
 | 数据权限 | 角色配 `dataScope`：`all` / `dept` / `deptAndChild` / `self` / `none` + `dataScopeDeptIds`；表有 `departmentId` / 创建人字段时 Repository 自动过滤 |
-| 某段忽略数据权限 | `await noDataScope(async () => { … })` |
-| 超管 | `isSuper` → 通常 `dataScope: 'all'`，不挡查询 |
+| 超管 | `isSuper` → 租户 / 数据范围均为全量，并给全部权限码 |
 
 业务里一般**不必**手写 `applyDataScopeWhere`；只有自定义 SQL/特殊报表才需要。
 

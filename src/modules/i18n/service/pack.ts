@@ -5,7 +5,6 @@ import type { CrudModifyType } from '@core/server'
 import {
   BaseService,
   CommException,
-  Context,
   Inject,
   InjectRepository,
   Provide,
@@ -14,7 +13,6 @@ import {
   pModulesPath,
   listColumnCommentTables,
   getColumnComments,
-  applyDataI18n,
   getSourceLang,
   isSourceLang,
   type Repository,
@@ -102,11 +100,6 @@ function adminSourceCandidates(): string[] {
   ]
 }
 
-function normalizeTenantId(raw: unknown): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
-
 function normalizeScope(
   scopeType?: string,
   scopeKey?: string,
@@ -152,9 +145,6 @@ export class I18nPackService extends BaseService {
     data: Record<string, unknown>,
     type: 'add' | 'update',
   ) {
-    data.tenantId = normalizeTenantId(
-      data.tenantId ?? Context.get()?.tenantId,
-    )
     if (data.langCode != null) {
       data.langCode = String(data.langCode).trim()
     }
@@ -222,9 +212,7 @@ export class I18nPackService extends BaseService {
     scopeKey: string,
     id?: number,
   ) {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const conds = [
-      eq(i18nPack.tenantId, tenantId),
       eq(i18nPack.langCode, langCode),
       eq(i18nPack.scopeType, scopeType),
       eq(i18nPack.scopeKey, scopeKey),
@@ -280,7 +268,6 @@ export class I18nPackService extends BaseService {
     scopeKey?: string
   }) {
     const scope = normalizeScope(opts.scopeType, opts.scopeKey)
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const scopeKeys =
       scope.scopeType === 'plugin'
         ? await this.pluginScopeKeyCandidates(scope.scopeKey)
@@ -288,7 +275,6 @@ export class I18nPackService extends BaseService {
     for (const scopeKey of scopeKeys) {
       const [row] = await this.packRepo.find(
         and(
-          eq(i18nPack.tenantId, tenantId),
           eq(i18nPack.langCode, opts.langCode),
           eq(i18nPack.scopeType, scope.scopeType),
           eq(i18nPack.scopeKey, scopeKey),
@@ -321,7 +307,7 @@ export class I18nPackService extends BaseService {
 
   /**
    * 顶栏可切换语种：仅返回指定宿主端已生成的语言包
-   * name/flag 取语种配置（name 走 dataI18n，随 X-Lang）；排序按语种编码升序
+   * name/flag 取语种配置原文（各语种自己的文字，不走 dataI18n）；排序按语种编码升序
    */
   async listHostLocales(scopeKey: string = 'admin') {
     const scope = normalizeScope('host', scopeKey)
@@ -341,14 +327,12 @@ export class I18nPackService extends BaseService {
    */
   async listPluginLocales(scopeKey: string) {
     const scope = normalizeScope('plugin', scopeKey)
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const scopeKeys = await this.pluginScopeKeyCandidates(scope.scopeKey)
     if (!scopeKeys.length) {
       return []
     }
     const rows = await this.packRepo.find(
       and(
-        eq(i18nPack.tenantId, tenantId),
         eq(i18nPack.scopeType, 'plugin'),
         inArray(i18nPack.scopeKey, scopeKeys),
         isNull(i18nPack.deleteTime),
@@ -368,13 +352,9 @@ export class I18nPackService extends BaseService {
     if (!codeSet.size) {
       return []
     }
-    const rawLangRows = await this.langRepo.find(isNull(i18nLang.deleteTime), {
+    const langRows = (await this.langRepo.find(isNull(i18nLang.deleteTime), {
       orderBy: [asc(i18nLang.code)],
-    })
-    const langRows = (await applyDataI18n(
-      rawLangRows ?? [],
-      getTableName(i18nLang),
-    )) as Array<{ code?: string | null; name?: string | null; flag?: string | null }>
+    })) as Array<{ code?: string | null; name?: string | null; flag?: string | null }>
     const out: Array<{ code: string; name: string; flag: string }> = []
     const used = new Set<string>()
     for (const l of langRows ?? []) {
@@ -623,10 +603,8 @@ export class I18nPackService extends BaseService {
 
   /** 列出可用于翻译的 chat 模型 */
   async listChatModels() {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const list = await this.modelRepo.find(
       and(
-        eq(aiModel.tenantId, tenantId),
         eq(aiModel.status, 1),
         isNull(aiModel.deleteTime),
       ),
@@ -709,7 +687,6 @@ export class I18nPackService extends BaseService {
       }
 
       const scope = normalizeScope(body.scopeType, body.scopeKey)
-      const tenantId = normalizeTenantId(Context.get()?.tenantId)
       const incremental = body.mode !== 'full'
 
       // 尽早推一帧，避免客户端/代理在拉源包、查库前空等（与 dataPack.translateTable 同模式）
@@ -729,7 +706,6 @@ export class I18nPackService extends BaseService {
       if (!langName) {
         const [lang] = await this.langRepo.find(
           and(
-            eq(i18nLang.tenantId, tenantId),
             eq(i18nLang.code, langCode),
             isNull(i18nLang.deleteTime),
           ),
@@ -953,11 +929,9 @@ export class I18nPackService extends BaseService {
     packJson: Record<string, unknown>,
   ) {
     const srcLang = requireSourceLang()
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const sourceHash = hashLocaleJson(packJson)
     const existing = await this.packRepo.findOne(
       and(
-        eq(i18nPack.tenantId, tenantId),
         eq(i18nPack.langCode, srcLang),
         eq(i18nPack.scopeType, scopeType),
         eq(i18nPack.scopeKey, scopeKey),
@@ -966,7 +940,6 @@ export class I18nPackService extends BaseService {
     )
     // 不用 this.add：modifyBefore.assertUnique 会拦「已存活」行，同步需覆盖更新
     await this.packRepo.upsert({
-      tenantId,
       langCode: srcLang,
       scopeType,
       scopeKey,
@@ -1117,7 +1090,6 @@ export class I18nPackService extends BaseService {
         if (label !== key) {
           const [legacy] = await this.packRepo.find(
             and(
-              eq(i18nPack.tenantId, normalizeTenantId(Context.get()?.tenantId)),
               eq(i18nPack.langCode, requireSourceLang()),
               eq(i18nPack.scopeType, 'plugin'),
               eq(i18nPack.scopeKey, key),

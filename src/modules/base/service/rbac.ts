@@ -38,6 +38,17 @@ export class MenuService extends BaseService {
     for (const id of ids) {
       await this.delChildMenus(id, options?.force === true)
     }
+    await this.cacheDel('base_menu')
+  }
+
+  async modifyAfter(_data: unknown, type: CrudModifyType) {
+    if (type === 'add' || type === 'update') await this.cacheDel('base_menu')
+  }
+
+  async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
+    const result = await super.restore(whereOrIds)
+    await this.cacheDel('base_menu')
+    return result
   }
 
   private resolveMenuIdWhere(
@@ -116,6 +127,18 @@ export class DepartmentService extends BaseService {
     }
     return super.delete(whereOrIds, options)
   }
+
+  async modifyAfter(_data: unknown, type: CrudModifyType) {
+    if (type === 'add' || type === 'update' || type === 'delete') {
+      await this.cacheDel('base_department')
+    }
+  }
+
+  async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
+    const result = await super.restore(whereOrIds)
+    await this.cacheDel('base_department')
+    return result
+  }
 }
 
 @Provide()
@@ -147,6 +170,7 @@ export class RoleService extends BaseService {
         menuIds.map((menuId) => ({ roleId, menuId })),
       )
     }
+    await this.cacheDel('base_role_menu')
   }
 
   async getDepartmentIds(roleId: number) {
@@ -169,6 +193,19 @@ export class RoleService extends BaseService {
         departmentIds.map((departmentId) => ({ roleId, departmentId })),
       )
     }
+    await this.cacheDel('base_role_department')
+  }
+
+  async modifyAfter(_data: unknown, type: CrudModifyType) {
+    if (type === 'add' || type === 'update' || type === 'delete') {
+      await this.cacheDel('base_role')
+    }
+  }
+
+  async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
+    const result = await super.restore(whereOrIds)
+    await this.cacheDel('base_role')
+    return result
   }
 }
 
@@ -203,6 +240,7 @@ export class AdminUserService extends BaseService {
         roleIds.map((roleId) => ({ userId, roleId })),
       )
     }
+    await this.cacheDel('base_user_role')
   }
 
   /** userId → 角色名（逗号分隔） */
@@ -266,11 +304,6 @@ export class AdminUserService extends BaseService {
     }
     if (type === 'update' && (data.password === '' || data.password == null)) {
       delete data.password
-    }
-    if (data.tenantId === '' || data.tenantId == null) {
-      data.tenantId = null
-    } else {
-      data.tenantId = Number(data.tenantId)
     }
     if (data.departmentId === '' || data.departmentId == null) {
       data.departmentId = null

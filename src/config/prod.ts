@@ -28,11 +28,12 @@ const config: EnvConfig = {
     database: 'vome',
     pool: {
       max: 20,
-      idleTimeout: 60,
-      /** 0 = 不限制存活，避免长跑被池强制掐连 */
+      idleTimeout: 1800,
       maxLifetime: 0,
       connectionTimeout: 10,
       heartbeatInterval: 30,
+      keepAlive: true,
+      keepAliveInitialDelay: 10,
     },
     schema: '**/modules/*/entity/*.ts',
     migrations: './drizzle',

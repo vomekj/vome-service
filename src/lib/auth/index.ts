@@ -218,20 +218,24 @@ export class AuthService {
   }
 
   async resolveWeb(headers: Headers) {
-    const session = await this.auth.api.getSession({ headers })
-    if (session) {
-      return {
-        kind: 'session' as const,
-        user: session.user,
-        session: session.session,
-      }
+    const token = bearerToken(headers)
+    if (token) {
+      const jwt = await this.resolveWebJwt(token)
+      if (jwt) return jwt
     }
 
-    const token = bearerToken(headers)
-    if (!token) return null
+    const session = await this.auth.api.getSession({ headers })
+    if (!session) return null
+    return {
+      kind: 'session' as const,
+      user: session.user,
+      session: session.session,
+    }
+  }
 
+  /** Bearer 先验自签 JWT，命中则不再查 Better Auth session */
+  private async resolveWebJwt(token: string) {
     try {
-      // JwtService 在 bootstrapIoc 之后才可用，请求时再取
       const payload = await Ioc.get(JwtService).web.verify(token)
       if (!payload?.sub) return null
       const claimUid = Number(payload.userId)
@@ -249,6 +253,7 @@ export class AuthService {
           email: typeof payload.email === 'string' ? payload.email : undefined,
           name: typeof payload.name === 'string' ? payload.name : undefined,
           userId,
+          tenantId: payload.tenantId ?? null,
         },
         payload,
       }

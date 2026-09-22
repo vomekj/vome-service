@@ -5,6 +5,7 @@ import {
   CommException,
   InjectRepository,
   Provide,
+  applyDataI18n,
   type CrudDeleteOptions,
   type CrudDeleteWhere,
   type Repository,
@@ -27,6 +28,25 @@ function sameDictValue(a: unknown, b: unknown): boolean {
   if (a === b) return true
   if (a == null || b == null) return false
   return String(a) === String(b)
+}
+
+/** base_dict_info：字典项 name / label 一次 i18n（禁止按类型串行 await） */
+async function applyDictItemsI18n(
+  items: DictInfoItem[],
+): Promise<DictInfoItem[]> {
+  if (!items.length) return items
+  const translated = (await applyDataI18n(
+    items.map((e) => ({ id: e.id, name: e.name })),
+    'base_dict_info',
+  )) as Array<{ id: number; name: string }>
+  const byId = new Map(
+    translated.map((r) => [Number(r.id), String(r.name ?? '')]),
+  )
+  return items.map((e) => {
+    const hit = byId.get(Number(e.id))
+    if (!hit) return e
+    return { ...e, name: hit, label: hit }
+  })
 }
 
 /** 在字典树中按 value 深搜节点 */
@@ -155,7 +175,7 @@ export class DictInfoService extends BaseService {
     const infos = await this.infoRepo.find(eq(baseDictInfo.typeId, type.id), {
       orderBy: [asc(baseDictInfo.orderNum), asc(baseDictInfo.createTime)],
     })
-    return infos.map((e) => this.toItem(e))
+    return applyDictItemsI18n(infos.map((e) => this.toItem(e)))
   }
 
   private toTree(flat: DictInfoItem[]): DictInfoItem[] {
@@ -165,6 +185,7 @@ export class DictInfoService extends BaseService {
   /**
    * 按类型 key 拉扁平字典
    * 空 types = 全部。供 Admin/App 同步；前端再 deepTree
+   * 全量条目一次做 i18n，再按类型分组（禁止按类型串行 await）
    */
   async data(types: string[] = []): Promise<DictDataResult> {
     const typeRows = types.length
@@ -177,11 +198,21 @@ export class DictInfoService extends BaseService {
       orderBy: [asc(baseDictInfo.orderNum), asc(baseDictInfo.createTime)],
     })
 
+    const flat = await applyDictItemsI18n(
+      (infos ?? []).map((e) => this.toItem(e)),
+    )
+    const byTypeId = new Map<number, DictInfoItem[]>()
+    for (const item of flat) {
+      const tid = Number(item.typeId)
+      if (!Number.isFinite(tid)) continue
+      const list = byTypeId.get(tid)
+      if (list) list.push(item)
+      else byTypeId.set(tid, [item])
+    }
+
     const result: DictDataResult = {}
     for (const t of typeRows) {
-      result[t.key] = infos
-        .filter((i) => i.typeId === t.id)
-        .map((e) => this.toItem(e))
+      result[t.key] = byTypeId.get(Number(t.id)) ?? []
     }
     return result
   }

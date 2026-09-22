@@ -108,8 +108,6 @@ export class I18nDataService extends BaseService {
   @Inject()
   aiGateway: AiGateway
 
-  private fieldCache = new Map<string, { at: number; rows: DataI18nFieldConfig[] }>()
-  private packCache = new Map<string, { at: number; pack: DataI18nPackMap }>()
   private static registered = false
 
   constructor() {
@@ -125,6 +123,14 @@ export class I18nDataService extends BaseService {
         }),
       )
     }
+  }
+
+  /** 启动灌数据翻译字段 / 包缓存 */
+  override async init() {
+    await Promise.all([
+      this.cacheSet('i18n_data_field', await this.loadAllFields()),
+      this.cacheSet('i18n_data_pack', await this.loadAllPacks()),
+    ])
   }
 
   private tableMap(): Map<string, Table> {
@@ -148,52 +154,50 @@ export class I18nDataService extends BaseService {
     }
   }
 
-  async listEnabledFields(tableName: string): Promise<DataI18nFieldConfig[]> {
-    const key = `${normalizeTenantId(Context.get()?.tenantId)}:${tableName}`
-    const hit = this.fieldCache.get(key)
-    if (hit && Date.now() - hit.at < 30_000) return hit.rows
-
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const rows = await this.fieldRepo.find(
-      and(
-        eq(i18nDataField.tenantId, tenantId),
-        eq(i18nDataField.tableName, tableName),
-        eq(i18nDataField.status, 1),
-        isNull(i18nDataField.deleteTime),
-      ),
-      { orderBy: [asc(i18nDataField.id)] },
+  private async loadAllFields() {
+    return (
+      (await this.fieldRepo.find(isNull(i18nDataField.deleteTime), {
+        orderBy: [asc(i18nDataField.id)],
+      })) ?? []
     )
-    const fromDb = rows.map((r) => this.rowToFieldConfig(r))
-    const fromDecl = getDataI18nFieldConfigs(tableName)
+  }
+
+  private async loadAllPacks() {
+    return (
+      (await this.packRepo.find(isNull(i18nDataPack.deleteTime), {
+        orderBy: [asc(i18nDataPack.id)],
+      })) ?? []
+    )
+  }
+
+  async listEnabledFields(tableName: string): Promise<DataI18nFieldConfig[]> {
+    const tenantId = normalizeTenantId(Context.get()?.tenantId)
+    const table = String(tableName || '').trim()
+    const rows = await this.cacheGet<typeof i18nDataField.$inferSelect>(
+      'i18n_data_field',
+      () => this.loadAllFields(),
+    )
+    const fromDb = rows
+      .filter(
+        (r) =>
+          normalizeTenantId(r.tenantId) === tenantId &&
+          String(r.tableName) === table &&
+          Number(r.status) === 1,
+      )
+      .map((r) => this.rowToFieldConfig(r))
+    const fromDecl = getDataI18nFieldConfigs(table)
     const merged = new Map<string, DataI18nFieldConfig>()
     for (const f of fromDb) merged.set(f.fieldName, f)
     for (const f of fromDecl) merged.set(f.fieldName, f)
-    const out = [...merged.values()]
-    this.fieldCache.set(key, { at: Date.now(), rows: out })
-    return out
+    return [...merged.values()]
   }
 
-  invalidateFieldCache(tableName?: string) {
-    if (!tableName) {
-      this.fieldCache.clear()
-      return
-    }
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    this.fieldCache.delete(`${tenantId}:${tableName}`)
+  async invalidateFieldCache(_tableName?: string) {
+    await this.cacheDel('i18n_data_field')
   }
 
-  invalidatePackCache(tableName?: string, langCode?: string) {
-    if (!tableName) {
-      this.packCache.clear()
-      return
-    }
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const prefix = `${tenantId}:${tableName}:`
-    for (const key of this.packCache.keys()) {
-      if (!key.startsWith(prefix)) continue
-      if (langCode && !key.endsWith(`:${langCode}`)) continue
-      this.packCache.delete(key)
-    }
+  async invalidatePackCache(_tableName?: string, _langCode?: string) {
+    await this.cacheDel('i18n_data_pack')
   }
 
   async loadPackMap(
@@ -202,22 +206,19 @@ export class I18nDataService extends BaseService {
   ): Promise<DataI18nPackMap | null> {
     const code = String(langCode || '').trim()
     if (!code) return null
-    const cacheKey = `${normalizeTenantId(Context.get()?.tenantId)}:${tableName}:${code}`
-    const hit = this.packCache.get(cacheKey)
-    if (hit && Date.now() - hit.at < 30_000) return hit.pack
-
     const tenantId = normalizeTenantId(Context.get()?.tenantId)
-    const [row] = await this.packRepo.find(
-      and(
-        eq(i18nDataPack.tenantId, tenantId),
-        eq(i18nDataPack.tableName, tableName),
-        eq(i18nDataPack.langCode, code),
-        isNull(i18nDataPack.deleteTime),
-      ),
+    const table = String(tableName || '').trim()
+    const rows = await this.cacheGet<typeof i18nDataPack.$inferSelect>(
+      'i18n_data_pack',
+      () => this.loadAllPacks(),
     )
-    const pack = (row?.packJson as DataI18nPackMap | undefined) || {}
-    this.packCache.set(cacheKey, { at: Date.now(), pack })
-    return pack
+    const row = rows.find(
+      (r) =>
+        normalizeTenantId(r.tenantId) === tenantId &&
+        String(r.tableName) === table &&
+        String(r.langCode) === code,
+    )
+    return (row?.packJson as DataI18nPackMap | undefined) || {}
   }
 
   async resolveSourcePk(input: {
@@ -257,9 +258,8 @@ export class I18nDataService extends BaseService {
 
   /** 列出已配置翻译字段的业务表 */
   async listDistinctTables(): Promise<string[]> {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const rows = await this.fieldRepo.find(
-      and(eq(i18nDataField.tenantId, tenantId), isNull(i18nDataField.deleteTime)),
+      and(isNull(i18nDataField.deleteTime)),
     )
     const set = new Set(rows.map((r) => r.tableName).filter(Boolean))
     for (const t of listDataI18nTables()) set.add(t)
@@ -694,7 +694,7 @@ export class I18nDataService extends BaseService {
 
         // 每批落库，中断后增量可从断点续
         saved = await this.upsertPack(tableName, langCode, nextPack)
-        this.invalidatePackCache(tableName, langCode)
+        await this.invalidatePackCache(tableName, langCode)
 
         afterId = this.coercePk(list[list.length - 1]?.[pkField])
         if (list.length < DATA_I18N_PAGE_SIZE) break
@@ -744,7 +744,7 @@ export class I18nDataService extends BaseService {
         nextPack,
         sourceHash,
       )
-      this.invalidatePackCache(tableName, langCode)
+      await this.invalidatePackCache(tableName, langCode)
 
       yield {
         type: 'done',
@@ -921,7 +921,7 @@ export class I18nDataService extends BaseService {
     if (Object.keys(nextBag).length) pack[pk] = nextBag
     else delete pack[pk]
     const saved = await this.upsertPack(tableName, langCode, pack)
-    this.invalidatePackCache(tableName, langCode)
+    await this.invalidatePackCache(tableName, langCode)
     return { tableName, langCode, id: pk, version: saved?.version }
   }
 
@@ -954,7 +954,7 @@ export class I18nDataService extends BaseService {
       }
     }
     const saved = await this.upsertPack(tableName, langCode, pack)
-    this.invalidatePackCache(tableName, langCode)
+    await this.invalidatePackCache(tableName, langCode)
     return { tableName, langCode, id: pk, key: key || undefined, version: saved?.version }
   }
 
@@ -973,10 +973,8 @@ export class I18nDataService extends BaseService {
     )
     if (!idSet.size) return
 
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const rows = await this.packRepo.find(
       and(
-        eq(i18nDataPack.tenantId, tenantId),
         eq(i18nDataPack.tableName, table),
         isNull(i18nDataPack.deleteTime),
       ),
@@ -996,7 +994,7 @@ export class I18nDataService extends BaseService {
       }
       if (!changed) continue
       await this.upsertPack(table, langCode, pack)
-      this.invalidatePackCache(table, langCode)
+      await this.invalidatePackCache(table, langCode)
     }
   }
 
@@ -1016,10 +1014,8 @@ export class I18nDataService extends BaseService {
     packJson: DataI18nPackMap,
     sourceHash?: string,
   ) {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const existing = await this.packRepo.findOne(
       and(
-        eq(i18nDataPack.tenantId, tenantId),
         eq(i18nDataPack.tableName, tableName),
         eq(i18nDataPack.langCode, langCode),
       ),
@@ -1027,7 +1023,6 @@ export class I18nDataService extends BaseService {
     )
     // 主实体是 dataField，不能 this.add；与 softDelete 下 BaseService.add 同走 Repository.upsert
     return this.packRepo.upsert({
-      tenantId,
       tableName,
       langCode,
       packJson,

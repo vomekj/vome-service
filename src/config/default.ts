@@ -94,7 +94,11 @@ const config: DefaultConfig = {
     },
   },
   vome: {
-    /** 多租户数据隔离；true 开启后按 Context.tenantId 过滤，超管豁免 */
+    /**
+     * 多租户。
+     * false：CRUD 不校验、不写入 tenantId。
+     * true：按请求域名（租户管理里配置）绑定；注册写入 user_info.tenantId；CRUD 自动过滤并填充。
+     */
     tenant: false,
     /** 均可省略：upsert 默认 insert，softDelete 默认 false */
     crud: {

@@ -231,6 +231,7 @@ export class ModuleService extends BaseService {
 
     if (toSave.length) {
       await this.menuService.menuRepo.save(toSave)
+      await this.cacheDel('base_menu')
     }
   }
 
@@ -238,5 +239,6 @@ export class ModuleService extends BaseService {
     await this.menuService.menuRepo.softDelete(
       and(eq(baseMenu.appKey, appKey), isNull(baseMenu.deleteTime))!,
     )
+    await this.cacheDel('base_menu')
   }
 }

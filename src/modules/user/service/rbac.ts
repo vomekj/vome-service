@@ -23,29 +23,46 @@ export class UserPermissionService extends BaseService {
   @InjectRepository(userRole)
   roleRepo: Repository<typeof userRole>
 
+  /** 启动灌前端角色缓存 */
+  override async init() {
+    const [links, roles] = await Promise.all([
+      this.infoRoleRepo.find(isNull(userInfoRole.deleteTime)),
+      this.roleRepo.find(isNull(userRole.deleteTime)),
+    ])
+    await Promise.all([
+      this.cacheSet('user_info_role', links ?? []),
+      this.cacheSet('user_role', roles ?? []),
+    ])
+  }
+
   /**
    * 前端用户权限码汇总；未绑角色时 openAll=true。
    * @param userId 业务自增 user_info.userId
    */
   async getUserAuthz(userId: number): Promise<UserAuthz> {
     if (!Number.isInteger(userId) || userId <= 0) return { perms: [], openAll: true }
-    const links = await this.infoRoleRepo.find(eq(userInfoRole.userId, userId))
-    if (!links.length) return { perms: [], openAll: true }
+    const [links, roles] = await Promise.all([
+      this.cacheGet('user_info_role', () => this.infoRoleRepo.find(isNull(userInfoRole.deleteTime))),
+      this.cacheGet('user_role', () => this.roleRepo.find(isNull(userRole.deleteTime))),
+    ])
+    const roleIds = links.filter((link) => link.userId === userId).map((link) => link.roleId)
+    if (!roleIds.length) return { perms: [], openAll: true }
 
-    const roleIds = links.map((l) => l.roleId)
-    const roles = await this.roleRepo.find(
-      and(
-        inArray(userRole.id, roleIds),
-        eq(userRole.status, 1),
-        isNull(userRole.deleteTime),
-      ),
-    )
-    if (!roles.length) return { perms: [], openAll: false }
-
-    const perms = [
-      ...new Set(roles.flatMap((r) => parseUserRolePerms(r.perms))),
-    ]
-    return { perms, openAll: false }
+    const rolePerms = new Map<number, string[]>()
+    for (const role of roles) {
+      if (role.status !== 1) continue
+      rolePerms.set(role.id, parseUserRolePerms(role.perms))
+    }
+    const perms = new Set<string>()
+    let hit = false
+    for (const id of roleIds) {
+      const codes = rolePerms.get(id)
+      if (!codes) continue
+      hit = true
+      for (const code of codes) perms.add(code)
+    }
+    if (!hit) return { perms: [], openAll: false }
+    return { perms: [...perms], openAll: false }
   }
 }
 
@@ -69,6 +86,18 @@ export class UserRoleService extends BaseService {
       if (raw == null || typeof raw !== 'object') continue
       this.normalizePerms(raw as Record<string, unknown>)
     }
+  }
+
+  async modifyAfter(_data: unknown, type: CrudModifyType) {
+    if (type === 'add' || type === 'update' || type === 'delete') {
+      await this.cacheDel('user_role')
+    }
+  }
+
+  async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
+    const result = await super.restore(whereOrIds)
+    await this.cacheDel('user_role')
+    return result
   }
 }
 
@@ -101,10 +130,6 @@ export class UserInfoService extends BaseService {
       emailVerified: email ? Boolean(data.emailVerified ?? false) : false,
       phoneVerified: phone ? Boolean(data.phoneVerified ?? false) : false,
       image: data.image ? String(data.image) : null,
-      tenantId:
-        data.tenantId == null || data.tenantId === ''
-          ? null
-          : Number(data.tenantId),
     })
 
     await this.accountRepo.create({
@@ -125,11 +150,6 @@ export class UserInfoService extends BaseService {
       this.pendingPassword = String(pwd)
     }
     delete data.password
-    if (data.tenantId === '' || data.tenantId == null) {
-      data.tenantId = null
-    } else if (data.tenantId != null) {
-      data.tenantId = Number(data.tenantId)
-    }
     if (data.emailVerified != null) {
       data.emailVerified = Boolean(data.emailVerified)
     }
@@ -176,6 +196,7 @@ export class UserInfoService extends BaseService {
       .filter((id): id is number => typeof id === 'number' && Number.isInteger(id) && id > 0)
     if (!serialIds.length) return
     await this.infoRoleRepo.forceDelete(inArray(userInfoRole.userId, serialIds))
+    await this.cacheDel('user_info_role')
   }
 
   /** @param userId 业务自增 user_info.userId */
@@ -200,6 +221,7 @@ export class UserInfoService extends BaseService {
         roleIds.map((roleId) => ({ userId, roleId })),
       )
     }
+    await this.cacheDel('user_info_role')
   }
 
   /** 业务 userId → 角色名（逗号分隔） */

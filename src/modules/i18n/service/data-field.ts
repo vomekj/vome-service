@@ -23,7 +23,7 @@ export class I18nDataFieldService extends BaseService {
     for (const raw of rows) {
       if (raw == null || typeof raw !== 'object') continue
       const table = String((raw as { tableName?: string }).tableName || '')
-      if (table) this.dataService.invalidateFieldCache(table)
+      if (table) await this.dataService.invalidateFieldCache(table)
     }
   }
 
@@ -46,6 +46,6 @@ export class I18nDataFieldService extends BaseService {
       }
     }
     await super.delete(whereOrIds, options)
-    for (const t of tables) this.dataService.invalidateFieldCache(t)
+    for (const t of tables) await this.dataService.invalidateFieldCache(t)
   }
 }

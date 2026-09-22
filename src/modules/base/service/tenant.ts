@@ -5,10 +5,11 @@ import {
   CommException,
   Context,
   InjectRepository,
+  Ioc,
   isTenantEnabled,
   normalizeHost,
-  noTenant,
   Provide,
+  registerTenantHostResolver,
   type Repository,
 } from '@core/server'
 import { baseTenant } from '../entity/tenant'
@@ -53,36 +54,88 @@ export class TenantService extends BaseService {
     }
   }
 
-  /** 按 Host 解析启用中的租户 */
-  async findByHost(host: string | null | undefined) {
+  async modifyAfter(data: unknown, type: CrudModifyType) {
+    if (type === 'delete') {
+      await this.dropTenantCache(data)
+      return
+    }
+    if (type === 'add' || type === 'update') {
+      await this.cacheSet('base_tenant', data)
+    }
+  }
+
+  /** 回收站恢复不走 modifyAfter，整桶失效后重新灌满 */
+  async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
+    const result = await super.restore(whereOrIds)
+    await this.cacheDel('base_tenant')
+    await this.init()
+    return result
+  }
+
+  private async loadEnabled() {
+    return this.tenantRepo.find(
+      and(eq(baseTenant.status, 1), sql`${baseTenant.deleteTime} is null`),
+    )
+  }
+
+  /** 启动灌租户域名缓存 */
+  override async init() {
+    await this.cacheSet('base_tenant', (await this.loadEnabled()) ?? [])
+  }
+
+  private async dropTenantCache(data: unknown) {
+    const ids = (Array.isArray(data) ? data : [data])
+      .map((item) => {
+        if (typeof item === 'number' || typeof item === 'string') return Number(item)
+        if (item && typeof item === 'object' && 'id' in item) return Number((item as { id: unknown }).id)
+        return NaN
+      })
+      .filter((id) => Number.isFinite(id))
+    if (ids.length) {
+      await this.cacheDel('base_tenant', ids)
+      return
+    }
+    await this.cacheDel('base_tenant')
+    await this.init()
+  }
+
+  /** 进程 Map 命中则不查库 */
+  async findIdByHost(host: string | null | undefined): Promise<number | undefined> {
     const h = normalizeHost(host)
     if (!h) return undefined
-    return noTenant(async () => {
-      const rows = await this.tenantRepo.find(
-        and(eq(baseTenant.status, 1), sql`${baseTenant.deleteTime} is null`),
-      )
-      return rows.find((row) =>
-        (row.domains ?? []).some((d) => normalizeHost(d) === h),
-      )
-    })
+    const rows = await this.cacheGet('base_tenant', () => this.loadEnabled())
+    for (const row of rows) {
+      if (row.status !== 1) continue
+      for (const domain of row.domains ?? []) {
+        if (normalizeHost(domain) === h) return row.id
+      }
+    }
+    return undefined
+  }
+
+  /** 按 Host 解析启用中的租户 */
+  async findByHost(host: string | null | undefined) {
+    const id = await this.findIdByHost(host)
+    if (id == null) return undefined
+    return { id }
   }
 
   /** 从当前请求 Context.host 解析租户 ID（仅 tenant 开启时） */
   async resolveTenantIdFromRequest(): Promise<number | undefined> {
     if (!isTenantEnabled()) return undefined
     const host = Context.get()?.host as string | undefined
-    const tenant = await this.findByHost(host)
-    if (!tenant) {
+    const id = await this.findIdByHost(host)
+    if (id == null) {
       throw new CommException('未识别的租户域名，请使用已绑定域名访问')
     }
-    return tenant.id
+    return id
   }
 
   async listEnabled() {
-    return noTenant(() =>
-      this.tenantRepo.find(
-        and(eq(baseTenant.status, 1), sql`${baseTenant.deleteTime} is null`),
-      ),
-    )
+    return this.loadEnabled()
   }
 }
+
+registerTenantHostResolver(async (host) => {
+  return Ioc.get(TenantService).findIdByHost(host)
+})

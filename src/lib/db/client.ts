@@ -122,6 +122,18 @@ function wrapSqlWithConnRetry(sql: SQL): SQL {
   }) as SQL
 }
 
+/** MySQL 与 PostgreSQL 共用。keepAlive !== false 才开；延迟秒数默认 10，最小 1。 */
+function poolKeepAlive(pool?: {
+  keepAlive?: boolean
+  keepAliveInitialDelay?: number
+}) {
+  const delaySec = Math.max(
+    1,
+    Math.round(Number(pool?.keepAliveInitialDelay ?? 10) || 10),
+  )
+  return { enabled: pool?.keepAlive !== false, delaySec }
+}
+
 export function createClient(cfg: DbConfig): DbClient {
   const type = cfg.type
 
@@ -131,7 +143,7 @@ export function createClient(cfg: DbConfig): DbClient {
 
   if (type === 'mysql' || type === 'mariadb') {
     const opts = serverOptions(cfg)
-    const heartbeat = (opts.pool?.heartbeatInterval ?? 0) > 0
+    const keepAlive = poolKeepAlive(opts.pool)
     return mysql.createPool({
       host: opts.host,
       port: opts.port,
@@ -140,12 +152,20 @@ export function createClient(cfg: DbConfig): DbClient {
       database: opts.database,
       connectionLimit: opts.pool?.max ?? 10,
       waitForConnections: true,
-      // TCP 层保活，减轻远端空闲踢连
-      ...(heartbeat ? { enableKeepAlive: true, keepAliveInitialDelay: 0 } : {}),
+      // TCP 层保活，减轻远端空闲踢连。延迟是毫秒。
+      ...(keepAlive.enabled
+        ? {
+            enableKeepAlive: true,
+            keepAliveInitialDelay: keepAlive.delaySec * 1000,
+          }
+        : {}),
     })
   }
 
   const opts = serverOptions(cfg)
+  const keepAlive = poolKeepAlive(opts.pool)
+  // Bun 会把 connection 当成会话参数 SET。libpq 的 keepalives* 不是服务端参数，会 FATAL。
+  // tcp_keepalives_* 是服务端套接字保活，用户会话可以 SET，池里每条连接建立时都会带上。
   const sql = new SQL({
     url: buildDbUrl(cfg),
     adapter: type === 'postgresql' ? 'postgres' : type,
@@ -153,6 +173,15 @@ export function createClient(cfg: DbConfig): DbClient {
     idleTimeout: opts.pool?.idleTimeout,
     maxLifetime: opts.pool?.maxLifetime,
     connectionTimeout: opts.pool?.connectionTimeout,
+    ...(keepAlive.enabled
+      ? {
+          connection: {
+            tcp_keepalives_idle: keepAlive.delaySec,
+            tcp_keepalives_interval: keepAlive.delaySec,
+            tcp_keepalives_count: 3,
+          },
+        }
+      : {}),
   })
   return wrapSqlWithConnRetry(sql)
 }
@@ -180,7 +209,7 @@ export function startHeartbeat(client: DbClient, cfg: DbConfig) {
       }
     })()
   }, sec * 1000)
-  heartbeatTimer.unref?.()
+  // 不 unref：长空闲时仍要保活，避免池被掐后首请求重建 TCP
 }
 
 export function stopHeartbeat() {

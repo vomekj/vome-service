@@ -12,16 +12,15 @@ import { I18nLangService } from '../../service/lang'
 
 /** → service.i18n.lang */
 @Controller({
-  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore', 'dataI18n'],
+  api: ['add', 'delete', 'update', 'info', 'list', 'page', 'restore'],
   entity: i18nLang,
   service: I18nLangService,
-  dataI18nFields: ['name'],
   pageQueryOp: {
-    keyWordLikeFields: ['code', 'name'],
+    keyWordLikeFields: ['code', 'name', 'nameZh'],
     fieldEq: [{ column: 'status', dict: 'status' }],
   },
   listQueryOp: {
-    keyWordLikeFields: ['code', 'name'],
+    keyWordLikeFields: ['code', 'name', 'nameZh'],
     fieldEq: [{ column: 'status', dict: 'status' }],
   },
 })
