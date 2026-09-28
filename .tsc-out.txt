@@ -1,3 +1,0 @@
-Resolving dependencies
-Resolved, downloaded and extracted [6]
-error: DNSResolveFailed downloading package manifest typescript

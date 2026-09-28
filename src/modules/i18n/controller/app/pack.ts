@@ -7,12 +7,21 @@ import {
   Inject,
   Public,
   Query,
+  Use,
+  type RouteMiddleware,
 } from '@core/server'
 import {
   HOST_SCOPE_KEYS,
   isHostScopeKey,
   I18nPackService,
 } from '../../service/pack'
+
+/** 捕获 Request.headers，供 IP / CDN 国家解析 */
+const captureSuggestRequest: RouteMiddleware = (ctx) => {
+  Context({
+    suggestLocaleHeaders: (ctx.request as Request | undefined)?.headers,
+  })
+}
 
 /** → service.i18n.pack（App：host 公开；插件包需登录 + scopeKey） */
 @Controller({ description: 'App 语言包' })
@@ -66,6 +75,40 @@ export class AppI18nPackController extends BaseController {
       scopeKey: key,
     })
     return this.ok(row)
+  }
+
+  /**
+   * 无本地语言偏好时：按 IP/CDN 国家建议语种，并校验已生成语言包（无则 en-US）
+   */
+  @Public()
+  @Use(captureSuggestRequest)
+  @Get('/suggestLocale', { summary: '按 IP 建议初始语种' })
+  async suggestLocale(
+    @Query(
+      t.Object({
+        scopeKey: t.Optional(t.String()),
+        /** 调试/联调用，正式以服务端解析为准 */
+        country: t.Optional(t.String()),
+      }),
+    )
+    query: { scopeKey?: string; country?: string },
+  ) {
+    const key = String(query.scopeKey || 'web').trim() || 'web'
+    if (!isHostScopeKey(key)) {
+      return this.fail(
+        `scopeKey 须为 ${HOST_SCOPE_KEYS.join(' / ')}`,
+      )
+    }
+    const headers = (
+      Context.get() as { suggestLocaleHeaders?: Headers } | undefined
+    )?.suggestLocaleHeaders
+    return this.ok(
+      await this.i18nPack.suggestLocale({
+        scopeKey: key,
+        country: query.country,
+        headers,
+      }),
+    )
   }
 
   /** 任意插件/项目：调用方传 scopeKey（标识）；需 App 登录（Context.userId） */

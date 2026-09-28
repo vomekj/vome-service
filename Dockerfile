@@ -1,21 +1,17 @@
-# 运行混淆编译产物 dist/service（bun-linux-x64）
+# 混淆 JS + linux-x64 sharp（不走 bun --compile，避免 native 模块无法解析）
 # 构建：bun run docker:pack
-# 配置经 provideHostConfig 打进二进制；验证码字体放 assets/captcha
-FROM debian:bookworm-slim
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
+FROM oven/bun:1.4.0-debian AS runtime
 
 WORKDIR /app
 
-COPY dist/service /app/service
+COPY dist/index.js /app/index.js
+COPY dist/node_modules /app/node_modules
 COPY assets/captcha /app/assets/captcha
-RUN chmod +x /app/service \
-  && mkdir -p /app/.vome /app/logging
+
+RUN mkdir -p /app/.vome /app/logging
 
 ENV NODE_ENV=prod
 
 EXPOSE 3000
 
-CMD ["/app/service"]
+CMD ["bun", "run", "/app/index.js"]

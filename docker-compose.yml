@@ -1,4 +1,5 @@
 # 本机打包：bun run docker:pack → dist/vome-service.tar
+# （混淆 index.js + linux-x64 sharp；运行时 oven/bun）
 # Linux：docker load -i dist/vome-service.tar && docker compose up -d
 networks:
   1panel-network:
@@ -6,8 +7,8 @@ networks:
 
 services:
   service:
-    image: vome-docs-service:latest
-    container_name: vome-docs-service
+    image: vome-service:latest
+    container_name: vome-service
     restart: unless-stopped
     networks:
       - 1panel-network

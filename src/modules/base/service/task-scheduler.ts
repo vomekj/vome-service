@@ -168,14 +168,20 @@ export class TaskScheduler extends BaseService {
   }
 
   private resolveService(serviceName: string) {
+    const name = String(serviceName || '').trim()
+    if (!name) throw new Error('service 不能为空')
+    // 优先按 @Provide('类名') / 自动注册的字符串 token 解析（生产 minify/混淆后 class.name 会变）
+    try {
+      return Ioc.get(name)
+    } catch {
+      /* fallback */
+    }
     const providers = listProviders()
-    const hit = providers.find(
-      (p) =>
-        p.useClass.name === serviceName ||
-        String(p.token) === serviceName,
-    )
+    const hit = providers.find((p) => p.useClass.name === name)
     if (!hit) {
-      throw new Error(`未找到 Service: ${serviceName}（须 @Provide 且类名一致）`)
+      throw new Error(
+        `未找到 Service: ${name}（须 @Provide('${name}') 且与 base_task.service 一致）`,
+      )
     }
     return Ioc.get(hit.useClass)
   }

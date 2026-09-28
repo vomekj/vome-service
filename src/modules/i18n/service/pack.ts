@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { and, asc, desc, eq, getTableName, inArray, isNull, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, getTableName, isNull, ne } from 'drizzle-orm'
 import type { CrudModifyType } from '@core/server'
 import {
   BaseService,
@@ -27,6 +27,11 @@ import {
   I18N_UI_TRANSLATE_SYSTEM,
   i18nUiTranslateUserContent,
 } from '../lib/ai-translate-prompt'
+import {
+  LOCALE_FALLBACK,
+  preferredLangByCountry,
+  resolveRequestCountry,
+} from '../lib/geo-locale'
 import {
   extractJsonObject,
   flattenLocale,
@@ -121,6 +126,9 @@ function normalizeScope(
   return { scopeType: 'plugin', scopeKey: key }
 }
 
+type I18nPackRow = typeof i18nPack.$inferSelect
+type I18nLangRow = typeof i18nLang.$inferSelect
+
 @Provide()
 export class I18nPackService extends BaseService {
   @InjectRepository(i18nPack)
@@ -140,6 +148,51 @@ export class I18nPackService extends BaseService {
 
   @Inject()
   aiGateway: AiGateway
+
+  /** 启动灌 UI 语言包 / 语种（进程 Map） */
+  override async init() {
+    await Promise.all([
+      this.cacheSet('i18n_pack', await this.loadAllPacks()),
+      this.cacheSet('i18n_lang', await this.loadAllLangs()),
+    ])
+  }
+
+  private async loadAllPacks(): Promise<I18nPackRow[]> {
+    return (await this.packRepo.find(isNull(i18nPack.deleteTime))) ?? []
+  }
+
+  private async loadAllLangs(): Promise<I18nLangRow[]> {
+    return (
+      (await this.langRepo.find(isNull(i18nLang.deleteTime), {
+        orderBy: [asc(i18nLang.code)],
+      })) ?? []
+    )
+  }
+
+  /** 全量重载语言包缓存（不刷 i18n_lang） */
+  async refreshPackCache() {
+    await this.cacheSet('i18n_pack', await this.loadAllPacks())
+  }
+
+  private async listCachedPacks(): Promise<I18nPackRow[]> {
+    return this.cacheGet<I18nPackRow>('i18n_pack', () => this.loadAllPacks())
+  }
+
+  private async listCachedLangs(): Promise<I18nLangRow[]> {
+    return this.cacheGet<I18nLangRow>('i18n_lang', () => this.loadAllLangs())
+  }
+
+  async modifyAfter(_data: unknown, type: CrudModifyType) {
+    if (type !== 'add' && type !== 'update' && type !== 'delete') return
+    await this.refreshPackCache()
+  }
+
+  /** 回收站恢复不走 modifyAfter */
+  override async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
+    const result = await super.restore(whereOrIds)
+    await this.refreshPackCache()
+    return result
+  }
 
   private async preparePack(
     data: Record<string, unknown>,
@@ -272,14 +325,14 @@ export class I18nPackService extends BaseService {
       scope.scopeType === 'plugin'
         ? await this.pluginScopeKeyCandidates(scope.scopeKey)
         : [scope.scopeKey]
+    const langCode = String(opts.langCode || '').trim()
+    const packs = await this.listCachedPacks()
     for (const scopeKey of scopeKeys) {
-      const [row] = await this.packRepo.find(
-        and(
-          eq(i18nPack.langCode, opts.langCode),
-          eq(i18nPack.scopeType, scope.scopeType),
-          eq(i18nPack.scopeKey, scopeKey),
-          isNull(i18nPack.deleteTime),
-        ),
+      const row = packs.find(
+        (p) =>
+          String(p.langCode || '').trim() === langCode &&
+          p.scopeType === scope.scopeType &&
+          p.scopeKey === scopeKey,
       )
       if (row) return row
     }
@@ -311,14 +364,49 @@ export class I18nPackService extends BaseService {
    */
   async listHostLocales(scopeKey: string = 'admin') {
     const scope = normalizeScope('host', scopeKey)
-    const rows = await this.packRepo.find(
-      and(
-        eq(i18nPack.scopeType, 'host'),
-        eq(i18nPack.scopeKey, scope.scopeKey),
-        isNull(i18nPack.deleteTime),
-      ),
+    const packs = await this.listCachedPacks()
+    const rows = packs.filter(
+      (p) => p.scopeType === 'host' && p.scopeKey === scope.scopeKey,
     )
     return this.buildLocaleOptions(rows)
+  }
+
+  /**
+   * 按 IP/CDN 国家建议初始语种；无对应宿主语言包则回落 en-US。
+   * 同时返回 country，供 KYC 等按地区预填。
+   */
+  async suggestLocale(opts: {
+    scopeKey: string
+    country?: string | null
+    headers?: Headers | null
+  }) {
+    const scopeKey = String(opts.scopeKey || 'web').trim() || 'web'
+    const override = String(opts.country ?? '')
+      .trim()
+      .toUpperCase()
+    let country = ''
+    if (/^[A-Z]{2}$/.test(override) && override !== 'XX' && override !== 'T1') {
+      country = override
+    } else if (opts.headers) {
+      country = await resolveRequestCountry(opts.headers)
+    }
+
+    const preferred = preferredLangByCountry(country)
+    const locales = await this.listHostLocales(scopeKey)
+    const codes = new Set(
+      locales.map((l) => String(l.code || '').trim()).filter(Boolean),
+    )
+    let langCode = preferred
+    if (!codes.has(langCode)) {
+      langCode = codes.has(LOCALE_FALLBACK)
+        ? LOCALE_FALLBACK
+        : [...codes][0] || LOCALE_FALLBACK
+    }
+    return {
+      langCode,
+      preferred,
+      country: country || null,
+    }
   }
 
   /**
@@ -331,12 +419,10 @@ export class I18nPackService extends BaseService {
     if (!scopeKeys.length) {
       return []
     }
-    const rows = await this.packRepo.find(
-      and(
-        eq(i18nPack.scopeType, 'plugin'),
-        inArray(i18nPack.scopeKey, scopeKeys),
-        isNull(i18nPack.deleteTime),
-      ),
+    const keySet = new Set(scopeKeys)
+    const packs = await this.listCachedPacks()
+    const rows = packs.filter(
+      (p) => p.scopeType === 'plugin' && keySet.has(String(p.scopeKey || '')),
     )
     return this.buildLocaleOptions(rows)
   }
@@ -352,9 +438,7 @@ export class I18nPackService extends BaseService {
     if (!codeSet.size) {
       return []
     }
-    const langRows = (await this.langRepo.find(isNull(i18nLang.deleteTime), {
-      orderBy: [asc(i18nLang.code)],
-    })) as Array<{ code?: string | null; name?: string | null; flag?: string | null }>
+    const langRows = await this.listCachedLangs()
     const out: Array<{ code: string; name: string; flag: string }> = []
     const used = new Set<string>()
     for (const l of langRows ?? []) {
@@ -938,8 +1022,9 @@ export class I18nPackService extends BaseService {
       ),
       { withTrashed: true, softDelete: true },
     )
-    // 不用 this.add：modifyBefore.assertUnique 会拦「已存活」行，同步需覆盖更新
+    // 找到旧行则带 id 覆盖；唯一键匹配空 tenantId 由 core unique-keys 处理（IS NULL）
     await this.packRepo.upsert({
+      ...(existing?.id != null ? { id: existing.id } : {}),
       langCode: srcLang,
       scopeType,
       scopeKey,
@@ -947,6 +1032,7 @@ export class I18nPackService extends BaseService {
       sourceHash,
       version: existing ? Number(existing.version || 1) + 1 : 1,
     })
+    await this.refreshPackCache()
     return this.findPack({ langCode: srcLang, scopeType, scopeKey })
   }
 
@@ -1098,6 +1184,7 @@ export class I18nPackService extends BaseService {
           )
           if (legacy?.id != null) {
             await this.packRepo.softDelete(eq(i18nPack.id, legacy.id))
+            await this.refreshPackCache()
           }
         }
         synced.push({ pluginKey: key, path: src.path })

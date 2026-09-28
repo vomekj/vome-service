@@ -1,3 +1,4 @@
 *
-!dist/service
+!dist/index.js
+!dist/node_modules/
 !assets/captcha/
