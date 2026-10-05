@@ -24,11 +24,38 @@ import {
     keyWordLikeFields: ['langCode', 'scopeKey', 'remark'],
     fieldEq: ['langCode', 'scopeKey'],
     addOrderBy: { scopeKey: 'asc', langCode: 'asc' },
+    /** 列表不拉 packJson，编辑走 info */
+    select: [
+      'a.id',
+      'a.createTime',
+      'a.updateTime',
+      'a.deleteTime',
+      'a.tenantId',
+      'a.langCode',
+      'a.scopeType',
+      'a.scopeKey',
+      'a.version',
+      'a.sourceHash',
+      'a.remark',
+    ],
   },
   listQueryOp: {
     keyWordLikeFields: ['langCode', 'scopeKey'],
     fieldEq: ['langCode', 'scopeKey'],
     addOrderBy: { scopeKey: 'asc', langCode: 'asc' },
+    select: [
+      'a.id',
+      'a.createTime',
+      'a.updateTime',
+      'a.deleteTime',
+      'a.tenantId',
+      'a.langCode',
+      'a.scopeType',
+      'a.scopeKey',
+      'a.version',
+      'a.sourceHash',
+      'a.remark',
+    ],
   },
 })
 export class I18nPackController extends BaseController {

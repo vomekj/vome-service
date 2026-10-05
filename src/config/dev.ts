@@ -26,7 +26,7 @@ const config: EnvConfig = {
     port: 5432,
     username: 'postgres',
     password: 'postgres',
-    database: 'vome',
+    database: 'vomekj',
     pool: {
       max: 10,
       idleTimeout: 1800,

@@ -1,6 +1,7 @@
 /**
  * 语言包 / dataI18n AI 翻译 system + user prompt。
  * 模型自行判断每条是「语句」还是「词组」，无需人工打标。
+ * UI 语言包：JSON；dataI18n：编号纯文本行（N:text），禁止 JSON。
  */
 
 const CLASSIFY_AND_STYLE = `For EACH string value, silently classify it as either PHRASE or SENTENCE, then translate accordingly (do not output the classification):
@@ -11,24 +12,39 @@ PHRASE — short UI/product labels: nav items, menu names, feature chips, card t
 SENTENCE — full sentences, disclaimers, legal/age copy, help text, instructions, longer descriptions that need complete meaning. Typical cues: sentence punctuation, longer prose, or clause structure.
 → Prefer clear, idiomatic, meaning-first translation. Do not mechanically stitch words; the result must read as natural copy in the target language.`
 
-const OUTPUT_RULES = `Hard rules:
+const JSON_OUTPUT_RULES = `Hard rules:
 - Translate JSON string values only; keep all keys unchanged.
 - Keep placeholders like {name}, {{count}}, %s intact.
+- Keep placeholders shaped like __PH_0__ __PH_1__ __PH_2__ EXACTLY unchanged (do not translate, delete, merge, or renumber them).
 - Do not translate pure Latin letters / numbers / symbols when they stand alone as codes or brands, unless the whole string is meant as readable prose.
-- Output a single JSON object only, no markdown, no commentary.`
+- Output a single JSON object only, no markdown, no commentary.
+- You MUST return every input key exactly once. Never stop early. Never repeat the whole answer.`
+
+/** dataI18n 共用：分类风格 + 占位（输出格式由调用方追加） */
+const DATA_PLACEHOLDER_RULES = `Hard rules:
+- Keep placeholders shaped like __PH_0__ __PH_1__ __PH_2__ EXACTLY unchanged (do not translate, delete, merge, or renumber them).
+- Keep placeholders like {name}, {{count}}, %s intact.
+- Do not translate pure Latin letters / numbers / symbols when they stand alone as codes or brands, unless the whole string is meant as readable prose.`
+
+/** dataI18n 短字段编号行输出 */
+export const I18N_DATA_LINE_OUTPUT_RULES = `Output format (numbered plain lines):
+- Input and output use numbered lines: N:text (1-based integer N).
+- Translate ONLY the text after each "N:"; keep the same numbers, same order, same line count.
+- Output plain numbered lines ONLY — no JSON, no markdown fences, no commentary, no blank preamble.
+- You MUST return every input line number exactly once. Never stop early. Never repeat the whole answer.`
 
 /** UI 语言包（i18n_pack） */
 export const I18N_UI_TRANSLATE_SYSTEM = [
   'You are a professional UI i18n translator for product interfaces (admin/web/app).',
   CLASSIFY_AND_STYLE,
-  OUTPUT_RULES,
+  JSON_OUTPUT_RULES,
 ].join('\n\n')
 
-/** 业务 dataI18n（表行字段片段） */
+/** 业务 dataI18n（占位后纯文本；短字段另加 LINE 规则，长文另加整篇规则） */
 export const I18N_DATA_TRANSLATE_SYSTEM = [
-  'You are a professional translator for game/product catalog and CMS field values (names, titles, short labels, and occasional longer descriptions).',
+  'You are a professional translator for game/product catalog and CMS field values (including long HTML protocols).',
   CLASSIFY_AND_STYLE,
-  OUTPUT_RULES,
+  DATA_PLACEHOLDER_RULES,
 ].join('\n\n')
 
 export function i18nUiTranslateUserContent(opts: {
@@ -56,16 +72,20 @@ export function i18nDataTranslateUserContent(opts: {
   sourceLangName?: string
   langName: string
   langCode: string
-  payloadJson: string
+  hint: string
+  /** 编号行：1:masked\\n2:masked */
+  payloadText: string
 }): string {
   const from = opts.sourceLangName
     ? `${opts.sourceLangName} (${opts.sourceLangCode})`
     : opts.sourceLangCode
   return [
-    `Translate these fragments from ${from} into ${opts.langName} (${opts.langCode}).`,
+    `Translate the following numbered lines from ${from} into ${opts.langName} (${opts.langCode}).`,
+    'Format: N:text — keep each N, translate only the text after the colon.',
+    'Non-translatable parts were replaced by placeholders __PH_0__ __PH_1__ … — keep every placeholder EXACTLY as-is; only translate the surrounding source-language text.',
     'Classify each value as PHRASE or SENTENCE yourself and apply the matching style.',
-    'Return JSON with the same keys.',
+    opts.hint,
     '',
-    opts.payloadJson,
+    opts.payloadText,
   ].join('\n')
 }

@@ -58,6 +58,13 @@ function buildSocialProviders(cfg: ReturnType<typeof resolveAuthConfig>) {
 function buildPlugins(cfg: ReturnType<typeof resolveAuthConfig>): BetterAuthPlugin[] {
   const plugins: BetterAuthPlugin[] = [
     jwt({
+      schema: {
+        jwks: {
+          fields: {
+            createdAt: 'createTime',
+          },
+        },
+      },
       jwt: {
         issuer: cfg.baseURL,
         audience: JWT_AUD.WEB,

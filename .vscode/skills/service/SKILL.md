@@ -1,7 +1,7 @@
 ---
 name: service-usage
 description: >-
-  Service 业务开发：vome-core/server API、模块、CRUD、QueryOp、权限、注入、任务与日志。
+  Service 业务用法：模块 CRUD、QueryOp、软删、国际化、插件调用、Docker 打包。
   Use when editing service/, modules, controllers, entities, or backend APIs.
 ---
 
@@ -228,9 +228,18 @@ export class GoodsService extends BaseService {
 
   @Inject() logger: Logger
   @Inject() db: DbStore
-  @Inject() cache: CacheStore   // 宿主提供
+  @Inject() cache: CacheStore   // 宿主提供（Redis 短键）
 }
 ```
+
+### 本地实体缓存（进程 Map，非 Redis）
+
+| 约定 | 说明 |
+|------|------|
+| API | `BaseService.cacheGet` / `cacheSet` / `cacheDel`；桶在**本进程 Map** |
+| 启动灌桶 | 重写 `init()`，内部 **`await cacheSet`**；`App.start` **后台**跑全部单例 `init()`，**不阻塞** listen |
+| 成功日志 | 本进程全部写完后 core **只打一条** `[localCache] success writing`；失败 `warn`；业务模块不要打成功日志 |
+| Redis | 只做 token / 验证码 / 登录锁等短键，与上表无关 |
 
 ### Repository 常用方法
 
@@ -482,6 +491,46 @@ await this.queue.jobs.add('email', { orderId }, { delay: 3000, attempts: 3 })
 
 `entity` / `entity-index` / `controller` / `crud` / `middleware` / `store`；Tasks：**Create Module** / **Create Component**。
 
+## 软删怎么开
+
+| 步骤 | 做法 |
+|------|------|
+| 1. 表 | 用 `baseColumns`（含 `deleteTime`） |
+| 2. 配置 | `src/config` 里 `vome.crud.softDelete: true`（可按项目默认） |
+| 3. Controller | `api` 含 `'restore'`；有 `restore` 时删除进回收站，否则默认硬删 |
+| 4. 权限 | 菜单配 `*:delete` / `*:restore` |
+
+业务调用：`softDelete` / `restore` / `forceDelete`；列表回收站请求带 `onlyTrashed: true`。
+
+## 国际化（后端怎么配）
+
+| 能力 | 怎么用 |
+|------|--------|
+| 源语言 | `system.lang`（如 `zh-CN`）；抽词规则 `system.langReplace`（不配则业务抽词不工作） |
+| 语种 / 语言包 / 业务包 | 模块 `modules/i18n`；后台菜单维护 |
+| UI 语言包列表 | Admin `page`/`list` **不含 `packJson`**（`select` 排除）；编辑再 `info`/`active` 拉 JSON |
+| 业务表参与翻译 | Controller `api` 加 **`dataI18n`**（声明位，不是 HTTP）；需要时配字段/参考列 |
+| 请求语种 | Admin 请求头 `X-Lang`；等于源语言时不叠译文包 |
+
+一种书写体系建议一个码（繁体 `zh-HK`、英语 `en-US` 等）。详细菜单操作见 [admin/SKILL.md](../admin/SKILL.md)「国际化」。
+
+## Docker 打包部署
+
+含 **sharp**（图片压缩）时不要用纯 `bun --compile` 二进制进镜像（原生库进不去）。模版约定：
+
+```bash
+cd service
+bun run docker:pack   # 混淆 index.js + 预装 linux-x64 sharp → 镜像 / tar
+```
+
+| 产物 | 说明 |
+|------|------|
+| 镜像名 | 以 `package.json` 的 `docker:pack` 为准（如 `vome-service:latest`） |
+| tar | `dist/*.tar` → 服务器 `docker load` 后 `docker compose up -d` |
+| compose | 见 `docker-compose.yml`；挂载 `.vome`、`logging` |
+
+本机 Windows 若 Docker Desktop 报 context 锁文件，重启 Desktop 后再 pack。
+
 ## 注意
 
 1. 配置优先写在 `src/config/*.ts`（也可在 config 内自行读取环境变量）。
@@ -491,3 +540,6 @@ await this.queue.jobs.add('email', { orderId }, { delay: 3000, attempts: 3 })
 5. `ok()` 出参里 `Date` 会格式成上海时区字符串。
 6. 升级 `vome-core`：`bun install` 后按本 Skill 调整业务调用即可。
 7. 插件：有 `hook` 需 `server/index.js`；有 `routes` 需 `handlers`；必须 `export const Plugin`。
+8. 开源推送前 config 密码会脱敏；合集本地仍保留你的真实配置。
+9. 启动热缓存：`init()` 内 `await cacheSet`；勿 `void` 甩开（否则 `[localCache] success writing` 会提前）；业务勿打缓存成功日志。
+10. UI 语言包 `page`/`list` 勿返回 `packJson`；编辑走 `info`/`active`。

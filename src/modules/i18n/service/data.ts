@@ -1,15 +1,14 @@
 import { createHash } from 'node:crypto'
 import { and, asc, eq, gt, inArray, isNull } from 'drizzle-orm'
-import { getTableName, isTable, type Table } from 'drizzle-orm'
+import type { Table } from 'drizzle-orm'
+import { buildTableMap } from '../../../lib/db/init/table-map'
 import {
   applyChineseSegmentMap,
   applyDataI18nDefault,
   BaseService,
   CommException,
-  Context,
   DbStore,
   extractChineseSegments,
-  extractJsonObject,
   getColumnComments,
   getRepository,
   getSourceLang,
@@ -31,19 +30,27 @@ import {
   type Repository,
 } from '@core/server'
 import { AiGateway } from '../../ai/service/gateway'
-import {
-  I18N_DATA_TRANSLATE_SYSTEM,
-  i18nDataTranslateUserContent,
-} from '../lib/ai-translate-prompt'
 import { aiModel } from '../../ai/entity/model'
 import { i18nLang } from '../entity/lang'
 import { i18nDataField } from '../entity/data-field'
 import { i18nDataPack } from '../entity/data-pack'
-
-function normalizeTenantId(raw: unknown): number {
-  const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? n : 0
-}
+import {
+  I18N_DATA_LINE_OUTPUT_RULES,
+  I18N_DATA_TRANSLATE_SYSTEM,
+  i18nDataTranslateUserContent,
+} from '../lib/ai-translate-prompt'
+import {
+  batchNumberedPlainItems,
+  DATA_I18N_AI_PAYLOAD_MAX_CHARS,
+  DATA_I18N_PLAIN_FIELD_CHARS,
+  finalizeMaskedTranslation,
+  formatNumberedPlainBatch,
+  listMissingNumberedIds,
+  maskNonChineseWithPlaceholders,
+  parseNumberedPlainBatchLoose,
+  restoreMaskedPlaceholders,
+  type NumberedPlainItem,
+} from '../lib/sentence-chunks'
 
 function hashPackSource(pack: DataI18nPackMap): string {
   const keys = Object.keys(pack).sort()
@@ -63,11 +70,109 @@ function hashPackSource(pack: DataI18nPackMap): string {
 /** 与 BaseService.page 单页上限一致：每翻 100 行就送 AI，再翻下一批 */
 const DATA_I18N_PAGE_SIZE = 100
 
-/** 该字段是否仍需翻译（缺译文 / 仍等于原文 / 译文里还留着源中文片段） */
+/** 非 CJK 目标语：译文里残留的中文/全角标点 */
+const CJK_PUNCT_RE = /[\u3001-\u303f\uff01-\uff0f\uff1a-\uff1f]/
+
+/** 目标语本身可含汉字（繁中/日/韩），不能用「译文含源中文片段」判定未译完 */
+function isCjkTargetLang(langCode: string) {
+  const c = String(langCode || '')
+    .trim()
+    .toLowerCase()
+  return c.startsWith('zh') || c.startsWith('ja') || c.startsWith('ko')
+}
+
+/**
+ * jsonb / 对象字段不能 String()（会变成 [object Object]），须 JSON.stringify
+ * 才能走 extractChineseSegments / 语言 Tab / AI 抽词。
+ */
+function toDataI18nText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return ''
+    }
+  }
+  return String(value)
+}
+
+/** pack 里存的是 JSON 文本时，还原回对象/数组（与业务 jsonb 列对齐） */
+function reviveDataI18nJsonValue(
+  translated: unknown,
+  original: unknown,
+): unknown {
+  if (original == null || typeof original !== 'object') return translated
+  if (typeof translated !== 'string') return translated
+  const s = translated.trim()
+  if (!s || (s[0] !== '{' && s[0] !== '[')) return translated
+  try {
+    const parsed = JSON.parse(s) as unknown
+    if (parsed && typeof parsed === 'object') return parsed
+  } catch {
+    /* keep string */
+  }
+  return translated
+}
+
+function asDataI18nRowList(rows: unknown): Record<string, unknown>[] {
+  if (Array.isArray(rows)) return rows as Record<string, unknown>[]
+  if (rows && typeof rows === 'object') {
+    const list = (rows as { list?: unknown }).list
+    if (Array.isArray(list)) return list as Record<string, unknown>[]
+  }
+  return []
+}
+
+/** jsonb 等对象字段序列化后的 JSON 文本：走抽词替换，避免整段 mask 弄丢 URL/结构 */
+function isJsonDataI18nText(raw: string): boolean {
+  const s = String(raw || '').trim()
+  if (!s || (s[0] !== '{' && s[0] !== '[')) return false
+  try {
+    const v = JSON.parse(s) as unknown
+    return v != null && typeof v === 'object'
+  } catch {
+    return false
+  }
+}
+
+type FieldMaskEntry =
+  | { kind: 'plain'; masked: string; slots: string[]; hasSource: boolean }
+  | { kind: 'json'; segs: string[] }
+
+/**
+ * 拆词替换后整理（仅非 CJK 目标语）：
+ * - 数字与拉丁词粘连补空格（最少2人 → 最少 2 personas）
+ * - 残留中文标点换成西文
+ */
+function polishNonCjkTranslation(text: string): string {
+  let s = String(text || '')
+  if (!s) return s
+  s = s.replace(/(\d)([A-Za-zÀ-ÿ])/g, '$1 $2')
+  s = s.replace(/([A-Za-zÀ-ÿ])(\d)/g, '$1 $2')
+  s = s
+    .replace(/\u3001/g, ',')
+    .replace(/\u3002/g, '.')
+    .replace(/\uff0c/g, ',')
+    .replace(/\uff0e/g, '.')
+    .replace(/\uff1a/g, ':')
+    .replace(/\uff1b/g, ';')
+    .replace(/\uff01/g, '!')
+    .replace(/\uff1f/g, '?')
+    .replace(/\u2026/g, '...')
+  return s
+}
+
+/** 该字段是否仍需翻译（缺译文 / 仍等于原文 / 非 CJK 译文里还留着源语言片段） */
 function fieldNeedsTranslate(
   raw: string,
   prev: string | undefined,
   seedValue?: string,
+  langCode?: string,
 ): boolean {
   const seed = String(seedValue || '').trim()
   if (seed) {
@@ -76,19 +181,18 @@ function fieldNeedsTranslate(
     return prev !== seed
   }
   if (!prev || !String(prev).trim()) return true
-  if (prev === raw) return true
-  for (const seg of extractChineseSegments(raw)) {
-    if (prev.includes(seg)) return true
+  // 繁中等同形、日韩保留汉字名：与源文相同也算已译
+  if (prev === raw) {
+    return !isCjkTargetLang(langCode || '')
+  }
+  // 英欧等：译文里还残留源中文片段 / 中文标点 → 未译完；CJK 目标语跳过此检查
+  if (!isCjkTargetLang(langCode || '')) {
+    if (CJK_PUNCT_RE.test(prev)) return true
+    for (const seg of extractChineseSegments(raw)) {
+      if (prev.includes(seg)) return true
+    }
   }
   return false
-}
-
-function buildTableMap(schema: Record<string, unknown>): Map<string, Table> {
-  const map = new Map<string, Table>()
-  for (const value of Object.values(schema)) {
-    if (isTable(value)) map.set(getTableName(value), value)
-  }
-  return map
 }
 
 @Provide()
@@ -115,13 +219,35 @@ export class I18nDataService extends BaseService {
     if (!I18nDataService.registered) {
       I18nDataService.registered = true
       registerDataI18nFieldLoader((tableName) => this.listEnabledFields(tableName))
-      registerDataI18nApplier(async (rows, ctx) =>
-        applyDataI18nDefault(rows, {
+      registerDataI18nApplier(async (rows, ctx) => {
+        const list = asDataI18nRowList(rows)
+        const objectFields = ctx.fields
+          .filter((f) => f.enabled && f.mode === 'direct')
+          .map((f) => f.fieldName)
+        const originals = list.map((row) => {
+          const snap: Record<string, unknown> = {}
+          for (const field of objectFields) {
+            const v = row?.[field]
+            if (v && typeof v === 'object') snap[field] = v
+          }
+          return snap
+        })
+        const out = await applyDataI18nDefault(rows, {
           ...ctx,
           loadPack: (table) => this.loadPackMap(table, ctx.langCode),
           resolveSourcePk: (input) => this.resolveSourcePk(input),
-        }),
-      )
+        })
+        const outList = asDataI18nRowList(out)
+        for (let i = 0; i < outList.length; i++) {
+          const row = outList[i]
+          const snap = originals[i]
+          if (!row || !snap) continue
+          for (const [field, orig] of Object.entries(snap)) {
+            row[field] = reviveDataI18nJsonValue(row[field], orig)
+          }
+        }
+        return out
+      })
     }
   }
 
@@ -171,19 +297,14 @@ export class I18nDataService extends BaseService {
   }
 
   async listEnabledFields(tableName: string): Promise<DataI18nFieldConfig[]> {
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const table = String(tableName || '').trim()
+    // 数据翻译字段全局共用，不按 tenantId 过滤
     const rows = await this.cacheGet<typeof i18nDataField.$inferSelect>(
       'i18n_data_field',
       () => this.loadAllFields(),
     )
     const fromDb = rows
-      .filter(
-        (r) =>
-          normalizeTenantId(r.tenantId) === tenantId &&
-          String(r.tableName) === table &&
-          Number(r.status) === 1,
-      )
+      .filter((r) => String(r.tableName) === table && Number(r.status) === 1)
       .map((r) => this.rowToFieldConfig(r))
     const fromDecl = getDataI18nFieldConfigs(table)
     const merged = new Map<string, DataI18nFieldConfig>()
@@ -206,19 +327,24 @@ export class I18nDataService extends BaseService {
   ): Promise<DataI18nPackMap | null> {
     const code = String(langCode || '').trim()
     if (!code) return null
-    const tenantId = normalizeTenantId(Context.get()?.tenantId)
     const table = String(tableName || '').trim()
+    // 翻译包全局共用，不按 tenantId 过滤
     const rows = await this.cacheGet<typeof i18nDataPack.$inferSelect>(
       'i18n_data_pack',
       () => this.loadAllPacks(),
     )
     const row = rows.find(
-      (r) =>
-        normalizeTenantId(r.tenantId) === tenantId &&
-        String(r.tableName) === table &&
-        String(r.langCode) === code,
+      (r) => String(r.tableName) === table && String(r.langCode) === code,
     )
-    return (row?.packJson as DataI18nPackMap | undefined) || {}
+    let raw: unknown = row?.packJson
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw)
+      } catch {
+        return {}
+      }
+    }
+    return (raw as DataI18nPackMap | undefined) || {}
   }
 
   async resolveSourcePk(input: {
@@ -256,10 +382,50 @@ export class I18nDataService extends BaseService {
     return getRepository(table)
   }
 
+  async modifyFieldBefore(
+    data: Record<string, unknown>,
+    type: 'add' | 'update' | 'delete',
+  ) {
+    if (type === 'delete') {
+      await this.invalidateFieldCache(String(data.tableName || ''))
+      return
+    }
+    const tableName = String(data.tableName ?? '').trim()
+    const fieldName = String(data.fieldName ?? '').trim()
+    if (!tableName) throw new CommException('业务表名不能为空')
+    if (!fieldName) throw new CommException('字段名不能为空')
+    data.tableName = tableName
+    data.fieldName = fieldName
+    data.pkField = String(data.pkField ?? 'id').trim() || 'id'
+    const mode = String(data.mode ?? 'direct').trim() === 'ref' ? 'ref' : 'direct'
+    data.mode = mode
+    if (mode === 'ref') {
+      const sourceTable = String(data.sourceTable ?? '').trim()
+      const joinField = String(data.joinField ?? '').trim()
+      if (!sourceTable) throw new CommException('ref 模式须填写源表')
+      if (!joinField) throw new CommException('ref 模式须填写关联列')
+      data.sourceTable = sourceTable
+      data.joinField = joinField
+      data.sourceJoinField =
+        String(data.sourceJoinField ?? joinField).trim() || joinField
+      data.sourceField =
+        String(data.sourceField ?? fieldName).trim() || fieldName
+      data.sourcePkField = String(data.sourcePkField ?? 'id').trim() || 'id'
+    } else {
+      data.sourceTable = null
+      data.sourcePkField = null
+      data.sourceField = null
+      data.joinField = null
+      data.sourceJoinField = null
+    }
+    // 字段唯一靠 uniqueIndex；软删 add 撞键由 Repository upsert
+    await this.invalidateFieldCache(tableName)
+  }
+
   /** 列出已配置翻译字段的业务表 */
   async listDistinctTables(): Promise<string[]> {
     const rows = await this.fieldRepo.find(
-      and(isNull(i18nDataField.deleteTime)),
+      isNull(i18nDataField.deleteTime),
     )
     const set = new Set(rows.map((r) => r.tableName).filter(Boolean))
     for (const t of listDataI18nTables()) set.add(t)
@@ -279,19 +445,27 @@ export class I18nDataService extends BaseService {
     afterId: string | number | null
     size: number
   }): Promise<Record<string, unknown>[]> {
-    const repo = this.getRepoForTable(opts.table)
     const idCol = this.pkColumn(opts.table, opts.pkField)
+    const delCol = (opts.table as unknown as { deleteTime?: unknown }).deleteTime
+    // 禁止 findPage：每页都会 COUNT(*)，game_skin 等大表连扫会把远程连接打挂
+    const clauses = [] as unknown[]
+    if (delCol) clauses.push(isNull(delCol as never))
+    if (opts.afterId != null && opts.afterId !== '') {
+      clauses.push(gt(idCol as never, opts.afterId as never))
+    }
     const where =
-      opts.afterId != null && opts.afterId !== ''
-        ? gt(idCol as never, opts.afterId as never)
-        : undefined
-    const { list } = await repo.findPage({
-      page: 1,
-      size: opts.size,
-      where,
-      orderBy: [asc(idCol as never)],
-    })
-    return list as Record<string, unknown>[]
+      clauses.length === 0
+        ? undefined
+        : clauses.length === 1
+          ? clauses[0]
+          : and(...(clauses as [never, ...never[]]))
+    const drizzle = Ioc.get(DbStore).drizzle as {
+      select: () => { from: (t: Table) => any }
+    }
+    let q: any = drizzle.select().from(opts.table)
+    if (where) q = q.where(where)
+    q = q.orderBy(asc(idCol as never)).limit(opts.size)
+    return (await q) as Record<string, unknown>[]
   }
 
   private coercePk(raw: unknown): string | number {
@@ -310,7 +484,7 @@ export class I18nDataService extends BaseService {
     if (!pk) return null
     const bag: Record<string, string> = {}
     for (const field of fieldNames) {
-      const raw = String(row[field] ?? '').trim()
+      const raw = toDataI18nText(row[field]).trim()
       if (!raw || !hasChinese(raw)) continue
       bag[field] = raw
     }
@@ -364,6 +538,7 @@ export class I18nDataService extends BaseService {
               raw,
               opts.existing[built.pk]?.[field],
               seedVal || undefined,
+              opts.langCode,
             )
           ) {
             need = true
@@ -379,38 +554,9 @@ export class I18nDataService extends BaseService {
     }
   }
 
-  async collectSourceRows(
-    tableName: string,
-    fieldNames: string[],
-  ): Promise<Array<Record<string, unknown>>> {
-    const table = this.tableMap().get(tableName)
-    if (!table) throw new CommException(`未找到表 ${tableName}`)
-    const pkField = 'id'
-    const all: Record<string, unknown>[] = []
-    let afterId: string | number | null = null
-    for (;;) {
-      const list = await this.fetchRowsAfterId({
-        table,
-        pkField,
-        afterId,
-        size: DATA_I18N_PAGE_SIZE,
-      })
-      if (!list.length) break
-      all.push(...list)
-      afterId = this.coercePk(list[list.length - 1]?.[pkField])
-      if (list.length < DATA_I18N_PAGE_SIZE) break
-    }
-    return all.filter((row) =>
-      fieldNames.some((f) => {
-        const val = String(row[f] ?? '').trim()
-        return val && hasChinese(val)
-      }),
-    )
-  }
-
   /**
    * AI 翻译业务表（SSE）
-   * 每查 100 行 → 筛中文 → 送 AI → 落库，再翻下一批；增量从首个未译完 id 继续。
+   * 纯文本 + __PH_n__ 占位；短字段编号行分批（N:text），长文整篇一次；每页落库便于断点续跑。
    */
   async *translateTableByAiStream(body: {
     tableName: string
@@ -468,11 +614,29 @@ export class I18nDataService extends BaseService {
         },
       }
 
-      let nextPack: DataI18nPackMap = incremental
-        ? {
-            ...((await this.loadPackMap(tableName, langCode)) || {}),
+      // 只读当前表×语 pack，禁止走 loadPackMap→loadAllPacks（全表 JSON 极大，每对要数分钟）
+      const existingPackRow = incremental
+        ? await this.packRepo.findOne(
+            and(
+              eq(i18nDataPack.tableName, tableName),
+              eq(i18nDataPack.langCode, langCode),
+            ),
+          )
+        : null
+      let nextPack: DataI18nPackMap = {}
+      if (incremental && existingPackRow?.packJson != null) {
+        let raw: unknown = existingPackRow.packJson
+        if (typeof raw === 'string') {
+          try {
+            raw = JSON.parse(raw)
+          } catch {
+            raw = {}
           }
-        : {}
+        }
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          nextPack = { ...(raw as DataI18nPackMap) }
+        }
+      }
 
       const langName =
         body.langName ||
@@ -484,39 +648,131 @@ export class I18nDataService extends BaseService {
         langCode
 
       let afterId: string | number | null = null
+      let saved: { version?: number } | undefined
       if (incremental) {
-        const cursor = await this.findIncrementalCursor({
-          table,
-          pkField,
-          fieldNames,
-          existing: nextPack,
-          langCode,
-          seeds,
-        })
-        if (cursor.done === false) {
-          afterId = cursor.afterId
-        } else {
-          yield {
-            type: 'done',
-            data: {
+        const existingHash = String(existingPackRow?.sourceHash || '').trim()
+        yield {
+          type: 'delta',
+          text: '',
+          data: {
+            stage: existingHash ? 'cursor' : 'hash',
+            tableName,
+            langCode,
+          },
+        }
+
+        if (!existingHash) {
+          // 无 hash：一趟扫完「是否待译 + 攒 sourceHash」，禁止 cursor 后再全表扫第二遍
+          const fullSource: DataI18nPackMap = {}
+          let scanAfter: string | number | null = null
+          let prevPk: string | number | null = null
+          let needAfterId: string | number | null | undefined
+          for (;;) {
+            const scanList = await this.fetchRowsAfterId({
+              table,
+              pkField,
+              afterId: scanAfter,
+              size: DATA_I18N_PAGE_SIZE,
+            })
+            if (!scanList.length) break
+            for (const row of scanList) {
+              const built = this.buildRowChineseBag(row, fieldNames, pkField)
+              if (!built) {
+                prevPk = this.coercePk(row[pkField])
+                continue
+              }
+              fullSource[built.pk] = built.bag
+              if (needAfterId === undefined) {
+                let need = false
+                for (const [field, raw] of Object.entries(built.bag)) {
+                  const seedFrom = resolveDataI18nSeedField(
+                    seeds,
+                    field,
+                    langCode,
+                  )
+                  const seedVal = seedFrom
+                    ? String(row[seedFrom] ?? '').trim()
+                    : ''
+                  if (
+                    fieldNeedsTranslate(
+                      raw,
+                      nextPack[built.pk]?.[field],
+                      seedVal || undefined,
+                      langCode,
+                    )
+                  ) {
+                    need = true
+                    break
+                  }
+                }
+                if (need) needAfterId = prevPk
+              }
+              prevPk = this.coercePk(row[pkField])
+            }
+            if (needAfterId !== undefined) break
+            scanAfter = this.coercePk(scanList[scanList.length - 1]?.[pkField])
+            if (scanList.length < DATA_I18N_PAGE_SIZE) break
+          }
+          if (needAfterId !== undefined) {
+            afterId = needAfterId
+          } else {
+            const sourceHash = hashPackSource(fullSource)
+            saved = await this.upsertPack(
               tableName,
               langCode,
-              skipped: true,
-              message: '译文已完整，跳过增量翻译',
-              rowCount: Object.keys(nextPack).length,
-            },
+              nextPack,
+              sourceHash,
+            )
+            yield {
+              type: 'done',
+              data: {
+                tableName,
+                langCode,
+                skipped: true,
+                message: '译文已完整，已补写 sourceHash',
+                rowCount: Object.keys(nextPack).length,
+                version: saved?.version,
+                sourceHash,
+              },
+            }
+            return
           }
-          return
+        } else {
+          const cursor = await this.findIncrementalCursor({
+            table,
+            pkField,
+            fieldNames,
+            existing: nextPack,
+            langCode,
+            seeds,
+          })
+          if (cursor.done === false) {
+            afterId = cursor.afterId
+          } else {
+            yield {
+              type: 'done',
+              data: {
+                tableName,
+                langCode,
+                skipped: true,
+                message: '译文已完整，跳过增量翻译',
+                rowCount: Object.keys(nextPack).length,
+                sourceHash: existingHash,
+              },
+            }
+            return
+          }
         }
       }
 
       let modelCode = ''
-      /** 跨页复用已译片段，避免「是/否」每页重复打 AI */
-      const segmentDict: Record<string, string> = {}
+      /** masked 文 → 译文（占位符仍在）；同 masked 跨行复用 */
+      const maskedDict: Record<string, string> = {}
       const allSourcePack: DataI18nPackMap = {}
       let translatedRowCount = 0
       let pageNo = 0
-      let saved: { version?: number } | undefined
+      const aiHint =
+        'Output numbered lines N:translated_text only. Keep every __PH_n__ placeholder unchanged; only translate source-language text around them.'
 
       for (;;) {
         const list = await this.fetchRowsAfterId({
@@ -549,6 +805,7 @@ export class I18nDataService extends BaseService {
                   raw,
                   nextPack[built.pk]?.[field],
                   seedVal || undefined,
+                  langCode,
                 )
               ) {
                 need = true
@@ -560,110 +817,188 @@ export class I18nDataService extends BaseService {
           pageBags.push({ ...built, row })
         }
 
-        const pageSegs = new Set<string>()
-        for (const { bag, row } of pageBags) {
+        /** 非中文→__PH_n__，整段送 AI；JSON 字段只抽中文片段送译再拼回 */
+        const toTranslate: Record<string, string> = {}
+        const fieldMasks = new Map<string, FieldMaskEntry>()
+        for (const { pk, bag, row } of pageBags) {
           for (const [field, raw] of Object.entries(bag)) {
             const seedFrom = resolveDataI18nSeedField(seeds, field, langCode)
             const seedVal = seedFrom
               ? String(row[seedFrom] ?? '').trim()
               : ''
             if (seedVal) continue
-            for (const seg of extractChineseSegments(raw)) {
-              if (!segmentDict[seg]) pageSegs.add(seg)
+            if (
+              incremental &&
+              !fieldNeedsTranslate(
+                raw,
+                nextPack[pk]?.[field],
+                undefined,
+                langCode,
+              )
+            ) {
+              continue
             }
+            const fk = `${pk}\t${field}`
+            if (isJsonDataI18nText(raw)) {
+              const segs = extractChineseSegments(raw).filter((s) =>
+                String(s || '').trim(),
+              )
+              fieldMasks.set(fk, { kind: 'json', segs })
+              for (const seg of segs) {
+                const segKey = `__seg__\t${seg}`
+                if (maskedDict[seg] || toTranslate[segKey]) continue
+                toTranslate[segKey] = seg
+              }
+              continue
+            }
+            const { masked, slots, hasSource } =
+              maskNonChineseWithPlaceholders(raw)
+            if (!hasSource) {
+              fieldMasks.set(fk, {
+                kind: 'plain',
+                masked: raw,
+                slots: [],
+                hasSource: false,
+              })
+              continue
+            }
+            fieldMasks.set(fk, { kind: 'plain', masked, slots, hasSource: true })
+            if (maskedDict[masked] || toTranslate[fk]) continue
+            toTranslate[fk] = masked
           }
         }
 
-        if (pageSegs.size) {
+        if (Object.keys(toTranslate).length) {
           if (!modelCode) {
             modelCode = await this.resolveModelCode(body.model)
           }
-          const payload: Record<string, string> = {}
-          for (const seg of pageSegs) payload[seg] = seg
-          const out = await this.aiGateway.call(
-            {
-              model: modelCode,
-              capability: 'chat',
-              input: {
-                messages: [
-                  {
-                    role: 'system',
-                    content: I18N_DATA_TRANSLATE_SYSTEM,
-                  },
-                  {
-                    role: 'user',
-                    content: i18nDataTranslateUserContent({
-                      sourceLangCode: srcLang,
-                      langName,
-                      langCode,
-                      payloadJson: JSON.stringify(payload, null, 2),
-                    }),
-                  },
-                ],
+
+          /** 长文单独整篇；其余编号行分批（全纯文本，无 JSON） */
+          const longItems: Array<{ key: string; masked: string }> = []
+          const shortItems: Array<{ key: string; masked: string }> = []
+          for (const [fk, masked] of Object.entries(toTranslate)) {
+            if (String(masked).length >= DATA_I18N_PLAIN_FIELD_CHARS) {
+              longItems.push({ key: fk, masked })
+            } else {
+              shortItems.push({ key: fk, masked })
+            }
+          }
+
+          // 长文（用户协议等）：纯文本整篇一次译
+          for (let pi = 0; pi < longItems.length; pi++) {
+            const { masked } = longItems[pi]!
+            if (maskedDict[masked]) continue
+            const maxTokens = Math.min(
+              16_384,
+              Math.max(4096, Math.ceil(masked.length * 1.2)),
+            )
+            const out = await this.aiGateway.call(
+              {
+                model: modelCode,
+                capability: 'chat',
+                input: {
+                  messages: [
+                    {
+                      role: 'system',
+                      content: [
+                        I18N_DATA_TRANSLATE_SYSTEM,
+                        `Translate the user message from ${srcLang} into ${langName} (${langCode}).`,
+                        'Placeholders look like __PH_0__ __PH_1__ — keep EVERY placeholder EXACTLY unchanged.',
+                        'Only translate surrounding source-language text.',
+                        'Output the translated document ONLY — no JSON, no numbered lines, no markdown fences, no commentary.',
+                      ].join('\n\n'),
+                    },
+                    { role: 'user', content: masked },
+                  ],
+                  max_tokens: maxTokens,
+                },
+                options: { stream: true },
               },
-              options: { stream: true },
-            },
-            { source: 'i18n' },
-          )
-          let text = ''
-          if (out.kind === 'stream') {
-            for await (const chunk of out.stream) {
-              if (chunk.type === 'error') {
-                yield {
-                  type: 'error',
-                  error: {
-                    code: chunk.error?.code || 'ai',
-                    message: chunk.error?.message || 'AI 翻译失败',
-                  },
+              { source: 'i18n' },
+            )
+            let text = ''
+            if (out.kind === 'stream') {
+              for await (const chunk of out.stream) {
+                if (chunk.type === 'error') {
+                  yield {
+                    type: 'error',
+                    error: {
+                      code: chunk.error?.code || 'ai',
+                      message: chunk.error?.message || 'AI 翻译失败',
+                    },
+                  }
+                  return
                 }
-                return
+                if (chunk.type === 'delta' && chunk.text) {
+                  text += chunk.text
+                  yield {
+                    type: 'delta',
+                    text: chunk.text,
+                    data: {
+                      fullText: text,
+                      page: pageNo,
+                      plain: pi + 1,
+                      plains: longItems.length,
+                      pageSize: DATA_I18N_PAGE_SIZE,
+                      afterId,
+                    },
+                  }
+                }
+                if (chunk.type === 'done') {
+                  text = String(chunk.text || chunk.data?.text || text)
+                  break
+                }
               }
-              if (chunk.type === 'delta' && chunk.text) {
-                text += chunk.text
+            } else {
+              if (!out.ok) {
+                throw new CommException(out.error?.message || 'AI 翻译失败')
+              }
+              text = String(
+                (out.data as { text?: string } | undefined)?.text || '',
+              )
+              if (text) {
                 yield {
                   type: 'delta',
-                  text: chunk.text,
+                  text,
                   data: {
                     fullText: text,
                     page: pageNo,
+                    plain: pi + 1,
+                    plains: longItems.length,
                     pageSize: DATA_I18N_PAGE_SIZE,
                     afterId,
                   },
                 }
               }
-              if (chunk.type === 'done') {
-                text = String(chunk.text || chunk.data?.text || text)
-                break
-              }
             }
-          } else {
-            if (!out.ok) {
-              throw new CommException(out.error?.message || 'AI 翻译失败')
+            const body = finalizeMaskedTranslation(masked, text)
+            if (!body) {
+              throw new CommException(
+                `AI 未返回长文翻译（第 ${pageNo} 页 plain ${pi + 1}/${longItems.length}）`,
+              )
             }
-            text = String(
-              (out.data as { text?: string } | undefined)?.text || '',
-            )
-            if (text) {
-              yield {
-                type: 'delta',
-                text,
-                data: {
-                  fullText: text,
-                  page: pageNo,
-                  pageSize: DATA_I18N_PAGE_SIZE,
-                  afterId,
-                },
-              }
-            }
+            maskedDict[masked] = body
           }
-          if (!text.trim()) {
-            throw new CommException(`AI 未返回翻译内容（第 ${pageNo} 批）`)
-          }
-          const parsed = extractJsonObject(text) as Record<string, string>
-          for (const [k, v] of Object.entries(parsed)) {
-            if (pageSegs.has(k) && String(v || '').trim()) {
-              segmentDict[k] = String(v).trim()
-            }
+
+          const batches = batchNumberedPlainItems(
+            shortItems,
+            DATA_I18N_AI_PAYLOAD_MAX_CHARS,
+          )
+          for (let bi = 0; bi < batches.length; bi++) {
+            const batch = batches[bi]!
+            yield* this.translateNumberedPlainBatchWithFill({
+              items: batch,
+              modelCode,
+              srcLang,
+              langName,
+              langCode,
+              aiHint,
+              pageNo,
+              batchIndex: bi + 1,
+              batchTotal: batches.length,
+              afterId,
+              maskedDict,
+            })
           }
         }
 
@@ -677,7 +1012,7 @@ export class I18nDataService extends BaseService {
               : ''
             if (
               incremental &&
-              !fieldNeedsTranslate(raw, prev, seedVal || undefined)
+              !fieldNeedsTranslate(raw, prev, seedVal || undefined, langCode)
             ) {
               translated[field] = String(prev)
               continue
@@ -686,13 +1021,58 @@ export class I18nDataService extends BaseService {
               translated[field] = seedVal
               continue
             }
-            translated[field] = applyChineseSegmentMap(raw, segmentDict)
+            const fk = `${pk}\t${field}`
+            const mask = fieldMasks.get(fk)
+            if (!mask) {
+              if (prev && String(prev).trim() && prev !== raw) {
+                translated[field] = String(prev)
+              }
+              continue
+            }
+            if (mask.kind === 'json') {
+              if (!mask.segs.length) {
+                translated[field] = raw
+                continue
+              }
+              const segMap: Record<string, string> = {}
+              let any = false
+              for (const seg of mask.segs) {
+                const hit = String(maskedDict[seg] || '').trim()
+                if (hit) {
+                  segMap[seg] = isCjkTargetLang(langCode)
+                    ? hit
+                    : polishNonCjkTranslation(hit)
+                  any = true
+                }
+              }
+              translated[field] = any
+                ? applyChineseSegmentMap(raw, segMap)
+                : prev && String(prev).trim() && prev !== raw
+                  ? String(prev)
+                  : raw
+              continue
+            }
+            if (!mask.hasSource) {
+              // 无汉字可译：保持原文
+              translated[field] = raw
+              continue
+            }
+            const tm = String(maskedDict[mask.masked] || '').trim()
+            if (!tm) {
+              if (prev && String(prev).trim() && prev !== raw) {
+                translated[field] = String(prev)
+              }
+              continue
+            }
+            const restored = restoreMaskedPlaceholders(tm, mask.slots)
+            translated[field] = isCjkTargetLang(langCode)
+              ? restored
+              : polishNonCjkTranslation(restored)
           }
           nextPack[pk] = { ...(nextPack[pk] || {}), ...translated }
           translatedRowCount += 1
         }
 
-        // 每批落库，中断后增量可从断点续
         saved = await this.upsertPack(tableName, langCode, nextPack)
         await this.invalidatePackCache(tableName, langCode)
 
@@ -700,43 +1080,31 @@ export class I18nDataService extends BaseService {
         if (list.length < DATA_I18N_PAGE_SIZE) break
       }
 
-      // 全量：删掉源里已不存在的旧 pk
       if (!incremental) {
         for (const pk of Object.keys(nextPack)) {
           if (!(pk in allSourcePack)) delete nextPack[pk]
         }
       }
 
-      // 仅当已无待译行时写最终 sourceHash（增量断点续跑不能用「本趟片段」当全量 hash）
-      let sourceHash: string | undefined
-      const left = await this.findIncrementalCursor({
-        table,
-        pkField,
-        fieldNames,
-        existing: nextPack,
-        langCode,
-        seeds,
-      })
-      if (left.done) {
-        const fullSource: DataI18nPackMap = {}
-        let scanAfter: string | number | null = null
-        for (;;) {
-          const scanList = await this.fetchRowsAfterId({
-            table,
-            pkField,
-            afterId: scanAfter,
-            size: DATA_I18N_PAGE_SIZE,
-          })
-          if (!scanList.length) break
-          for (const row of scanList) {
-            const built = this.buildRowChineseBag(row, fieldNames, pkField)
-            if (built) fullSource[built.pk] = built.bag
-          }
-          scanAfter = this.coercePk(scanList[scanList.length - 1]?.[pkField])
-          if (scanList.length < DATA_I18N_PAGE_SIZE) break
+      // 整表扫完后必须写 sourceHash（原先用 left.done 卡住：残留中文判定导致永远不写）
+      const fullSource: DataI18nPackMap = {}
+      let hashAfter: string | number | null = null
+      for (;;) {
+        const scanList = await this.fetchRowsAfterId({
+          table,
+          pkField,
+          afterId: hashAfter,
+          size: DATA_I18N_PAGE_SIZE,
+        })
+        if (!scanList.length) break
+        for (const row of scanList) {
+          const built = this.buildRowChineseBag(row, fieldNames, pkField)
+          if (built) fullSource[built.pk] = built.bag
         }
-        sourceHash = hashPackSource(fullSource)
+        hashAfter = this.coercePk(scanList[scanList.length - 1]?.[pkField])
+        if (scanList.length < DATA_I18N_PAGE_SIZE) break
       }
+      const sourceHash = hashPackSource(fullSource)
 
       saved = await this.upsertPack(
         tableName,
@@ -752,7 +1120,7 @@ export class I18nDataService extends BaseService {
           tableName,
           langCode,
           skipped: false,
-          translatedSegments: Object.keys(segmentDict).length,
+          translatedSegments: Object.keys(maskedDict).length,
           translatedRowCount,
           rowCount: Object.keys(nextPack).length,
           sourceRowCount: Object.keys(allSourcePack).length,
@@ -820,18 +1188,26 @@ export class I18nDataService extends BaseService {
       values: Record<string, string>
       sources: Record<string, string>
     }> = []
-    for (const [pk, bag] of Object.entries(pack)) {
-      if (!bag || typeof bag !== 'object') continue
+    // pack + 源表 pk 并集：无译文时也展示原数据行
+    const pkSet = new Set<string>([
+      ...Object.keys(pack),
+      ...Object.keys(sourcePack),
+    ])
+    for (const pk of pkSet) {
+      const bag = pack[pk]
       const values: Record<string, string> = {}
       const sources: Record<string, string> = {}
+      let hasSource = false
       let hasVal = false
       for (const { name } of fields) {
-        const v = String(bag[name] ?? '')
+        const v = String(bag?.[name] ?? '')
+        const s = String(sourcePack[pk]?.[name] ?? '')
         if (v) hasVal = true
+        if (s) hasSource = true
         values[name] = v
-        sources[name] = String(sourcePack[pk]?.[name] ?? '')
+        sources[name] = s
       }
-      if (!hasVal) continue
+      if (!hasVal && !hasSource) continue
       list.push({ id: String(pk), values, sources })
     }
     list.sort((a, b) =>
@@ -872,7 +1248,7 @@ export class I18nDataService extends BaseService {
       if (!pk) continue
       const bag: Record<string, string> = {}
       for (const field of fieldNames) {
-        const raw = String(row[field] ?? '')
+        const raw = toDataI18nText(row[field])
         if (raw) bag[field] = raw
       }
       if (Object.keys(bag).length) out[pk] = bag
@@ -973,6 +1349,7 @@ export class I18nDataService extends BaseService {
     )
     if (!idSet.size) return
 
+    // 翻译包全局共用，不按 tenantId 过滤（与 loadPackMap 一致）
     const rows = await this.packRepo.find(
       and(
         eq(i18nDataPack.tableName, table),
@@ -982,9 +1359,16 @@ export class I18nDataService extends BaseService {
     for (const row of rows) {
       const langCode = String(row.langCode || '').trim()
       if (!langCode) continue
-      const pack: DataI18nPackMap = {
-        ...((row.packJson as DataI18nPackMap | undefined) || {}),
+      let raw: unknown = row.packJson
+      if (typeof raw === 'string') {
+        try {
+          raw = JSON.parse(raw)
+        } catch {
+          continue
+        }
       }
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue
+      const pack: DataI18nPackMap = { ...(raw as DataI18nPackMap) }
       let changed = false
       for (const pk of idSet) {
         if (pk in pack) {
@@ -1008,6 +1392,195 @@ export class I18nDataService extends BaseService {
     return row.code
   }
 
+  /**
+   * 编号行翻译：已返回的编号立刻收下；缺号只补缺，不全盘作废。
+   * 补缺时把缺失项重排成 1..n 再送，回填到原 masked。
+   */
+  private async *translateNumberedPlainBatchWithFill(opts: {
+    items: NumberedPlainItem[]
+    modelCode: string
+    srcLang: string
+    langName: string
+    langCode: string
+    aiHint: string
+    pageNo: number
+    batchIndex: number
+    batchTotal: number
+    afterId: string | number | null
+    maskedDict: Record<string, string>
+  }): AsyncGenerator<{
+    type: 'delta' | 'done' | 'error'
+    text?: string
+    data?: Record<string, unknown>
+    error?: { code: string; message: string }
+  }> {
+    const {
+      modelCode,
+      srcLang,
+      langName,
+      langCode,
+      aiHint,
+      pageNo,
+      batchIndex,
+      batchTotal,
+      afterId,
+      maskedDict,
+    } = opts
+
+    /** 原下标 0-based → 是否已写入 maskedDict */
+    const pending = opts.items
+      .map((it, idx) => ({ it, idx }))
+      .filter(({ it }) => !maskedDict[it.masked])
+
+    const FILL_ROUNDS = 6
+    for (let round = 0; round < FILL_ROUNDS && pending.length; round++) {
+      const roundItems = pending.map((p) => p.it)
+      const payloadText = formatNumberedPlainBatch(roundItems)
+      const payloadLen = payloadText.length
+      // 按字符估 token，留足余量，减少末尾被 max_tokens 截断导致缺号
+      const maxTokens = Math.min(
+        16_384,
+        Math.max(2048, Math.ceil(payloadLen * 1.5)),
+      )
+      const out = await this.aiGateway.call(
+        {
+          model: modelCode,
+          capability: 'chat',
+          input: {
+            messages: [
+              {
+                role: 'system',
+                content: [
+                  I18N_DATA_TRANSLATE_SYSTEM,
+                  I18N_DATA_LINE_OUTPUT_RULES,
+                  round > 0
+                    ? `This is a FILL pass for missing line numbers only. Return EVERY listed N: line.`
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join('\n\n'),
+              },
+              {
+                role: 'user',
+                content: i18nDataTranslateUserContent({
+                  sourceLangCode: srcLang,
+                  langName,
+                  langCode,
+                  hint: aiHint,
+                  payloadText,
+                }),
+              },
+            ],
+            max_tokens: maxTokens,
+          },
+          options: { stream: true },
+        },
+        { source: 'i18n' },
+      )
+
+      let text = ''
+      if (out.kind === 'stream') {
+        for await (const chunk of out.stream) {
+          if (chunk.type === 'error') {
+            yield {
+              type: 'error',
+              error: {
+                code: chunk.error?.code || 'ai',
+                message: chunk.error?.message || 'AI 翻译失败',
+              },
+            }
+            return
+          }
+          if (chunk.type === 'delta' && chunk.text) {
+            text += chunk.text
+            yield {
+              type: 'delta',
+              text: chunk.text,
+              data: {
+                fullText: text,
+                page: pageNo,
+                batch: batchIndex,
+                batches: batchTotal,
+                fillRound: round + 1,
+                pending: pending.length,
+                pageSize: DATA_I18N_PAGE_SIZE,
+                afterId,
+              },
+            }
+          }
+          if (chunk.type === 'done') {
+            text = String(chunk.text || chunk.data?.text || text)
+            break
+          }
+        }
+      } else {
+        if (!out.ok) {
+          throw new CommException(out.error?.message || 'AI 翻译失败')
+        }
+        text = String((out.data as { text?: string } | undefined)?.text || '')
+        if (text) {
+          yield {
+            type: 'delta',
+            text,
+            data: {
+              fullText: text,
+              page: pageNo,
+              batch: batchIndex,
+              batches: batchTotal,
+              fillRound: round + 1,
+              pending: pending.length,
+              pageSize: DATA_I18N_PAGE_SIZE,
+              afterId,
+            },
+          }
+        }
+      }
+
+      if (!text.trim()) {
+        console.warn(
+          `[data-i18n] numbered fill empty page=${pageNo} batch=${batchIndex} round=${round + 1} pending=${pending.length}`,
+        )
+        continue
+      }
+
+      const parsed = parseNumberedPlainBatchLoose(text)
+      let accepted = 0
+      for (let i = 0; i < pending.length; i++) {
+        const lineNo = i + 1
+        const v = String(parsed.get(lineNo) ?? '').trim()
+        if (!v) continue
+        const { it } = pending[i]!
+        try {
+          maskedDict[it.masked] = finalizeMaskedTranslation(it.masked, v)
+          accepted++
+        } catch (e) {
+          console.warn(
+            `[data-i18n] numbered finalize skip #${lineNo}:`,
+            e instanceof Error ? e.message : e,
+          )
+        }
+      }
+
+      // 从 pending 去掉已收下的
+      for (let i = pending.length - 1; i >= 0; i--) {
+        if (maskedDict[pending[i]!.it.masked]) pending.splice(i, 1)
+      }
+
+      const missingHint = listMissingNumberedIds(parsed, roundItems.length)
+      if (pending.length) {
+        console.warn(
+          `[data-i18n] numbered partial page=${pageNo} batch=${batchIndex} round=${round + 1} accepted=${accepted} still=${pending.length} aiMissing=${missingHint.slice(0, 8).join(',')}${missingHint.length > 8 ? '…' : ''}`,
+        )
+      }
+    }
+
+    if (pending.length) {
+      throw new CommException(
+        `AI 编号行补缺仍失败（第 ${pageNo} 页分片 ${batchIndex}/${batchTotal}）: 仍缺 ${pending.length} 条`,
+      )
+    }
+  }
+
   private async upsertPack(
     tableName: string,
     langCode: string,
@@ -1021,7 +1594,6 @@ export class I18nDataService extends BaseService {
       ),
       { withTrashed: true, softDelete: true },
     )
-    // 主实体是 dataField，不能 this.add；与 softDelete 下 BaseService.add 同走 Repository.upsert
     return this.packRepo.upsert({
       tableName,
       langCode,

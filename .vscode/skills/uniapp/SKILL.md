@@ -1,7 +1,7 @@
 ---
 name: uniapp-usage
 description: >-
-  UniApp 完整用法：vome-core/client、EPS、request、storage、登录、路由鉴权、stores、Socket、防连点。
+  UniApp 用法：登录、请求、语种切换、Socket、防连点。
   Use when editing uniapp/ pages, stores, or client API usage.
 ---
 
@@ -257,6 +257,15 @@ io(config.host, {
 | 导航 | `uni.*` + interceptor | vue-router `beforeEach` |
 | 事件 | `session:token` / `session:logout` | 无同名事件 |
 | Socket 包 | `@wu-xj/uni-socket.io` | `socket.io-client` |
+
+## 语种切换
+
+| 项 | 怎么用 |
+|----|--------|
+| Store | 与 Web 同系 `createLocaleStore`；`setLocale` 切语种 |
+| 文案 | `t('key', '回退')` |
+| 热更新 | 页内跟 locale 变化刷新数据（可用项目封装的 reload）；H5/小程序同一套约定 |
+| 注意 | 小程序勿依赖 Cookie 做 Better Auth 桥；语种包同步仍靠服务端 |
 
 ## 新增页面清单
 

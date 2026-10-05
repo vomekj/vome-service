@@ -1,7 +1,7 @@
 ---
 name: web-usage
 description: >-
-  Web 客户端完整用法：vome-core/client、EPS、request、token、Better Auth、stores、路由、Socket、防连点。
+  Web 客户端用法：登录、EPS 请求、语种切换、Socket、防连点。
   Use when editing web/ pages, stores, or client API usage.
 ---
 
@@ -270,6 +270,17 @@ io(config.host, {
 ## UI
 
 跟随现有 web 页面风格。**不要**把 admin 的 `vm-crud` 硬搬进 web。
+
+## 语种切换
+
+| 项 | 怎么用 |
+|----|--------|
+| Store | 宿主 `createLocaleStore`（`stores/locale`）；`setLocale(code)` 切语种 |
+| 文案 | `locale.t('a.b', '回退中文')` |
+| 热更新 | 切语种后列表/页需跟 `localeEpoch` 或订阅刷新，避免整页 F5 |
+| 顶栏列表 | 来自已同步的语言包语种；展示名是语种表的 `name`（本国文字） |
+
+源包放 `src/locales/`；与 Admin 的「同步语言包」配合使用。业务数据多语言仍走后端 `X-Lang` + dataI18n。
 
 ## 请求按钮防连点（强制）
 

@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { and, asc, desc, eq, getTableName, isNull, ne } from 'drizzle-orm'
+import { and, asc, desc, eq, getTableName, isNull } from 'drizzle-orm'
 import type { CrudModifyType } from '@core/server'
 import {
   BaseService,
@@ -27,6 +27,7 @@ import {
   I18N_UI_TRANSLATE_SYSTEM,
   i18nUiTranslateUserContent,
 } from '../lib/ai-translate-prompt'
+import { batchFlatRecordByPayload } from '../lib/sentence-chunks'
 import {
   LOCALE_FALLBACK,
   preferredLangByCountry,
@@ -149,7 +150,7 @@ export class I18nPackService extends BaseService {
   @Inject()
   aiGateway: AiGateway
 
-  /** 启动灌 UI 语言包 / 语种（进程 Map） */
+  /** 启动灌 UI 语言包 / 语种（进程 Map，避免远程 PG 反复拉 packJson） */
   override async init() {
     await Promise.all([
       this.cacheSet('i18n_pack', await this.loadAllPacks()),
@@ -169,7 +170,7 @@ export class I18nPackService extends BaseService {
     )
   }
 
-  /** 全量重载语言包缓存（不刷 i18n_lang） */
+  /** 全量重载语言包缓存 */
   async refreshPackCache() {
     await this.cacheSet('i18n_pack', await this.loadAllPacks())
   }
@@ -182,16 +183,12 @@ export class I18nPackService extends BaseService {
     return this.cacheGet<I18nLangRow>('i18n_lang', () => this.loadAllLangs())
   }
 
-  async modifyAfter(_data: unknown, type: CrudModifyType) {
+  async modifyAfter(
+    _data: unknown,
+    type: 'add' | 'update' | 'delete',
+  ) {
     if (type !== 'add' && type !== 'update' && type !== 'delete') return
     await this.refreshPackCache()
-  }
-
-  /** 回收站恢复不走 modifyAfter */
-  override async restore(whereOrIds: Parameters<BaseService['restore']>[0]) {
-    const result = await super.restore(whereOrIds)
-    await this.refreshPackCache()
-    return result
   }
 
   private async preparePack(
@@ -235,9 +232,9 @@ export class I18nPackService extends BaseService {
       }
     }
 
+    // 唯一靠 uniqueIndex；软删 add 撞键由 Repository upsert
     if (type === 'add') {
       data.version = Number(data.version) > 0 ? Number(data.version) : 1
-      await this.assertUnique(langCode, scope.scopeType, scope.scopeKey)
     } else {
       const id = Number(data.id)
       const [old] = await this.packRepo.find(
@@ -246,7 +243,6 @@ export class I18nPackService extends BaseService {
       if (old) {
         data.version = Number(old.version || 1) + 1
       }
-      await this.assertUnique(langCode, scope.scopeType, scope.scopeKey, id)
     }
   }
 
@@ -256,27 +252,6 @@ export class I18nPackService extends BaseService {
     for (const raw of rows) {
       if (raw == null || typeof raw !== 'object') continue
       await this.preparePack(raw as Record<string, unknown>, type as 'add' | 'update')
-    }
-  }
-
-  private async assertUnique(
-    langCode: string,
-    scopeType: string,
-    scopeKey: string,
-    id?: number,
-  ) {
-    const conds = [
-      eq(i18nPack.langCode, langCode),
-      eq(i18nPack.scopeType, scopeType),
-      eq(i18nPack.scopeKey, scopeKey),
-      isNull(i18nPack.deleteTime),
-    ]
-    if (id != null) conds.push(ne(i18nPack.id, id))
-    const [hit] = await this.packRepo.find(and(...conds))
-    if (hit) {
-      throw new CommException(
-        `语言包已存在：${scopeType}/${scopeKey}/${langCode}`,
-      )
     }
   }
 
@@ -326,6 +301,8 @@ export class I18nPackService extends BaseService {
         ? await this.pluginScopeKeyCandidates(scope.scopeKey)
         : [scope.scopeKey]
     const langCode = String(opts.langCode || '').trim()
+    // 宿主/插件语言包与 listHostLocales、data i18n 一致：不按 tenantId 过滤
+    //（列有 tenantId 仅为实体基列；否则语种列表有 ru-RU 但 /active 返回 null）
     const packs = await this.listCachedPacks()
     for (const scopeKey of scopeKeys) {
       const row = packs.find(
@@ -570,10 +547,12 @@ export class I18nPackService extends BaseService {
       }
       return { path: url, packJson: parsed as Record<string, unknown> }
     } catch (e) {
-      if (e instanceof CommException) throw e
-      throw new CommException(
-        `拉取 ${scopeKey} 语言包失败: ${e instanceof Error ? e.message : String(e)}（${url}）`,
+      // 远程不可用时回退库内已有源包（buildHostSource / 脚本断点续跑）
+      console.warn(
+        `[i18n] readFrontHostSource ${scopeKey} fallback DB:`,
+        e instanceof Error ? e.message : e,
       )
+      return { path: null, packJson: null }
     }
   }
 
@@ -699,7 +678,7 @@ export class I18nPackService extends BaseService {
     )
   }
 
-  /** 增量：仅译新增/变更 key；全量：整包重译 */
+  /** 增量：仅译缺 key / 仍等于源文的 key；全量：整包重译 */
   private collectLocaleKeysToTranslate(
     sourceFlat: Record<string, string>,
     existingFlat: Record<string, string>,
@@ -713,10 +692,13 @@ export class I18nPackService extends BaseService {
         toTranslate[k] = v
         continue
       }
-      if (!(k in existingFlat)) {
+      // 缺 key，或译文仍是源文（半成品包）→ 需要继续译
+      const prev = existingFlat[k]
+      if (prev === undefined || prev === '' || prev === v) {
         toTranslate[k] = v
         continue
       }
+      // 源文相对库内 zh 包有变更
       if (zhCnFlat[k] !== undefined && zhCnFlat[k] !== v) {
         toTranslate[k] = v
       } else if (!(k in zhCnFlat)) {
@@ -820,23 +802,6 @@ export class I18nPackService extends BaseService {
         ? (flattenLocale(existingPack.packJson) as Record<string, string>)
         : {}
 
-      if (incremental && existingPack?.sourceHash === sourceHash) {
-        yield {
-          type: 'done',
-          data: {
-            skipped: true,
-            message: '源文案未变化，跳过增量翻译',
-            langCode,
-            scopeType: scope.scopeType,
-            scopeKey: scope.scopeKey,
-            sourceHash,
-            packJson: existingPack?.packJson ?? {},
-            translatedKeys: 0,
-          },
-        }
-        return
-      }
-
       const sourceLangPack = await this.findPack({
         langCode: srcLang,
         scopeType: scope.scopeType,
@@ -852,6 +817,28 @@ export class I18nPackService extends BaseService {
         sourceLangFlat,
         incremental,
       )
+
+      // 仅当确实无待译 key 时才跳过（不能单靠 sourceHash：半成品包也曾被误写完整 hash）
+      if (
+        incremental &&
+        !Object.keys(toTranslate).length &&
+        existingPack?.sourceHash === sourceHash
+      ) {
+        yield {
+          type: 'done',
+          data: {
+            skipped: true,
+            message: '源文案未变化，跳过增量翻译',
+            langCode,
+            scopeType: scope.scopeType,
+            scopeKey: scope.scopeKey,
+            sourceHash,
+            packJson: existingPack?.packJson ?? {},
+            translatedKeys: 0,
+          },
+        }
+        return
+      }
 
       if (!Object.keys(toTranslate).length) {
         const packJson = this.mergeTranslatedLocale(
@@ -875,78 +862,119 @@ export class I18nPackService extends BaseService {
         return
       }
 
-      const aiPayload = incremental
-        ? unflattenLocale(toTranslate)
-        : source
-      const aiHint = incremental
-        ? 'Return a JSON object with exactly the same keys as the input.'
-        : 'Return the full JSON object with the same keys.'
-
-      const out = await this.aiGateway.call(
-        {
-          model: modelCode,
-          capability: 'chat',
-          input: {
-            messages: [
-              {
-                role: 'system',
-                content: I18N_UI_TRANSLATE_SYSTEM,
-              },
-              {
-                role: 'user',
-                content: i18nUiTranslateUserContent({
-                  sourceLangCode: srcLang,
-                  langName,
-                  langCode,
-                  hint: aiHint,
-                  payloadJson: JSON.stringify(aiPayload, null, 2),
-                }),
-              },
-            ],
+      const batches = batchFlatRecordByPayload(toTranslate)
+      const translatedFlat: Record<string, string> = {}
+      for (let bi = 0; bi < batches.length; bi++) {
+        const batch = batches[bi]!
+        const aiPayload = unflattenLocale(batch)
+        const aiHint =
+          'Return a JSON object with exactly the same keys as the input.'
+        const out = await this.aiGateway.call(
+          {
+            model: modelCode,
+            capability: 'chat',
+            input: {
+              messages: [
+                {
+                  role: 'system',
+                  content: I18N_UI_TRANSLATE_SYSTEM,
+                },
+                {
+                  role: 'user',
+                  content: i18nUiTranslateUserContent({
+                    sourceLangCode: srcLang,
+                    langName,
+                    langCode,
+                    hint: aiHint,
+                    payloadJson: JSON.stringify(aiPayload, null, 2),
+                  }),
+                },
+              ],
+              // 按输出体积估 token：中文 JSON 约 1 字≈1–2 token，旧公式 length/2
+              // 会把 ~3.5k 字包压到 ~1758，模型截断 → Expected '}' / Unterminated string
+              max_tokens: Math.min(
+                16_384,
+                Math.max(
+                  2048,
+                  Math.ceil(JSON.stringify(aiPayload).length * 1.5),
+                ),
+              ),
+            },
+            options: { stream: true },
           },
-          options: { stream: true },
-        },
-        { source: 'i18n' },
-      )
+          { source: 'i18n' },
+        )
 
-      let text = ''
-      if (out.kind === 'stream') {
-        for await (const chunk of out.stream) {
-          if (chunk.type === 'error') {
+        let text = ''
+        if (out.kind === 'stream') {
+          for await (const chunk of out.stream) {
+            if (chunk.type === 'error') {
+              yield {
+                type: 'error',
+                error: {
+                  code: chunk.error?.code || 'ai',
+                  message: chunk.error?.message || 'AI 翻译失败',
+                },
+              }
+              return
+            }
+            if (chunk.type === 'delta' && chunk.text) {
+              text += chunk.text
+              yield {
+                type: 'delta',
+                text: chunk.text,
+                data: {
+                  fullText: text,
+                  batch: bi + 1,
+                  batches: batches.length,
+                },
+              }
+            }
+            if (chunk.type === 'done') {
+              text = String(chunk.text || chunk.data?.text || text)
+              break
+            }
+          }
+        } else {
+          if (!out.ok) {
+            throw new CommException(out.error?.message || 'AI 翻译失败')
+          }
+          text = String(
+            (out.data as { text?: string } | undefined)?.text || '',
+          )
+          if (text) {
             yield {
-              type: 'error',
-              error: {
-                code: chunk.error?.code || 'ai',
-                message: chunk.error?.message || 'AI 翻译失败',
+              type: 'delta',
+              text,
+              data: {
+                fullText: text,
+                batch: bi + 1,
+                batches: batches.length,
               },
             }
-            return
-          }
-          if (chunk.type === 'delta' && chunk.text) {
-            text += chunk.text
-            yield { type: 'delta', text: chunk.text, data: { fullText: text } }
-          }
-          if (chunk.type === 'done') {
-            text = String(chunk.text || chunk.data?.text || text)
-            break
           }
         }
-      } else {
-        if (!out.ok) {
-          throw new CommException(out.error?.message || 'AI 翻译失败')
+
+        if (!text.trim()) {
+          throw new CommException(
+            `AI 未返回翻译内容（分片 ${bi + 1}/${batches.length}）`,
+          )
         }
-        text = String((out.data as { text?: string } | undefined)?.text || '')
-        if (text) {
-          yield { type: 'delta', text, data: { fullText: text } }
+
+        const parsedFlat = flattenLocale(
+          extractJsonObject(text),
+        ) as Record<string, string>
+        for (const k of Object.keys(batch)) {
+          const v = String(parsedFlat[k] ?? '').trim()
+          if (!v) {
+            throw new CommException(
+              `AI 译文缺少 key（分片 ${bi + 1}/${batches.length}）: ${k}`,
+            )
+          }
+          translatedFlat[k] = v
         }
       }
 
-      if (!text.trim()) {
-        throw new CommException('AI 未返回翻译内容')
-      }
-
-      const translated = extractJsonObject(text)
-      const translatedFlat = flattenLocale(translated) as Record<string, string>
       const packJson = this.mergeTranslatedLocale(
         sourceFlat,
         existingFlat,
@@ -956,15 +984,16 @@ export class I18nPackService extends BaseService {
 
       yield {
         type: 'done',
-        text,
+        text: '',
         data: {
-          fullText: text,
+          fullText: '',
           langCode,
           scopeType: scope.scopeType,
           scopeKey: scope.scopeKey,
           sourceHash,
           packJson,
           translatedKeys: Object.keys(toTranslate).length,
+          batches: batches.length,
         },
       }
     } catch (e) {
@@ -978,35 +1007,7 @@ export class I18nPackService extends BaseService {
     }
   }
 
-  /** @deprecated 兼容：收齐流后返回 packJson */
-  async translateByAi(body: {
-    langCode: string
-    langName?: string
-    scopeType?: string
-    scopeKey?: string
-    model?: string
-    mode?: 'full' | 'incremental'
-  }) {
-    let packJson: Record<string, unknown> | undefined
-    let langCode = ''
-    let scopeType = ''
-    let scopeKey = ''
-    for await (const chunk of this.translateByAiStream(body)) {
-      if (chunk.type === 'error') {
-        throw new CommException(chunk.error?.message || 'AI 翻译失败')
-      }
-      if (chunk.type === 'done') {
-        packJson = chunk.data?.packJson as Record<string, unknown> | undefined
-        langCode = String(chunk.data?.langCode || '')
-        scopeType = String(chunk.data?.scopeType || '')
-        scopeKey = String(chunk.data?.scopeKey || '')
-      }
-    }
-    if (!packJson) throw new CommException('AI 未返回翻译内容')
-    return { langCode, scopeType, scopeKey, packJson }
-  }
-
-  /** 同步写入源语言包（Repository 层；与 add 在 softDelete 开启时同走 upsert） */
+  /** 写入/更新某一条源语言包（Repository.upsert：含软删恢复） */
   private async upsertZhPack(
     scopeType: 'host' | 'plugin',
     scopeKey: string,
@@ -1030,7 +1031,9 @@ export class I18nPackService extends BaseService {
       scopeKey,
       packJson,
       sourceHash,
-      version: existing ? Number(existing.version || 1) + 1 : 1,
+      version: existing
+        ? Number(existing.version || 1) + 1
+        : 1,
     })
     await this.refreshPackCache()
     return this.findPack({ langCode: srcLang, scopeType, scopeKey })

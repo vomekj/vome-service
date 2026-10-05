@@ -14,9 +14,10 @@ const config: DefaultConfig = {
     lang: "zh-CN",
     /**
      * dataI18n 混合文本抽词规则（RegExp 或 `/pattern/flags` / 裸 pattern）
-     * 不配则无法抽词翻译；中文源例 /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/g
+     * 不配则无法抽词翻译；汉字 + 常用中文/全角标点一并抽词
      */
-    langReplace: "/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/g",
+    langReplace:
+      "/[\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff\\u3001-\\u303f\\uff01-\\uff0f\\uff1a-\\uff1f]+/g",
   },
   openapi: {
     enable: true,
