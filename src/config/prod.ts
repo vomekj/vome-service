@@ -15,6 +15,7 @@ const config: EnvConfig = {
     localeOrigins: {
       web: 'http://127.0.0.1:9900',
       uniapp: 'http://127.0.0.1:6600',
+      uniappx: 'http://127.0.0.1:5173',
     },
   },
 

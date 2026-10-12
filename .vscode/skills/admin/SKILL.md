@@ -458,7 +458,7 @@ component: { props: dict.options('status') }
 |------|------|
 | 同步语言包 | 把宿主源文案（默认简中）同步进库；耗时可能较长 |
 | 列表 | `page` / `list` **不返回 `packJson`**（Controller `select` 排除大字段）；表格 `ignoreFields` 含 `packJson` |
-| 编辑 | 打开时按 `id` 调 `info`（或按语种调 `active`）再拉 JSON；可用 AI 增量/全量翻译 |
+| 编辑 | 打开时按 `id` 调 `info`（或按语种调 `active`）再拉 JSON；可用 AI 增量/全量翻译（增量只译缺失/空/半成品/源 key 已变；可选 `onlyKeys`） |
 | 源语种 | 可编辑源语言包（如 `zh-CN`）；界面显示「简体中文」，不是只显示 `zh-CN` |
 | 顶栏切换 | 仅「已启用 + 已有语言包」的语种会出现在顶栏 |
 

@@ -41,11 +41,11 @@ import {
 } from '@core/server'
 
 /** 宿主端标识（DB scopeKey） */
-export const HOST_SCOPE_KEYS = ['admin', 'web', 'uniapp'] as const
+export const HOST_SCOPE_KEYS = ['admin', 'web', 'uniapp', 'uniappx'] as const
 export type HostScopeKey = (typeof HOST_SCOPE_KEYS)[number]
 
 /** 需 HTTP 拉取的 C 端（目录名与 scopeKey 脱钩） */
-const FRONT_SCOPE_KEYS = ['web', 'uniapp'] as const
+const FRONT_SCOPE_KEYS = ['web', 'uniapp', 'uniappx'] as const
 type FrontScopeKey = (typeof FRONT_SCOPE_KEYS)[number]
 
 function requireSourceLang(): string {
@@ -738,6 +738,7 @@ export class I18nPackService extends BaseService {
     scopeKey?: string
     model?: string
     mode?: 'full' | 'incremental'
+    onlyKeys?: string[]
   }): AsyncGenerator<{
     type: 'delta' | 'done' | 'error'
     text?: string
@@ -811,12 +812,24 @@ export class I18nPackService extends BaseService {
         ? (flattenLocale(sourceLangPack.packJson) as Record<string, string>)
         : {}
 
-      const toTranslate = this.collectLocaleKeysToTranslate(
-        sourceFlat,
-        existingFlat,
-        sourceLangFlat,
-        incremental,
-      )
+      const onlyKeys = (body.onlyKeys ?? [])
+        .map((k) => String(k || '').trim())
+        .filter(Boolean)
+      let toTranslate: Record<string, string>
+      if (onlyKeys.length) {
+        toTranslate = {}
+        for (const k of onlyKeys) {
+          const v = sourceFlat[k]
+          if (typeof v === 'string' && v.trim()) toTranslate[k] = v
+        }
+      } else {
+        toTranslate = this.collectLocaleKeysToTranslate(
+          sourceFlat,
+          existingFlat,
+          sourceLangFlat,
+          incremental,
+        )
+      }
 
       // 仅当确实无待译 key 时才跳过（不能单靠 sourceHash：半成品包也曾被误写完整 hash）
       if (
@@ -1101,7 +1114,7 @@ export class I18nPackService extends BaseService {
   }
 
   /**
-   * 同步语言包：admin 磁盘 +（eps 开启时）web/uniapp HTTP + 已安装模块
+   * 同步语言包：admin 磁盘 +（eps 开启时）web/uniapp/uniappx HTTP + 已安装模块
    */
   async syncAllZhSources() {
     const hosts: Array<{

@@ -10,12 +10,13 @@ const config: EnvConfig = {
   system: {
     /**
      * C 端语言包 origin（开发）
-     * 源包在各自 src/locales/；HTTP：web → /locales/…；uniapp → /static/locales/…
+     * 源包在各自 locales/；HTTP：web → /locales/…；uniapp/uniappx → /static/locales/…
      * 是否同步由 vome.eps 控制
      */
     localeOrigins: {
       web: 'http://127.0.0.1:9900',
       uniapp: 'http://127.0.0.1:6600',
+      uniappx: 'http://127.0.0.1:5173',
     },
   },
 

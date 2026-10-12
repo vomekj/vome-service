@@ -10,7 +10,7 @@ import { baseColumns, columnComments, entitySchemas } from '@core/server'
 
 /**
  * 语言包（宿主 / 插件）
- * scopeType: host | plugin；host 的 scopeKey 为 admin | web | uniapp
+ * scopeType: host | plugin；host 的 scopeKey 为 admin | web | uniapp | uniappx
  */
 export const i18nPack = columnComments(
   pgTable(
@@ -20,7 +20,7 @@ export const i18nPack = columnComments(
       langCode: varchar('langCode').notNull(),
       /** host | plugin */
       scopeType: varchar('scopeType').notNull().default('host'),
-      /** host → admin|web|uniapp；plugin → 插件名称（同步时写入） */
+      /** host → admin|web|uniapp|uniappx；plugin → 插件名称（同步时写入） */
       scopeKey: varchar('scopeKey').notNull().default('admin'),
       packJson: jsonb('packJson')
         .$type<Record<string, unknown>>()
