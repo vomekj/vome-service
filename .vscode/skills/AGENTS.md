@@ -1,7 +1,7 @@
 ---
 name: app-usage
 description: >-
-  本仓库应用层用法入口：service / admin / uniapp / web。
+  本仓库应用层用法入口：service / admin / uniapp / uniappx / web。
   Use when developing business code; open the matching skill below.
 ---
 
@@ -14,6 +14,7 @@ description: >-
 | 后端 | [service/SKILL.md](./service/SKILL.md) | 模块 CRUD、筛选 QueryOp、软删、本地实体缓存（后台灌桶）、国际化、插件调用、Docker 打包 |
 | 后台 | [admin/SKILL.md](./admin/SKILL.md) | CRUD 页、字典、回收站/语言 Tab、语种与语言包（列表不含 packJson）、上传、插件安装 |
 | UniApp | [uniapp/SKILL.md](./uniapp/SKILL.md) | 登录、请求、语种切换、Socket |
+| UniApp X | [uniappx/SKILL.md](./uniappx/SKILL.md) | 蒸汽 / HBuilder、EPS、登录、语种、Tab 壳、ucss |
 | Web | [web/SKILL.md](./web/SKILL.md) | 登录、请求、语种切换、Socket |
 
 ## IDE 放置建议
