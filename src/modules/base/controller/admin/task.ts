@@ -24,7 +24,7 @@ import { TaskService } from '../../service/task'
       { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
       { column: 'startDate', min: 'startDateMin', max: 'startDateMax', type: 'day' },
     ],
-    addOrderBy: { id: 'desc' },
+    addOrderBy: { id: 'asc' },
   },
   listQueryOp: {
     keyWordLikeFields: ['name', 'service', 'method'],
@@ -35,7 +35,7 @@ import { TaskService } from '../../service/task'
       { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
       { column: 'startDate', min: 'startDateMin', max: 'startDateMax', type: 'day' },
     ],
-    addOrderBy: { id: 'desc' },
+    addOrderBy: { id: 'asc' },
   },
 })
 export class TaskController extends BaseController {

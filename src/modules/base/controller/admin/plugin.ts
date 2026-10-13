@@ -19,7 +19,7 @@ import { PluginInfoService } from '../../service/plugin'
     fieldRange: [
       { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
     ],
-    addOrderBy: { createTime: 'desc' },
+    addOrderBy: { id: 'asc' },
   },
   pageQueryOp: {
     keyWordLikeFields: ['name', 'keyName', 'author', 'description'],
@@ -29,7 +29,7 @@ import { PluginInfoService } from '../../service/plugin'
     fieldRange: [
       { column: 'createTime', min: 'startTime', max: 'endTime', type: 'day' },
     ],
-    addOrderBy: { createTime: 'desc' },
+    addOrderBy: { id: 'asc' },
   },
 })
 export class PluginInfoController extends BaseController {

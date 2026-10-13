@@ -2,6 +2,17 @@ import type { Job, JobType } from 'bullmq'
 import { JobQueue } from './job-queue'
 import type { QueueRedisConnection } from './connection'
 
+function compareJobIdAsc(a: unknown, b: unknown): number {
+  const sa = a == null ? '' : String(a)
+  const sb = b == null ? '' : String(b)
+  const na = Number(sa)
+  const nb = Number(sb)
+  if (Number.isFinite(na) && Number.isFinite(nb) && sa.trim() !== '' && sb.trim() !== '') {
+    return na - nb
+  }
+  return sa.localeCompare(sb, undefined, { numeric: true })
+}
+
 /** 业务注入 + 后台管理统一入口 */
 export class QueueStore {
   readonly jobs: JobQueue
@@ -46,6 +57,11 @@ export class QueueStore {
         paused: (await q.isPaused()) === true,
       })
     }
+    // 运行中在前、已暂停在后；同组按队列名（无数字 id）
+    rows.sort((a, b) => {
+      if (a.paused !== b.paused) return a.paused ? 1 : -1
+      return a.name.localeCompare(b.name)
+    })
     return rows
   }
 
@@ -61,7 +77,10 @@ export class QueueStore {
     const start = input.start ?? 0
     const end = input.end ?? 49
     const jobs = await this.q(input.name).getJobs(states, start, end, true)
-    return jobs.map((j) => this.serializeJob(j))
+    const rows = jobs.map((j) => this.serializeJob(j))
+    // 仅按 job id 倒序（与状态无关）
+    rows.sort((a, b) => compareJobIdAsc(b.id, a.id))
+    return rows
   }
 
   async retryJob(name: string, jobId: string) {
